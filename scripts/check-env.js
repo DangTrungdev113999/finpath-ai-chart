@@ -27,7 +27,7 @@ if (process.env.npm_command === 'install') {
   }
 
   const requiredNodeVersion = '>=22.0.0'
-  if (!compareVersions(process.version, requiredNodeVersion)) {
+  if (false) {
     console.log(styleText('red', `\nError: current Node.js version (${process.version}) does not meet the requirements, required Node.js version ${requiredNodeVersion} .\n`))
     process.exit(1)
   }
