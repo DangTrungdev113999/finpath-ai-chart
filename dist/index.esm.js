@@ -1885,7 +1885,7 @@ var bollingerBands = {
             var lineConfigs = [
                 { key: 'up', visible: upVisible, defaultColor: '#2196F3' },
                 { key: 'mid', visible: midVisible, defaultColor: '#FF6D00' },
-                { key: 'dn', visible: dnVisible, defaultColor: '#00BCD4' }
+                { key: 'dn', visible: dnVisible, defaultColor: '#2196F3' }
             ];
             var lineStyles = styles === null || styles === void 0 ? void 0 : styles.lines;
             ctx.save();
