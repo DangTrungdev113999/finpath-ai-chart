@@ -1813,6 +1813,128 @@ var bollingerBands = {
             }
             return boll;
         });
+    },
+    draw: function (params) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+        var ctx = params.ctx, indicator = params.indicator, xAxis = params.xAxis, yAxis = params.yAxis, chart = params.chart;
+        // Guard: empty result
+        if (indicator.result.length === 0) {
+            return false;
+        }
+        // ─── Three-step fallback chain: styles → extendData → default ─────────────
+        var styles = indicator.styles;
+        var extendData = indicator.extendData;
+        // Fill configuration
+        var fillVisible = (_c = (_b = (_a = styles === null || styles === void 0 ? void 0 : styles.fill) === null || _a === void 0 ? void 0 : _a.show) !== null && _b !== void 0 ? _b : extendData === null || extendData === void 0 ? void 0 : extendData.fillVisible) !== null && _c !== void 0 ? _c : true;
+        var fillColor = (_f = (_e = (_d = styles === null || styles === void 0 ? void 0 : styles.fill) === null || _d === void 0 ? void 0 : _d.color) !== null && _e !== void 0 ? _e : extendData === null || extendData === void 0 ? void 0 : extendData.fillColor) !== null && _f !== void 0 ? _f : 'rgba(33, 150, 243, 0.1)';
+        // Per-line visibility
+        var upVisible = (_k = (_j = (_h = (_g = styles === null || styles === void 0 ? void 0 : styles.lines) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.show) !== null && _j !== void 0 ? _j : extendData === null || extendData === void 0 ? void 0 : extendData.upVisible) !== null && _k !== void 0 ? _k : true;
+        var midVisible = (_p = (_o = (_m = (_l = styles === null || styles === void 0 ? void 0 : styles.lines) === null || _l === void 0 ? void 0 : _l[1]) === null || _m === void 0 ? void 0 : _m.show) !== null && _o !== void 0 ? _o : extendData === null || extendData === void 0 ? void 0 : extendData.midVisible) !== null && _p !== void 0 ? _p : true;
+        var dnVisible = (_t = (_s = (_r = (_q = styles === null || styles === void 0 ? void 0 : styles.lines) === null || _q === void 0 ? void 0 : _q[2]) === null || _r === void 0 ? void 0 : _r.show) !== null && _s !== void 0 ? _s : extendData === null || extendData === void 0 ? void 0 : extendData.dnVisible) !== null && _t !== void 0 ? _t : true;
+        // ─── Visible range ────────────────────────────────────────────────────────
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from;
+        var to = visibleRange.to;
+        if (from >= to) {
+            return false;
+        }
+        var result = indicator.result;
+        // ─── Fill polygon (DRAW-02: destination-over keeps fill behind candles) ───
+        if (fillVisible) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = fillColor;
+            var segmentUpper_1 = [];
+            var segmentLower_1 = [];
+            var flushSegment = function () {
+                if (segmentUpper_1.length < 2) {
+                    segmentUpper_1 = [];
+                    segmentLower_1 = [];
+                    return;
+                }
+                ctx.beginPath();
+                ctx.moveTo(segmentUpper_1[0].x, segmentUpper_1[0].y);
+                for (var j = 1; j < segmentUpper_1.length; j++) {
+                    ctx.lineTo(segmentUpper_1[j].x, segmentUpper_1[j].y);
+                }
+                // Trace lower band right-to-left to close the polygon
+                for (var j = segmentLower_1.length - 1; j >= 0; j--) {
+                    ctx.lineTo(segmentLower_1[j].x, segmentLower_1[j].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                segmentUpper_1 = [];
+                segmentLower_1 = [];
+            };
+            for (var i = from; i < to && i < result.length; i++) {
+                var item = result[i];
+                if (item.up == null || item.dn == null) {
+                    // Data gap — close the current segment and start fresh
+                    flushSegment();
+                    continue;
+                }
+                var x = xAxis.convertToPixel(i);
+                segmentUpper_1.push({ x: x, y: yAxis.convertToPixel(item.up) });
+                segmentLower_1.push({ x: x, y: yAxis.convertToPixel(item.dn) });
+            }
+            // Close the final segment
+            flushSegment();
+            ctx.restore();
+        }
+        // ─── Per-line visibility suppression (STYL-04) ────────────────────────────
+        // When all lines are visible, return false and let KlineChart draw them natively.
+        // When any line is hidden, take control: draw only the visible lines manually,
+        // then return true so KlineChart skips the native figures[] pipeline entirely.
+        var allLinesVisible = upVisible && midVisible && dnVisible;
+        if (!allLinesVisible) {
+            var lineConfigs = [
+                { key: 'up', visible: upVisible, defaultColor: '#2196F3' },
+                { key: 'mid', visible: midVisible, defaultColor: '#FF6D00' },
+                { key: 'dn', visible: dnVisible, defaultColor: '#00BCD4' }
+            ];
+            var lineStyles = styles === null || styles === void 0 ? void 0 : styles.lines;
+            ctx.save();
+            for (var li = 0; li < lineConfigs.length; li++) {
+                var cfg = lineConfigs[li];
+                if (!cfg.visible) {
+                    continue;
+                }
+                var lineStyle = lineStyles === null || lineStyles === void 0 ? void 0 : lineStyles[li];
+                ctx.strokeStyle = (_u = lineStyle === null || lineStyle === void 0 ? void 0 : lineStyle.color) !== null && _u !== void 0 ? _u : cfg.defaultColor;
+                ctx.lineWidth = (_v = lineStyle === null || lineStyle === void 0 ? void 0 : lineStyle.size) !== null && _v !== void 0 ? _v : 1;
+                ctx.lineJoin = 'round';
+                var dashStyle = lineStyle === null || lineStyle === void 0 ? void 0 : lineStyle.style;
+                if (dashStyle === 'dashed') {
+                    ctx.setLineDash((_w = lineStyle === null || lineStyle === void 0 ? void 0 : lineStyle.dashedValue) !== null && _w !== void 0 ? _w : [6, 4]);
+                }
+                else {
+                    ctx.setLineDash([]);
+                }
+                ctx.beginPath();
+                var started = false;
+                for (var i = from; i < to && i < result.length; i++) {
+                    var val = result[i][cfg.key];
+                    if (val == null) {
+                        started = false;
+                        continue;
+                    }
+                    var x = xAxis.convertToPixel(i);
+                    var y = yAxis.convertToPixel(val);
+                    if (!started) {
+                        ctx.moveTo(x, y);
+                        started = true;
+                    }
+                    else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        // Return true when we drew lines manually (suppresses KlineChart native pipeline).
+        // Return false when all lines are visible (lets KlineChart draw them at native quality).
+        return !allLinesVisible;
     }
 };
 

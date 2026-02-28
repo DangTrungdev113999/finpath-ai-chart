@@ -75,7 +75,7 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
     const { ctx, indicator, xAxis, yAxis, chart } = params
 
     // Guard: empty result
-    if (!indicator.result?.length) {
+    if (indicator.result.length === 0) {
       return false
     }
 
@@ -145,7 +145,7 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
 
       for (let i = from; i < to && i < result.length; i++) {
         const item = result[i]
-        if (item?.up == null || item?.dn == null) {
+        if (item.up == null || item.dn == null) {
           // Data gap — close the current segment and start fresh
           flushSegment()
           continue
@@ -197,7 +197,7 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
         ctx.beginPath()
         let started = false
         for (let i = from; i < to && i < result.length; i++) {
-          const val = result[i]?.[cfg.key]
+          const val = result[i][cfg.key]
           if (val == null) {
             started = false
             continue
