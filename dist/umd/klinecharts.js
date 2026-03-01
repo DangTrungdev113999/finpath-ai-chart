@@ -1842,7 +1842,7 @@ var bollingerBands = {
         // ─── Fill polygon (DRAW-02: destination-over keeps fill behind candles) ───
         if (fillVisible) {
             ctx.save();
-            ctx.globalCompositeOperation = 'destination-over';
+            ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = fillColor;
             var segmentUpper_1 = [];
             var segmentLower_1 = [];

@@ -116,7 +116,7 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
     // ─── Fill polygon (DRAW-02: destination-over keeps fill behind candles) ───
     if (fillVisible) {
       ctx.save()
-      ctx.globalCompositeOperation = 'destination-over'
+      ctx.globalCompositeOperation = 'source-over'
       ctx.fillStyle = fillColor
 
       let segmentUpper: Array<{ x: number; y: number }> = []
