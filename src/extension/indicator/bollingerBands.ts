@@ -168,9 +168,9 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
 
     if (!allLinesVisible) {
       const lineConfigs = [
-        { key: 'up' as keyof Boll, visible: upVisible, defaultColor: '#2196F3' },
+        { key: 'up' as keyof Boll, visible: upVisible, defaultColor: '#2962FF' },
         { key: 'mid' as keyof Boll, visible: midVisible, defaultColor: '#FF6D00' },
-        { key: 'dn' as keyof Boll, visible: dnVisible, defaultColor: '#26C6DA' }
+        { key: 'dn' as keyof Boll, visible: dnVisible, defaultColor: '#2962FF' }
       ]
 
       const lineStyles = styles?.lines
