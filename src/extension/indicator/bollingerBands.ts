@@ -170,7 +170,7 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
       const lineConfigs = [
         { key: 'up' as keyof Boll, visible: upVisible, defaultColor: '#2196F3' },
         { key: 'mid' as keyof Boll, visible: midVisible, defaultColor: '#FF6D00' },
-        { key: 'dn' as keyof Boll, visible: dnVisible, defaultColor: '#2196F3' }
+        { key: 'dn' as keyof Boll, visible: dnVisible, defaultColor: '#26C6DA' }
       ]
 
       const lineStyles = styles?.lines
