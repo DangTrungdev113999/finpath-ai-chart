@@ -446,7 +446,9 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     const xAxis = chart.getXAxisPane().getAxisComponent()
     const coordinates = points.map(point => {
       let dataIndex: Nullable<number> = null
-      if (isNumber(point.timestamp)) {
+      if (isNumber(point.dataIndex)) {
+        dataIndex = point.dataIndex
+      } else if (isNumber(point.timestamp)) {
         dataIndex = chartStore.timestampToDataIndex(point.timestamp)
       }
       const coordinate = { x: 0, y: 0 }
@@ -483,7 +485,12 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
       // @ts-expect-error
       const attrsArray = [].concat(attrs)
       attrsArray.forEach((ats) => {
-        const events = this._createFigureEvents(overlay, 'other', figureIndex, figure)
+        const pointIdx = figure.pointIndex
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- pointIndex may be undefined at runtime
+        const isBoundPoint = pointIdx !== undefined && pointIdx !== null
+        const events = this._createFigureEvents(
+          overlay, isBoundPoint ? 'point' : 'other', isBoundPoint ? pointIdx : figureIndex, figure
+        )
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- ignore
         // @ts-expect-error
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore

@@ -651,6 +651,7 @@ export interface OverlayPerformEventParams {
 	points: Array<Partial<Point>>;
 	performPointIndex: number;
 	performPoint: Partial<Point>;
+	prevPoints: Array<Partial<Point>>;
 }
 export interface OverlayEventCollection<E> {
 	onDrawStart: Nullable<OverlayEventCallback<E>>;
@@ -675,6 +676,11 @@ export interface OverlayFigure {
 	attrs: unknown;
 	styles?: unknown;
 	ignoreEvent?: boolean | Array<keyof Omit<OverlayEventCollection<unknown>, "onDrawStart" | "onDrawing" | "onDrawEnd" | "onRemoved">>;
+	/**
+	 * When set, this custom figure behaves like a control point with the given index.
+	 * Dragging it will call eventPressedPointMove(point, pointIndex) instead of eventPressedOtherMove.
+	 */
+	pointIndex?: number;
 }
 export interface OverlayCreateFiguresCallbackParams<E> {
 	chart: Chart;

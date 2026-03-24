@@ -3623,7 +3623,8 @@ var OverlayImp = /** @class */ (function () {
                         mode: this.mode,
                         points: this.points,
                         performPointIndex: i,
-                        performPoint: this.points[i]
+                        performPoint: this.points[i],
+                        prevPoints: this._prevPressedPoints
                     });
                 }
             }
@@ -3633,7 +3634,8 @@ var OverlayImp = /** @class */ (function () {
                     mode: this.mode,
                     points: this.points,
                     performPointIndex: this.points.length - 1,
-                    performPoint: this.points[this.points.length - 1]
+                    performPoint: this.points[this.points.length - 1],
+                    prevPoints: this._prevPressedPoints
                 });
             }
         }
@@ -3685,12 +3687,23 @@ var OverlayImp = /** @class */ (function () {
             mode: this.mode,
             points: this.points,
             performPointIndex: pointIndex,
-            performPoint: newPoint
+            performPoint: newPoint,
+            prevPoints: this._prevPressedPoints
         });
     };
     OverlayImp.prototype.eventPressedPointMove = function (point, pointIndex) {
         var _a;
+        console.log('[KLINE-DEBUG] eventPressedPointMove', { pointIndex: pointIndex, totalPoints: this.points.length, overlayName: this.name });
+        if (pointIndex >= this.points.length) {
+            console.warn('[KLINE-DEBUG] pointIndex OUT OF BOUNDS!', { pointIndex: pointIndex, totalPoints: this.points.length });
+            while (this.points.length <= pointIndex) {
+                this.points.push({});
+            }
+        }
         this.points[pointIndex].timestamp = point.timestamp;
+        if (isNumber(point.dataIndex)) {
+            this.points[pointIndex].dataIndex = point.dataIndex;
+        }
         if (isNumber(point.value)) {
             this.points[pointIndex].value = point.value;
         }
@@ -3699,7 +3712,8 @@ var OverlayImp = /** @class */ (function () {
             points: this.points,
             mode: this.mode,
             performPointIndex: pointIndex,
-            performPoint: this.points[pointIndex]
+            performPoint: this.points[pointIndex],
+            prevPoints: this._prevPressedPoints
         });
     };
     OverlayImp.prototype.startPressedMove = function (point) {
@@ -8957,7 +8971,10 @@ var OverlayView = /** @class */ (function (_super) {
         var coordinates = points.map(function (point) {
             var _a;
             var dataIndex = null;
-            if (isNumber(point.timestamp)) {
+            if (isNumber(point.dataIndex)) {
+                dataIndex = point.dataIndex;
+            }
+            else if (isNumber(point.timestamp)) {
                 dataIndex = chartStore.timestampToDataIndex(point.timestamp);
             }
             var coordinate = { x: 0, y: 0 };
@@ -8987,7 +9004,10 @@ var OverlayView = /** @class */ (function (_super) {
             var attrsArray = [].concat(attrs);
             attrsArray.forEach(function (ats) {
                 var _a, _b;
-                var events = _this._createFigureEvents(overlay, 'other', figureIndex, figure);
+                var pointIdx = figure.pointIndex;
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- pointIndex may be undefined at runtime
+                var isBoundPoint = pointIdx !== undefined && pointIdx !== null;
+                var events = _this._createFigureEvents(overlay, isBoundPoint ? 'point' : 'other', isBoundPoint ? pointIdx : figureIndex, figure);
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- ignore
                 // @ts-expect-error
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore

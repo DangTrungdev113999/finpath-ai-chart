@@ -35,6 +35,7 @@ export interface OverlayPerformEventParams {
   points: Array<Partial<Point>>
   performPointIndex: number
   performPoint: Partial<Point>
+  prevPoints: Array<Partial<Point>>
 }
 
 export interface OverlayEventCollection<E> {
@@ -72,6 +73,11 @@ export interface OverlayFigure {
   attrs: unknown
   styles?: unknown
   ignoreEvent?: boolean | Array<keyof Omit<OverlayEventCollection<unknown>, 'onDrawStart' | 'onDrawing' | 'onDrawEnd' | 'onRemoved'>>
+  /**
+   * When set, this custom figure behaves like a control point with the given index.
+   * Dragging it will call eventPressedPointMove(point, pointIndex) instead of eventPressedOtherMove.
+   */
+  pointIndex?: number
 }
 
 export interface OverlayCreateFiguresCallbackParams<E> {
@@ -237,7 +243,7 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
   needDefaultYAxisFigure = false
   mode: OverlayMode = 'normal'
   modeSensitivity = 8
-  points: Array<Partial<Omit<Point, 'dataIndex'>>> = []
+  points: Array<Partial<Point>> = []
   extendData: E
   styles: Nullable<DeepPartial<OverlayStyle>> = null
   createPointFigures: Nullable<OverlayCreateFiguresCallback<E>> = null
@@ -320,7 +326,8 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
             mode: this.mode,
             points: this.points,
             performPointIndex: i,
-            performPoint: this.points[i]
+            performPoint: this.points[i],
+            prevPoints: this._prevPressedPoints
           })
         }
       }
@@ -331,7 +338,8 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
           mode: this.mode,
           points: this.points,
           performPointIndex: this.points.length - 1,
-          performPoint: this.points[this.points.length - 1]
+          performPoint: this.points[this.points.length - 1],
+          prevPoints: this._prevPressedPoints
         })
       }
     }
@@ -390,12 +398,23 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       mode: this.mode,
       points: this.points,
       performPointIndex: pointIndex,
-      performPoint: newPoint
+      performPoint: newPoint,
+      prevPoints: this._prevPressedPoints
     })
   }
 
   eventPressedPointMove (point: Partial<Point>, pointIndex: number): void {
+    console.log('[KLINE-DEBUG] eventPressedPointMove', { pointIndex, totalPoints: this.points.length, overlayName: this.name })
+    if (pointIndex >= this.points.length) {
+      console.warn('[KLINE-DEBUG] pointIndex OUT OF BOUNDS!', { pointIndex, totalPoints: this.points.length })
+      while (this.points.length <= pointIndex) {
+        this.points.push({})
+      }
+    }
     this.points[pointIndex].timestamp = point.timestamp
+    if (isNumber(point.dataIndex)) {
+      this.points[pointIndex].dataIndex = point.dataIndex
+    }
     if (isNumber(point.value)) {
       this.points[pointIndex].value = point.value
     }
@@ -404,7 +423,8 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       points: this.points,
       mode: this.mode,
       performPointIndex: pointIndex,
-      performPoint: this.points[pointIndex]
+      performPoint: this.points[pointIndex],
+      prevPoints: this._prevPressedPoints
     })
   }
 
