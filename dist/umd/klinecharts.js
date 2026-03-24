@@ -8969,11 +8969,11 @@ var OverlayView = /** @class */ (function (_super) {
         var coordinates = points.map(function (point) {
             var _a;
             var dataIndex = null;
-            if (isNumber(point.dataIndex)) {
-                dataIndex = point.dataIndex;
-            }
-            else if (isNumber(point.timestamp)) {
+            if (isNumber(point.timestamp)) {
                 dataIndex = chartStore.timestampToDataIndex(point.timestamp);
+            }
+            else if (isNumber(point.dataIndex)) {
+                dataIndex = point.dataIndex;
             }
             var coordinate = { x: 0, y: 0 };
             if (isNumber(dataIndex)) {
