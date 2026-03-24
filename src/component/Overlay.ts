@@ -404,9 +404,7 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
   }
 
   eventPressedPointMove (point: Partial<Point>, pointIndex: number): void {
-    console.log('[KLINE-DEBUG] eventPressedPointMove', { pointIndex, totalPoints: this.points.length, overlayName: this.name })
     if (pointIndex >= this.points.length) {
-      console.warn('[KLINE-DEBUG] pointIndex OUT OF BOUNDS!', { pointIndex, totalPoints: this.points.length })
       while (this.points.length <= pointIndex) {
         this.points.push({})
       }

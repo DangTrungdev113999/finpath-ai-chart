@@ -3688,9 +3688,7 @@ var OverlayImp = /** @class */ (function () {
     };
     OverlayImp.prototype.eventPressedPointMove = function (point, pointIndex) {
         var _a;
-        console.log('[KLINE-DEBUG] eventPressedPointMove', { pointIndex: pointIndex, totalPoints: this.points.length, overlayName: this.name });
         if (pointIndex >= this.points.length) {
-            console.warn('[KLINE-DEBUG] pointIndex OUT OF BOUNDS!', { pointIndex: pointIndex, totalPoints: this.points.length });
             while (this.points.length <= pointIndex) {
                 this.points.push({});
             }
