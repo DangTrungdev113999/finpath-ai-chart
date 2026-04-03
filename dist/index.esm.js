@@ -3449,6 +3449,508 @@ var volumeRatio = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var VPVR_DEFAULT_SETTINGS = {
+    rowLayout: 'numberOfRows',
+    rowSize: 24,
+    volumeType: 'upDown',
+    valueAreaPercent: 70,
+    showProfile: true,
+    showValues: false,
+    valuesColor: '#424242',
+    widthPercent: 30,
+    placement: 'right',
+    upVolumeColor: 'rgba(21, 146, 230, 0.24)',
+    downVolumeColor: 'rgba(251, 193, 35, 0.24)',
+    vaUpColor: 'rgba(21, 146, 230, 0.70)',
+    vaDownColor: 'rgba(251, 193, 35, 0.70)',
+    showPOC: true,
+    pocColor: '#FF0000',
+    pocLineWidth: 2,
+    pocLineStyle: 'solid',
+    showDevPOC: false,
+    devPOCColor: '#FF0000',
+    showDevVA: false,
+    devVAColor: '#0000FF',
+    showPriceScaleLabel: true,
+    showStatusLineValues: true
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function computeVPVRProfile(dataList, from, to, settings) {
+    var e_1, _a, e_2, _b;
+    var _c;
+    var visibleBars = dataList.slice(from, to + 1);
+    var rangeKey = "".concat(from, "-").concat(to);
+    if (visibleBars.length === 0) {
+        return { rows: [], pocIndex: 0, vahIndex: 0, valIndex: 0, totalVolume: 0, maxRowVolume: 0, rangeKey: rangeKey };
+    }
+    // Find price range
+    var profileHigh = -Infinity;
+    var profileLow = Infinity;
+    try {
+        for (var visibleBars_1 = __values(visibleBars), visibleBars_1_1 = visibleBars_1.next(); !visibleBars_1_1.done; visibleBars_1_1 = visibleBars_1.next()) {
+            var bar = visibleBars_1_1.value;
+            if (bar.high > profileHigh)
+                profileHigh = bar.high;
+            if (bar.low < profileLow)
+                profileLow = bar.low;
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (visibleBars_1_1 && !visibleBars_1_1.done && (_a = visibleBars_1.return)) _a.call(visibleBars_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    if (profileHigh === profileLow)
+        profileHigh += 0.01;
+    // Calculate row count
+    var rowCount = Math.max(1, Math.min(settings.rowSize, 1000));
+    var rowHeight = (profileHigh - profileLow) / rowCount;
+    // Initialize rows
+    var rows = Array.from({ length: rowCount }, function (_, i) { return ({
+        low: profileLow + rowHeight * i,
+        high: profileLow + rowHeight * (i + 1),
+        mid: profileLow + rowHeight * (i + 0.5),
+        buyVol: 0,
+        sellVol: 0,
+        totalVol: 0
+    }); });
+    try {
+        // Distribute volume using overlap-proportional method
+        for (var visibleBars_2 = __values(visibleBars), visibleBars_2_1 = visibleBars_2.next(); !visibleBars_2_1.done; visibleBars_2_1 = visibleBars_2.next()) {
+            var bar = visibleBars_2_1.value;
+            var vol = (_c = bar.volume) !== null && _c !== void 0 ? _c : 0;
+            if (vol === 0)
+                continue;
+            var barRange = bar.high - bar.low;
+            if (barRange === 0) {
+                // Doji: 50/50 split to containing row
+                var idx = Math.min(Math.floor((bar.close - profileLow) / rowHeight), rowCount - 1);
+                var safeIdx = Math.max(0, idx);
+                rows[safeIdx].buyVol += vol * 0.5;
+                rows[safeIdx].sellVol += vol * 0.5;
+                rows[safeIdx].totalVol += vol;
+                continue;
+            }
+            // Buy/sell split: buyVol = vol * (close-low)/(high-low)
+            var buyRatio = (bar.close - bar.low) / barRange;
+            var barBuyVol = vol * buyRatio;
+            var barSellVol = vol * (1 - buyRatio);
+            for (var i = 0; i < rowCount; i++) {
+                var overlap = Math.max(0, Math.min(bar.high, rows[i].high) - Math.max(bar.low, rows[i].low));
+                if (overlap <= 0)
+                    continue;
+                var proportion = overlap / barRange;
+                rows[i].buyVol += barBuyVol * proportion;
+                rows[i].sellVol += barSellVol * proportion;
+            }
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (visibleBars_2_1 && !visibleBars_2_1.done && (_b = visibleBars_2.return)) _b.call(visibleBars_2);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+    // Compute totalVol per row and find max
+    var totalVolume = 0;
+    var maxRowVolume = 0;
+    var pocIndex = 0;
+    var midPrice = (profileHigh + profileLow) / 2;
+    for (var i = 0; i < rowCount; i++) {
+        rows[i].totalVol = rows[i].buyVol + rows[i].sellVol;
+        totalVolume += rows[i].totalVol;
+        // POC: highest totalVol, tie-break: closer to mid-range
+        if (rows[i].totalVol > maxRowVolume ||
+            (rows[i].totalVol === maxRowVolume && maxRowVolume > 0 &&
+                Math.abs(rows[i].mid - midPrice) < Math.abs(rows[pocIndex].mid - midPrice))) {
+            maxRowVolume = rows[i].totalVol;
+            pocIndex = i;
+        }
+    }
+    // Value Area: bilateral expansion from POC
+    var targetVol = totalVolume * (settings.valueAreaPercent / 100);
+    var accVol = rows[pocIndex].totalVol;
+    var vahIndex = pocIndex;
+    var valIndex = pocIndex;
+    var up = pocIndex + 1;
+    var dn = pocIndex - 1;
+    while (accVol < targetVol) {
+        var volUp = up < rowCount ? rows[up].totalVol : 0;
+        var volDn = dn >= 0 ? rows[dn].totalVol : 0;
+        if (volUp === 0 && volDn === 0)
+            break;
+        if (volUp >= volDn && up < rowCount) {
+            accVol += volUp;
+            vahIndex = up;
+            up++;
+        }
+        else if (dn >= 0) {
+            accVol += volDn;
+            valIndex = dn;
+            dn--;
+        }
+        else {
+            break;
+        }
+    }
+    return { rows: rows, pocIndex: pocIndex, vahIndex: vahIndex, valIndex: valIndex, totalVolume: totalVolume, maxRowVolume: maxRowVolume, rangeKey: rangeKey };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function lineStyleToDash(style) {
+    switch (style) {
+        case 'dashed': return [6, 4];
+        case 'dotted': return [2, 2];
+        default: return [];
+    }
+}
+function formatVolume$1(vol) {
+    if (vol >= 1e9)
+        return "".concat((vol / 1e9).toFixed(2), "B");
+    if (vol >= 1e6)
+        return "".concat((vol / 1e6).toFixed(2), "M");
+    if (vol >= 1e3)
+        return "".concat((vol / 1e3).toFixed(1), "K");
+    return vol.toFixed(0);
+}
+function drawVPVR(ctx, profile, settings, bounding, yAxis) {
+    var e_1, _a;
+    if (!settings.showProfile || profile.rows.length === 0 || profile.maxRowVolume === 0)
+        return;
+    var maxWidth = bounding.width * (settings.widthPercent / 100);
+    // Collect rects in 4 color groups for batch rendering
+    var upOutside = [];
+    var downOutside = [];
+    var upInside = [];
+    var downInside = [];
+    for (var i = 0; i < profile.rows.length; i++) {
+        var row = profile.rows[i];
+        if (row.totalVol === 0)
+            continue;
+        var rowTopY = yAxis.convertToPixel(row.high);
+        var rowBottomY = yAxis.convertToPixel(row.low);
+        var y = Math.min(rowTopY, rowBottomY);
+        var barHeight = Math.max(1, Math.abs(rowBottomY - rowTopY) - 1);
+        var isInsideVA = i >= profile.valIndex && i <= profile.vahIndex;
+        var relativeWidth = row.totalVol / profile.maxRowVolume;
+        var totalBarWidth = relativeWidth * maxWidth;
+        if (settings.volumeType === 'upDown') {
+            var buyRatio = row.totalVol > 0 ? row.buyVol / row.totalVol : 0;
+            var buyWidth = totalBarWidth * buyRatio;
+            var sellWidth = totalBarWidth - buyWidth;
+            if (settings.placement === 'right') {
+                // Bars extend leftward from right edge
+                // Down (gold) on left, Up (blue) on right
+                var baseX = bounding.width - totalBarWidth;
+                if (sellWidth > 0) {
+                    var target = isInsideVA ? downInside : downOutside;
+                    target.push({ x: baseX, y: y, w: sellWidth, h: barHeight });
+                }
+                if (buyWidth > 0) {
+                    var target = isInsideVA ? upInside : upOutside;
+                    target.push({ x: baseX + sellWidth, y: y, w: buyWidth, h: barHeight });
+                }
+            }
+            else {
+                // Bars extend rightward from left edge
+                if (buyWidth > 0) {
+                    var target = isInsideVA ? upInside : upOutside;
+                    target.push({ x: 0, y: y, w: buyWidth, h: barHeight });
+                }
+                if (sellWidth > 0) {
+                    var target = isInsideVA ? downInside : downOutside;
+                    target.push({ x: buyWidth, y: y, w: sellWidth, h: barHeight });
+                }
+            }
+        }
+        else {
+            // 'total' or 'delta' mode
+            var isDelta = settings.volumeType === 'delta';
+            var delta = row.buyVol - row.sellVol;
+            var barWidth = isDelta
+                ? (Math.abs(delta) / profile.maxRowVolume) * maxWidth
+                : totalBarWidth;
+            var isUpColor = isDelta ? delta >= 0 : true;
+            if (barWidth > 0) {
+                var barX = settings.placement === 'right' ? bounding.width - barWidth : 0;
+                var rect = { x: barX, y: y, w: barWidth, h: barHeight };
+                if (isUpColor) {
+                    (isInsideVA ? upInside : upOutside).push(rect);
+                }
+                else {
+                    (isInsideVA ? downInside : downOutside).push(rect);
+                }
+            }
+        }
+    }
+    // Batch render: 4 fillStyle calls for all rects
+    var batchDraw = function (rects, color) {
+        var e_2, _a;
+        if (rects.length === 0)
+            return;
+        ctx.fillStyle = color;
+        try {
+            for (var rects_1 = __values(rects), rects_1_1 = rects_1.next(); !rects_1_1.done; rects_1_1 = rects_1.next()) {
+                var r = rects_1_1.value;
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (rects_1_1 && !rects_1_1.done && (_a = rects_1.return)) _a.call(rects_1);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+    };
+    batchDraw(downOutside, settings.downVolumeColor);
+    batchDraw(upOutside, settings.upVolumeColor);
+    batchDraw(downInside, settings.vaDownColor);
+    batchDraw(upInside, settings.vaUpColor);
+    // POC line: full chart width
+    if (settings.showPOC && profile.rows.length > 0) {
+        var pocRow = profile.rows[profile.pocIndex];
+        var pocY = yAxis.convertToPixel(pocRow.mid);
+        ctx.strokeStyle = settings.pocColor;
+        ctx.lineWidth = settings.pocLineWidth;
+        ctx.setLineDash(lineStyleToDash(settings.pocLineStyle));
+        ctx.beginPath();
+        ctx.moveTo(0, pocY);
+        ctx.lineTo(bounding.width, pocY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    // Value text on bars (P2, off by default)
+    if (settings.showValues) {
+        ctx.fillStyle = settings.valuesColor;
+        ctx.font = '10px sans-serif';
+        ctx.textBaseline = 'middle';
+        try {
+            for (var _b = __values(profile.rows), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var row = _c.value;
+                if (row.totalVol === 0)
+                    continue;
+                var rowTopY = yAxis.convertToPixel(row.high);
+                var rowBottomY = yAxis.convertToPixel(row.low);
+                var midY = (rowTopY + rowBottomY) / 2;
+                var text = formatVolume$1(row.totalVol);
+                var relativeWidth = row.totalVol / profile.maxRowVolume;
+                var barWidth = relativeWidth * maxWidth;
+                if (settings.placement === 'right') {
+                    ctx.textAlign = 'right';
+                    ctx.fillText(text, bounding.width - barWidth - 4, midY);
+                }
+                else {
+                    ctx.textAlign = 'left';
+                    ctx.fillText(text, barWidth + 4, midY);
+                }
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+    }
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function formatVolume(vol) {
+    if (vol >= 1e9)
+        return "".concat((vol / 1e9).toFixed(3), "B");
+    if (vol >= 1e6)
+        return "".concat((vol / 1e6).toFixed(3), "M");
+    if (vol >= 1e3)
+        return "".concat((vol / 1e3).toFixed(1), "K");
+    return vol.toFixed(0);
+}
+function resolveSettings$1(extendData) {
+    if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
+        return __assign(__assign({}, VPVR_DEFAULT_SETTINGS), extendData);
+    }
+    return __assign({}, VPVR_DEFAULT_SETTINGS);
+}
+function createVPVRTooltip(params) {
+    var e_1, _a;
+    var indicator = params.indicator, crosshair = params.crosshair, yAxis = params.yAxis;
+    var settings = resolveSettings$1(indicator.extendData);
+    var volumeTypeLabel = settings.volumeType === 'upDown' ? 'Up/Down' : settings.volumeType === 'total' ? 'Total' : 'Delta';
+    var calcParamsText = "Number Of Rows ".concat(settings.rowSize, " ").concat(volumeTypeLabel, " ").concat(settings.valueAreaPercent);
+    var result = {
+        name: 'VPVR',
+        calcParamsText: calcParamsText,
+        features: [],
+        legends: []
+    };
+    if (!settings.showStatusLineValues)
+        return result;
+    // Find the cached profile from extendData
+    var cache = settings._cache;
+    if ((cache === null || cache === void 0 ? void 0 : cache.profile) == null)
+        return result;
+    var profile = cache.profile;
+    // Map crosshair Y position to a price level, then find the matching row
+    var crosshairY = crosshair.y;
+    if (crosshairY === undefined || profile.rows.length === 0)
+        return result;
+    var crosshairPrice = yAxis.convertFromPixel(crosshairY);
+    // Binary-ish search for the row containing this price
+    var matchedRow = profile.rows[0];
+    try {
+        for (var _b = __values(profile.rows), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var row = _c.value;
+            if (crosshairPrice >= row.low && crosshairPrice < row.high) {
+                matchedRow = row;
+                break;
+            }
+            // Handle edge case: price exactly at the top boundary of the last row
+            if (crosshairPrice >= row.high && row === profile.rows[profile.rows.length - 1]) {
+                matchedRow = row;
+            }
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    result.legends = [
+        {
+            title: { text: 'Buy: ', color: 'rgba(21, 146, 230, 0.70)' },
+            value: { text: formatVolume(matchedRow.buyVol), color: 'rgba(21, 146, 230, 0.70)' }
+        },
+        {
+            title: { text: 'Sell: ', color: 'rgba(251, 193, 35, 0.70)' },
+            value: { text: formatVolume(matchedRow.sellVol), color: 'rgba(251, 193, 35, 0.70)' }
+        },
+        {
+            title: { text: 'Total: ', color: '#787B86' },
+            value: { text: formatVolume(matchedRow.totalVol), color: '#787B86' }
+        }
+    ];
+    return result;
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function resolveSettings(extendData) {
+    if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
+        return __assign(__assign({}, VPVR_DEFAULT_SETTINGS), extendData);
+    }
+    return __assign({}, VPVR_DEFAULT_SETTINGS);
+}
+var volumeProfileVisibleRange = {
+    name: 'VPVR',
+    shortName: 'VPVR',
+    series: 'price',
+    precision: 0,
+    shouldOhlc: false,
+    shouldFormatBigNumber: true,
+    zLevel: -1,
+    figures: [],
+    calcParams: [],
+    // No-op calc: real computation happens in draw() based on visible range
+    calc: function (dataList) { return dataList.map(function () { return ({}); }); },
+    draw: function (_a) {
+        var _b, _c;
+        var ctx = _a.ctx, chart = _a.chart, indicator = _a.indicator, bounding = _a.bounding, yAxis = _a.yAxis;
+        var dataList = chart.getDataList();
+        if (dataList.length === 0)
+            return true;
+        var settings = resolveSettings(indicator.extendData);
+        if (!settings.showProfile)
+            return true;
+        var visibleRange = chart.getVisibleRange();
+        var from = Math.max(0, visibleRange.realFrom);
+        var to = Math.min(dataList.length - 1, visibleRange.realTo);
+        if (from >= to)
+            return true;
+        var rangeKey = "".concat(from, "-").concat(to, "-").concat(settings.rowSize, "-").concat(settings.valueAreaPercent, "-").concat(settings.volumeType);
+        // Check cache: reuse profile if range hasn't changed
+        var profile = ((_b = settings._cache) === null || _b === void 0 ? void 0 : _b.rangeKey) === rangeKey ? (_c = settings._cache.profile) !== null && _c !== void 0 ? _c : null : null;
+        if (profile === null) {
+            profile = computeVPVRProfile(dataList, from, to, settings);
+            // Store cache in extendData (instance-level, not module-level)
+            settings._cache = { profile: profile, rangeKey: rangeKey };
+        }
+        if (profile.rows.length === 0 || profile.maxRowVolume === 0)
+            return true;
+        ctx.save();
+        drawVPVR(ctx, profile, settings, bounding, yAxis);
+        ctx.restore();
+        return true;
+    },
+    createTooltipDataSource: createVPVRTooltip
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * WR
  * 公式 WR(N) = 100 * [ C - HIGH(N) ] / [ HIGH(N)-LOW(N) ]
@@ -3503,7 +4005,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, tripleExponentiallySmoothedAverage, volume, volumeRatio, williamsR
+    stoch, stopAndReverse, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, volumeRatio, williamsR
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
