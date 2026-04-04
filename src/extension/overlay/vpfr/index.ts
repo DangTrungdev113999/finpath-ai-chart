@@ -16,7 +16,7 @@ import type { OverlayTemplate, OverlayFigure } from '../../../component/Overlay'
 import type { EventOverlayInfo } from '../../../Store'
 import type { LineAttrs } from '../../figure/line'
 
-import type { VPFRExtendData } from './types'
+import type { VPFRExtendData, VPFRProfile } from './types'
 import { VPFR_DEFAULT_EXTEND_DATA, VPFR_AXIS_LABEL_BG, VPFR_AXIS_LABEL_TEXT_COLOR } from './constants'
 import { computeVPFRProfile } from './compute'
 import { renderVPFRFigures } from './render'
@@ -27,6 +27,10 @@ import { renderVPFRFigures } from './render'
 interface ChartInternal {
   getChartStore: () => { getClickOverlayInfo: () => EventOverlayInfo }
 }
+
+// Module-level cache — extendData is frozen/read-only, so we cache externally
+// keyed by overlay id
+const profileCache = new Map<string, { profile: VPFRProfile; rangeKey: string }>()
 
 const vpfr: OverlayTemplate<VPFRExtendData> = {
   name: 'vpfr',
@@ -92,16 +96,17 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
     const toIdx = Math.max(points[0].dataIndex, points[1].dataIndex)
 
     // Build cache key from all computation parameters
+    const overlayId = overlay.id
     const rangeKey = `${fromIdx}-${toIdx}-${settings.rowSize}-${settings.valueAreaPercent}-${settings.volumeType}`
 
-    // Use cached profile if available
-    let profile = settings._cache?.rangeKey === rangeKey ? settings._cache.profile : null
+    // Use cached profile if available (module-level cache, keyed by overlay id)
+    const cached = profileCache.get(overlayId)
+    let profile = cached?.rangeKey === rangeKey ? cached.profile : null
 
     if (profile == null) {
       profile = computeVPFRProfile(dataList, fromIdx, toIdx, settings)
       if (profile != null) {
-        // Store cache on extendData (mutable reference)
-        extendData._cache = { profile, rangeKey }
+        profileCache.set(overlayId, { profile, rangeKey })
       }
     }
 
@@ -150,14 +155,10 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
     const dataList = chart.getDataList()
     if (dataList.length === 0) return []
 
-    const extendData = overlay.extendData
-    const settings: VPFRExtendData = {
-      ...VPFR_DEFAULT_EXTEND_DATA,
-      ...extendData
-    }
-
-    // Get profile data for price labels
-    const profile = settings._cache?.profile
+    // Get profile data from module-level cache
+    const overlayId = overlay.id
+    const cached = profileCache.get(overlayId)
+    const profile = cached?.profile
     if (profile == null) return []
 
     const precision = chart.getSymbol()?.pricePrecision ?? 2
