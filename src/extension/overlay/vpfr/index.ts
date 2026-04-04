@@ -16,10 +16,15 @@ import { isNumber } from '../../../common/utils/typeChecks'
 
 import type { OverlayTemplate } from '../../../component/Overlay'
 
-import type { VPFRExtendData } from './types'
+import type { VPFRExtendData, VPFRProfile } from './types'
 import { VPFR_DEFAULT, resolveVPFRExtendData } from './constants'
 import { computeVPFRProfile, computeDevelopingLines } from './compute'
 import { renderPreview, renderProfile } from './render'
+
+// Module-level cache — overlay.extendData is read-only (frozen by library)
+const profileCache = new Map<string, VPFRProfile>()
+
+const MAX_CACHE_SIZE = 200
 
 const volumeProfileFixedRange: OverlayTemplate<VPFRExtendData> = {
   name: 'volumeProfileFixedRange',
@@ -65,15 +70,19 @@ const volumeProfileFixedRange: OverlayTemplate<VPFRExtendData> = {
     // Cache key includes all settings that affect computation
     const cacheKey = `${overlay.id}_${from}_${to}_${ext.rowSize}_${ext.rowsLayout}_${ext.volumeMode}_${ext.valueAreaVolume}`
 
-    let profile = ext._cache?.profile ?? null
-    if (ext._cache?.rangeKey !== cacheKey) {
+    let profile = profileCache.get(cacheKey) ?? null
+    if (profile === null) {
       profile = computeVPFRProfile(dataList, from, to, ext.rowSize, ext.valueAreaVolume)
-      // Write cache to overlay.extendData
-      const extRef = overlay.extendData as unknown as Record<string, unknown>
-      extRef._cache = { profile, rangeKey: cacheKey }
+      profileCache.set(cacheKey, profile)
+      // Evict oldest if cache too large
+      if (profileCache.size > MAX_CACHE_SIZE) {
+        const iter = profileCache.keys()
+        const first = iter.next()
+        if (first.done !== true) { profileCache.delete(first.value) }
+      }
     }
 
-    if (profile === null || profile.rows.length === 0) return []
+    if (profile.rows.length === 0) return []
 
     // Compute developing lines if any are enabled
     const needDeveloping = ext.developingPocLine.visible || ext.developingVahLine.visible || ext.developingValLine.visible

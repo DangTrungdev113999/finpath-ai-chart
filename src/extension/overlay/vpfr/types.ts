@@ -71,10 +71,4 @@ export interface VPFRExtendData {
   developingPocLine: VPFRLineConfig
   developingVahLine: VPFRLineConfig
   developingValLine: VPFRLineConfig
-
-  // Internal cache (not persisted)
-  _cache?: {
-    profile: VPFRProfile | null
-    rangeKey: string
-  }
 }

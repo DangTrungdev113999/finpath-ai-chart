@@ -25,13 +25,13 @@ export const VPFR_DEFAULT: VPFRExtendData = {
   showValues: false,
   histogramWidth: 30,
 
-  upVolume: { visible: true, color: '#2962FF', opacity: 0.50 },
-  downVolume: { visible: true, color: '#E91E63', opacity: 0.50 },
-  valueAreaUp: { visible: true, color: '#2962FF', opacity: 0.30 },
-  valueAreaDown: { visible: true, color: '#E91E63', opacity: 0.30 },
+  upVolume: { visible: true, color: '#2962FF', opacity: 0.25 },
+  downVolume: { visible: true, color: '#B2A429', opacity: 0.25 },
+  valueAreaUp: { visible: true, color: '#2962FF', opacity: 0.50 },
+  valueAreaDown: { visible: true, color: '#B2A429', opacity: 0.50 },
 
-  pocLine: { visible: true, color: '#FF6D00', style: 'solid', width: 1 },
-  developingPocLine: { visible: false, color: '#FF6D00', style: 'solid', width: 1 },
+  pocLine: { visible: true, color: '#FF0000', style: 'solid', width: 1 },
+  developingPocLine: { visible: false, color: '#FF0000', style: 'solid', width: 1 },
   developingVahLine: { visible: false, color: '#2962FF', style: 'dashed', width: 1 },
   developingValLine: { visible: false, color: '#E91E63', style: 'dashed', width: 1 }
 }
