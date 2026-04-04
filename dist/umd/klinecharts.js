@@ -3630,14 +3630,14 @@ function computeVPVRProfile(dataList, from, to, settings) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function lineStyleToDash(style) {
+function lineStyleToDash$1(style) {
     switch (style) {
         case 'dashed': return [6, 4];
         case 'dotted': return [2, 2];
         default: return [];
     }
 }
-function formatVolume$1(vol) {
+function formatVolume(vol) {
     if (vol >= 1e9)
         return "".concat((vol / 1e9).toFixed(2), "B");
     if (vol >= 1e6)
@@ -3736,23 +3736,27 @@ function drawVPVR(ctx, profile, settings, bounding, yAxis) {
             finally { if (e_2) throw e_2.error; }
         }
     };
-    batchDraw(downOutside, settings.downVolumeColor);
-    batchDraw(upOutside, settings.upVolumeColor);
-    batchDraw(downInside, settings.vaDownColor);
-    batchDraw(upInside, settings.vaUpColor);
-    // POC line: full chart width
+    // With destination-over compositing (zLevel=-1), items drawn FIRST are
+    // closest to the front (behind candles but on top of later draws).
+    // Draw order: POC line first → histogram bars after (POC on top of bars).
+    // POC line: full chart width — drawn FIRST so it's on top of bars
     if (settings.showPOC && profile.rows.length > 0) {
         var pocRow = profile.rows[profile.pocIndex];
         var pocY = yAxis.convertToPixel(pocRow.mid);
         ctx.strokeStyle = settings.pocColor;
         ctx.lineWidth = settings.pocLineWidth;
-        ctx.setLineDash(lineStyleToDash(settings.pocLineStyle));
+        ctx.setLineDash(lineStyleToDash$1(settings.pocLineStyle));
         ctx.beginPath();
         ctx.moveTo(0, pocY);
         ctx.lineTo(bounding.width, pocY);
         ctx.stroke();
         ctx.setLineDash([]);
     }
+    // Histogram bars: drawn AFTER POC so they appear behind the POC line
+    batchDraw(downOutside, settings.downVolumeColor);
+    batchDraw(upOutside, settings.upVolumeColor);
+    batchDraw(downInside, settings.vaDownColor);
+    batchDraw(upInside, settings.vaUpColor);
     // Value text on bars (P2, off by default)
     if (settings.showValues) {
         ctx.fillStyle = settings.valuesColor;
@@ -3766,7 +3770,7 @@ function drawVPVR(ctx, profile, settings, bounding, yAxis) {
                 var rowTopY = yAxis.convertToPixel(row.high);
                 var rowBottomY = yAxis.convertToPixel(row.low);
                 var midY = (rowTopY + rowBottomY) / 2;
-                var text = formatVolume$1(row.totalVol);
+                var text = formatVolume(row.totalVol);
                 var relativeWidth = row.totalVol / profile.maxRowVolume;
                 var barWidth = relativeWidth * maxWidth;
                 if (settings.placement === 'right') {
@@ -3802,81 +3806,55 @@ function drawVPVR(ctx, profile, settings, bounding, yAxis) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function formatVolume(vol) {
-    if (vol >= 1e9)
-        return "".concat((vol / 1e9).toFixed(3), "B");
-    if (vol >= 1e6)
-        return "".concat((vol / 1e6).toFixed(3), "M");
-    if (vol >= 1e3)
-        return "".concat((vol / 1e3).toFixed(1), "K");
-    return vol.toFixed(0);
-}
-function resolveSettings$1(extendData) {
-    if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
-        return __assign(__assign({}, VPVR_DEFAULT_SETTINGS), extendData);
-    }
-    return __assign({}, VPVR_DEFAULT_SETTINGS);
-}
 function createVPVRTooltip(params) {
     var e_1, _a;
     var indicator = params.indicator, crosshair = params.crosshair, yAxis = params.yAxis;
-    var settings = resolveSettings$1(indicator.extendData);
-    var volumeTypeLabel = settings.volumeType === 'upDown' ? 'Up/Down' : settings.volumeType === 'total' ? 'Total' : 'Delta';
-    var calcParamsText = "Number Of Rows ".concat(settings.rowSize, " ").concat(volumeTypeLabel, " ").concat(settings.valueAreaPercent);
+    // Return empty name + legends so canvas tooltip draws nothing
+    // React HTML tooltip handles the display
     var result = {
-        name: 'VPVR',
-        calcParamsText: calcParamsText,
+        name: '',
+        calcParamsText: '',
         features: [],
         legends: []
     };
-    if (!settings.showStatusLineValues)
-        return result;
-    // Find the cached profile from extendData
-    var cache = settings._cache;
-    if ((cache === null || cache === void 0 ? void 0 : cache.profile) == null)
-        return result;
-    var profile = cache.profile;
-    // Map crosshair Y position to a price level, then find the matching row
-    var crosshairY = crosshair.y;
-    if (crosshairY === undefined || profile.rows.length === 0)
-        return result;
-    var crosshairPrice = yAxis.convertFromPixel(crosshairY);
-    // Binary-ish search for the row containing this price
-    var matchedRow = profile.rows[0];
-    try {
-        for (var _b = __values(profile.rows), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var row = _c.value;
-            if (crosshairPrice >= row.low && crosshairPrice < row.high) {
-                matchedRow = row;
-                break;
+    // Always compute and store _tooltipValues on extendData for React layer to read
+    var extData = indicator.extendData;
+    var cache = extData === null || extData === void 0 ? void 0 : extData._cache;
+    if ((cache === null || cache === void 0 ? void 0 : cache.profile) != null && extData != null) {
+        var profile = cache.profile;
+        var crosshairY = crosshair.y;
+        if (crosshairY !== undefined && profile.rows.length > 0) {
+            var crosshairPrice = yAxis.convertFromPixel(crosshairY);
+            // Find row at crosshair price
+            var matchedRow = profile.rows[0];
+            try {
+                for (var _b = __values(profile.rows), _c = _b.next(); !_c.done; _c = _b.next()) {
+                    var row = _c.value;
+                    if (crosshairPrice >= row.low && crosshairPrice < row.high) {
+                        matchedRow = row;
+                        break;
+                    }
+                    if (crosshairPrice >= row.high && row === profile.rows[profile.rows.length - 1]) {
+                        matchedRow = row;
+                    }
+                }
             }
-            // Handle edge case: price exactly at the top boundary of the last row
-            if (crosshairPrice >= row.high && row === profile.rows[profile.rows.length - 1]) {
-                matchedRow = row;
+            catch (e_1_1) { e_1 = { error: e_1_1 }; }
+            finally {
+                try {
+                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                }
+                finally { if (e_1) throw e_1.error; }
             }
+            // Store computed values on extendData so React tooltip loader can read them
+            extData._tooltipValues = {
+                buyVol: matchedRow.buyVol,
+                sellVol: matchedRow.sellVol,
+                totalVol: matchedRow.totalVol
+            };
         }
     }
-    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_1) throw e_1.error; }
-    }
-    result.legends = [
-        {
-            title: { text: 'Buy: ', color: 'rgba(21, 146, 230, 0.70)' },
-            value: { text: formatVolume(matchedRow.buyVol), color: 'rgba(21, 146, 230, 0.70)' }
-        },
-        {
-            title: { text: 'Sell: ', color: 'rgba(251, 193, 35, 0.70)' },
-            value: { text: formatVolume(matchedRow.sellVol), color: 'rgba(251, 193, 35, 0.70)' }
-        },
-        {
-            title: { text: 'Total: ', color: '#787B86' },
-            value: { text: formatVolume(matchedRow.totalVol), color: '#787B86' }
-        }
-    ];
+    // Return empty legends — React HTML tooltip handles the display
     return result;
 }
 
@@ -3912,7 +3890,7 @@ var volumeProfileVisibleRange = {
     // No-op calc: real computation happens in draw() based on visible range
     calc: function (dataList) { return dataList.map(function () { return ({}); }); },
     draw: function (_a) {
-        var _b, _c;
+        var _b;
         var ctx = _a.ctx, chart = _a.chart, indicator = _a.indicator, bounding = _a.bounding, yAxis = _a.yAxis;
         var dataList = chart.getDataList();
         if (dataList.length === 0)
@@ -3926,15 +3904,38 @@ var volumeProfileVisibleRange = {
         if (from >= to)
             return true;
         var rangeKey = "".concat(from, "-").concat(to, "-").concat(settings.rowSize, "-").concat(settings.valueAreaPercent, "-").concat(settings.volumeType);
-        // Check cache: reuse profile if range hasn't changed
-        var profile = ((_b = settings._cache) === null || _b === void 0 ? void 0 : _b.rangeKey) === rangeKey ? (_c = settings._cache.profile) !== null && _c !== void 0 ? _c : null : null;
+        // Read cache from the ACTUAL extendData object (not the copy)
+        var extData = indicator.extendData;
+        var existingCache = extData === null || extData === void 0 ? void 0 : extData._cache;
+        var profile = (existingCache === null || existingCache === void 0 ? void 0 : existingCache.rangeKey) === rangeKey ? (_b = existingCache.profile) !== null && _b !== void 0 ? _b : null : null;
         if (profile === null) {
             profile = computeVPVRProfile(dataList, from, to, settings);
-            // Store cache in extendData (instance-level, not module-level)
-            settings._cache = { profile: profile, rangeKey: rangeKey };
+            // Store cache on the ACTUAL indicator.extendData so tooltip can read it
+            if (extData != null) {
+                extData._cache = { profile: profile, rangeKey: rangeKey };
+            }
         }
         if (profile.rows.length === 0 || profile.maxRowVolume === 0)
             return true;
+        // Store POC price + color for Y-axis label (IndicatorLastValueView reads these)
+        if (extData != null && settings.showPOC && settings.showPriceScaleLabel) {
+            extData._pocPrice = profile.rows[profile.pocIndex].mid;
+            extData.pocColor = settings.pocColor;
+        }
+        else if (extData != null) {
+            extData._pocPrice = undefined;
+        }
+        // Store hit area for cursor/click detection (Event.ts reads this)
+        if (extData != null) {
+            var maxWidth = bounding.width * (settings.widthPercent / 100);
+            var firstRow = profile.rows[0];
+            var lastRow = profile.rows[profile.rows.length - 1];
+            var topY = Math.min(yAxis.convertToPixel(lastRow.high), yAxis.convertToPixel(firstRow.high));
+            var bottomY = Math.max(yAxis.convertToPixel(firstRow.low), yAxis.convertToPixel(lastRow.low));
+            extData._hitArea = settings.placement === 'right'
+                ? { left: bounding.width - maxWidth, top: topY, right: bounding.width, bottom: bottomY }
+                : { left: 0, top: topY, right: maxWidth, bottom: bottomY };
+        }
         ctx.save();
         drawVPVR(ctx, profile, settings, bounding, yAxis);
         ctx.restore();
@@ -5332,12 +5333,589 @@ var simpleTag = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var VPFR_DEFAULT = {
+    rowsLayout: 'number_of_rows',
+    rowSize: 24,
+    valueAreaVolume: 70,
+    volumeMode: 'up_down',
+    placement: 'left',
+    showProfile: true,
+    showValues: false,
+    histogramWidth: 30,
+    upVolume: { visible: true, color: '#2962FF', opacity: 0.50 },
+    downVolume: { visible: true, color: '#E91E63', opacity: 0.50 },
+    valueAreaUp: { visible: true, color: '#2962FF', opacity: 0.30 },
+    valueAreaDown: { visible: true, color: '#E91E63', opacity: 0.30 },
+    pocLine: { visible: true, color: '#FF6D00', style: 'solid', width: 1 },
+    developingPocLine: { visible: false, color: '#FF6D00', style: 'solid', width: 1 },
+    developingVahLine: { visible: false, color: '#2962FF', style: 'dashed', width: 1 },
+    developingValLine: { visible: false, color: '#E91E63', style: 'dashed', width: 1 }
+};
+var VPFR_BACKGROUND_COLOR = 'rgba(41,98,255,0.06)';
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Compute volume profile for a fixed range of bars.
+ * Adapted from VPVR computeVPVRProfile with identical overlap-proportional algorithm.
+ */
+function computeVPFRProfile(dataList, startIdx, endIdx, numRows, vaPercent) {
+    var e_1, _a, e_2, _b;
+    var _c;
+    var from = Math.min(startIdx, endIdx);
+    var to = Math.max(startIdx, endIdx);
+    var bars = dataList.slice(from, to + 1);
+    if (bars.length === 0) {
+        return {
+            rows: [],
+            pocIndex: 0,
+            vahIndex: 0,
+            valIndex: 0,
+            profileHigh: 0,
+            profileLow: 0,
+            maxRowVolume: 0,
+            totalVolume: 0
+        };
+    }
+    // Find price range
+    var profileHigh = -Infinity;
+    var profileLow = Infinity;
+    try {
+        for (var bars_1 = __values(bars), bars_1_1 = bars_1.next(); !bars_1_1.done; bars_1_1 = bars_1.next()) {
+            var bar = bars_1_1.value;
+            if (bar.high > profileHigh)
+                profileHigh = bar.high;
+            if (bar.low < profileLow)
+                profileLow = bar.low;
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (bars_1_1 && !bars_1_1.done && (_a = bars_1.return)) _a.call(bars_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    if (profileHigh === profileLow)
+        profileHigh += 0.01;
+    // Calculate row count
+    var rowCount = Math.max(1, Math.min(numRows, 1000));
+    var rowHeight = (profileHigh - profileLow) / rowCount;
+    // Initialize rows
+    var rows = Array.from({ length: rowCount }, function (_, i) { return ({
+        priceLow: profileLow + rowHeight * i,
+        priceHigh: profileLow + rowHeight * (i + 1),
+        upVolume: 0,
+        downVolume: 0,
+        totalVolume: 0
+    }); });
+    try {
+        // Distribute volume using overlap-proportional method
+        for (var bars_2 = __values(bars), bars_2_1 = bars_2.next(); !bars_2_1.done; bars_2_1 = bars_2.next()) {
+            var bar = bars_2_1.value;
+            var vol = (_c = bar.volume) !== null && _c !== void 0 ? _c : 0;
+            if (vol === 0)
+                continue;
+            var barRange = bar.high - bar.low;
+            if (barRange === 0) {
+                // Doji: 50/50 split to containing row
+                var idx = Math.max(0, Math.min(Math.floor((bar.close - profileLow) / rowHeight), rowCount - 1));
+                rows[idx].upVolume += vol * 0.5;
+                rows[idx].downVolume += vol * 0.5;
+                rows[idx].totalVolume += vol;
+                continue;
+            }
+            // Buy/sell split: upVolume = vol * (close-low)/(high-low)
+            var buyRatio = (bar.close - bar.low) / barRange;
+            var barUpVol = vol * buyRatio;
+            var barDownVol = vol * (1 - buyRatio);
+            for (var i = 0; i < rowCount; i++) {
+                var overlap = Math.max(0, Math.min(bar.high, rows[i].priceHigh) - Math.max(bar.low, rows[i].priceLow));
+                if (overlap <= 0)
+                    continue;
+                var proportion = overlap / barRange;
+                rows[i].upVolume += barUpVol * proportion;
+                rows[i].downVolume += barDownVol * proportion;
+            }
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (bars_2_1 && !bars_2_1.done && (_b = bars_2.return)) _b.call(bars_2);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+    // Compute totalVolume per row and find POC
+    var totalVolume = 0;
+    var maxRowVolume = 0;
+    var pocIndex = 0;
+    var midPrice = (profileHigh + profileLow) / 2;
+    for (var i = 0; i < rowCount; i++) {
+        rows[i].totalVolume = rows[i].upVolume + rows[i].downVolume;
+        totalVolume += rows[i].totalVolume;
+        // POC: highest totalVolume, tie-break: closer to mid-range
+        var rowMid = (rows[i].priceLow + rows[i].priceHigh) / 2;
+        if (rows[i].totalVolume > maxRowVolume ||
+            (rows[i].totalVolume === maxRowVolume && maxRowVolume > 0 &&
+                Math.abs(rowMid - midPrice) < Math.abs((rows[pocIndex].priceLow + rows[pocIndex].priceHigh) / 2 - midPrice))) {
+            maxRowVolume = rows[i].totalVolume;
+            pocIndex = i;
+        }
+    }
+    // Value Area: bilateral expansion from POC
+    var targetVol = totalVolume * (vaPercent / 100);
+    var accVol = rows[pocIndex].totalVolume;
+    var vahIndex = pocIndex;
+    var valIndex = pocIndex;
+    var up = pocIndex + 1;
+    var dn = pocIndex - 1;
+    while (accVol < targetVol) {
+        var volUp = up < rowCount ? rows[up].totalVolume : 0;
+        var volDn = dn >= 0 ? rows[dn].totalVolume : 0;
+        if (volUp === 0 && volDn === 0)
+            break;
+        if (volUp >= volDn && up < rowCount) {
+            accVol += volUp;
+            vahIndex = up;
+            up++;
+        }
+        else if (dn >= 0) {
+            accVol += volDn;
+            valIndex = dn;
+            dn--;
+        }
+        else {
+            break;
+        }
+    }
+    return {
+        rows: rows,
+        pocIndex: pocIndex,
+        vahIndex: vahIndex,
+        valIndex: valIndex,
+        profileHigh: profileHigh,
+        profileLow: profileLow,
+        maxRowVolume: maxRowVolume,
+        totalVolume: totalVolume
+    };
+}
+/**
+ * Compute developing POC/VAH/VAL lines across the range.
+ * Returns arrays of {dataIndex, price} for stepped line rendering.
+ */
+function computeDevelopingLines(dataList, startIdx, endIdx, numRows, vaPercent) {
+    var from = Math.min(startIdx, endIdx);
+    var to = Math.max(startIdx, endIdx);
+    var poc = [];
+    var vah = [];
+    var val = [];
+    // Compute partial profiles incrementally
+    for (var i = from + 1; i <= to; i++) {
+        var profile = computeVPFRProfile(dataList, from, i, numRows, vaPercent);
+        if (profile.rows.length === 0)
+            continue;
+        var pocRow = profile.rows[profile.pocIndex];
+        var vahRow = profile.rows[profile.vahIndex];
+        var valRow = profile.rows[profile.valIndex];
+        poc.push({ idx: i, price: (pocRow.priceLow + pocRow.priceHigh) / 2 });
+        vah.push({ idx: i, price: vahRow.priceHigh });
+        val.push({ idx: i, price: valRow.priceLow });
+    }
+    return {
+        poc: poc,
+        vah: vah,
+        val: val
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function hexToRgba(hex, opacity) {
+    var h = hex.replace('#', '');
+    var r = parseInt(h.substring(0, 2), 16);
+    var g = parseInt(h.substring(2, 4), 16);
+    var b = parseInt(h.substring(4, 6), 16);
+    return "rgba(".concat(r, ",").concat(g, ",").concat(b, ",").concat(opacity, ")");
+}
+function lineStyleToDash(style) {
+    switch (style) {
+        case 'dashed': return [4, 4];
+        case 'dotted': return [2, 2];
+        default: return [];
+    }
+}
+/**
+ * Render drawing preview: vertical dashed lines at each boundary.
+ */
+function renderPreview(coordinates, boundingHeight) {
+    var e_1, _a;
+    var figures = [];
+    try {
+        for (var coordinates_1 = __values(coordinates), coordinates_1_1 = coordinates_1.next(); !coordinates_1_1.done; coordinates_1_1 = coordinates_1.next()) {
+            var coord = coordinates_1_1.value;
+            var lineAttrs = {
+                coordinates: [
+                    { x: coord.x, y: 0 },
+                    { x: coord.x, y: boundingHeight }
+                ]
+            };
+            figures.push({
+                type: 'line',
+                attrs: lineAttrs,
+                styles: {
+                    style: 'dashed',
+                    color: 'rgba(41,98,255,0.4)',
+                    size: 1,
+                    dashedValue: [4, 4]
+                },
+                ignoreEvent: true
+            });
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (coordinates_1_1 && !coordinates_1_1.done && (_a = coordinates_1.return)) _a.call(coordinates_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    return figures;
+}
+/**
+ * Render the complete volume profile histogram, POC line, and developing lines.
+ */
+function renderProfile(profile, ext, coordinates, xAxis, yAxis, _boundingHeight, developingData) {
+    if (profile.rows.length === 0 || xAxis === null || yAxis === null)
+        return [];
+    var figures = [];
+    var x1 = coordinates[0].x;
+    var x2 = coordinates[1].x;
+    var leftX = Math.min(x1, x2);
+    var rightX = Math.max(x1, x2);
+    var rangeWidth = rightX - leftX;
+    if (rangeWidth <= 0)
+        return [];
+    // 1. Background rect
+    var bgTopPx = yAxis.convertToPixel(profile.profileHigh);
+    var bgBottomPx = yAxis.convertToPixel(profile.profileLow);
+    var bgTop = Math.min(bgTopPx, bgBottomPx);
+    var bgHeight = Math.abs(bgBottomPx - bgTopPx);
+    var bgRect = {
+        x: leftX,
+        y: bgTop,
+        width: rangeWidth,
+        height: bgHeight
+    };
+    figures.push({
+        type: 'rect',
+        attrs: bgRect,
+        styles: { style: 'fill', color: VPFR_BACKGROUND_COLOR },
+        ignoreEvent: false
+    });
+    // 2. Histogram bars (if showProfile)
+    if (ext.showProfile) {
+        var maxBarWidth = rangeWidth * (ext.histogramWidth / 100);
+        // Categorize rects by color batch for efficiency
+        var upOutside = [];
+        var downOutside = [];
+        var upInside = [];
+        var downInside = [];
+        for (var i = 0; i < profile.rows.length; i++) {
+            var row = profile.rows[i];
+            if (row.totalVolume === 0)
+                continue;
+            var rowTopPx = yAxis.convertToPixel(row.priceHigh);
+            var rowBottomPx = yAxis.convertToPixel(row.priceLow);
+            var rowTop = Math.min(rowTopPx, rowBottomPx);
+            var rowHeight = Math.max(Math.abs(rowBottomPx - rowTopPx) - 1, 1);
+            var isInsideVA = i >= profile.valIndex && i <= profile.vahIndex;
+            // Calculate bar widths based on volume mode
+            var totalBarWidth = (row.totalVolume / profile.maxRowVolume) * maxBarWidth;
+            if (ext.volumeMode === 'up_down') {
+                // Split bar: up on left, down on right
+                var upWidth = row.totalVolume > 0 ? (row.upVolume / row.totalVolume) * totalBarWidth : 0;
+                var downWidth = totalBarWidth - upWidth;
+                if (ext.placement === 'left') {
+                    if (upWidth > 0) {
+                        var rect = { x: leftX, y: rowTop, width: upWidth, height: rowHeight };
+                        if (isInsideVA) {
+                            upInside.push(rect);
+                        }
+                        else {
+                            upOutside.push(rect);
+                        }
+                    }
+                    if (downWidth > 0) {
+                        var rect = { x: leftX + upWidth, y: rowTop, width: downWidth, height: rowHeight };
+                        if (isInsideVA) {
+                            downInside.push(rect);
+                        }
+                        else {
+                            downOutside.push(rect);
+                        }
+                    }
+                }
+                else {
+                    // Right placement: bars extend leftward from right boundary
+                    if (downWidth > 0) {
+                        var rect = { x: rightX - totalBarWidth, y: rowTop, width: downWidth, height: rowHeight };
+                        if (isInsideVA) {
+                            downInside.push(rect);
+                        }
+                        else {
+                            downOutside.push(rect);
+                        }
+                    }
+                    if (upWidth > 0) {
+                        var rect = { x: rightX - upWidth, y: rowTop, width: upWidth, height: rowHeight };
+                        if (isInsideVA) {
+                            upInside.push(rect);
+                        }
+                        else {
+                            upOutside.push(rect);
+                        }
+                    }
+                }
+            }
+            else if (ext.volumeMode === 'total') {
+                // Single bar, use up color
+                var barX = ext.placement === 'left' ? leftX : rightX - totalBarWidth;
+                var rect = { x: barX, y: rowTop, width: totalBarWidth, height: rowHeight };
+                if (isInsideVA) {
+                    upInside.push(rect);
+                }
+                else {
+                    upOutside.push(rect);
+                }
+            }
+            else {
+                // Delta mode: color based on sign of (upVolume - downVolume)
+                var delta = row.upVolume - row.downVolume;
+                var barX = ext.placement === 'left' ? leftX : rightX - totalBarWidth;
+                var rect = { x: barX, y: rowTop, width: totalBarWidth, height: rowHeight };
+                if (delta >= 0) {
+                    if (isInsideVA) {
+                        upInside.push(rect);
+                    }
+                    else {
+                        upOutside.push(rect);
+                    }
+                }
+                else {
+                    if (isInsideVA) {
+                        downInside.push(rect);
+                    }
+                    else {
+                        downOutside.push(rect);
+                    }
+                }
+            }
+        }
+        // Push rect batches
+        pushRects(figures, upOutside, ext.upVolume.color, ext.upVolume.opacity, ext.upVolume.visible);
+        pushRects(figures, downOutside, ext.downVolume.color, ext.downVolume.opacity, ext.downVolume.visible);
+        pushRects(figures, upInside, ext.valueAreaUp.color, ext.valueAreaUp.opacity, ext.valueAreaUp.visible);
+        pushRects(figures, downInside, ext.valueAreaDown.color, ext.valueAreaDown.opacity, ext.valueAreaDown.visible);
+    }
+    // 3. POC line
+    if (ext.pocLine.visible && profile.rows.length > 0) {
+        var pocRow = profile.rows[profile.pocIndex];
+        var pocPrice = (pocRow.priceLow + pocRow.priceHigh) / 2;
+        var pocY = yAxis.convertToPixel(pocPrice);
+        pushLine(figures, leftX, rightX, pocY, ext.pocLine);
+    }
+    // 4. Developing lines
+    if (developingData !== undefined) {
+        if (ext.developingPocLine.visible && developingData.poc.length > 1) {
+            pushSteppedLine(figures, developingData.poc, xAxis, yAxis, ext.developingPocLine);
+        }
+        if (ext.developingVahLine.visible && developingData.vah.length > 1) {
+            pushSteppedLine(figures, developingData.vah, xAxis, yAxis, ext.developingVahLine);
+        }
+        if (ext.developingValLine.visible && developingData.val.length > 1) {
+            pushSteppedLine(figures, developingData.val, xAxis, yAxis, ext.developingValLine);
+        }
+    }
+    return figures;
+}
+function pushRects(figures, rects, color, opacity, visible) {
+    var e_2, _a;
+    if (!visible || rects.length === 0)
+        return;
+    var fillColor = hexToRgba(color, opacity);
+    try {
+        for (var rects_1 = __values(rects), rects_1_1 = rects_1.next(); !rects_1_1.done; rects_1_1 = rects_1.next()) {
+            var r = rects_1_1.value;
+            figures.push({
+                type: 'rect',
+                attrs: r,
+                styles: { style: 'fill', color: fillColor },
+                ignoreEvent: true
+            });
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (rects_1_1 && !rects_1_1.done && (_a = rects_1.return)) _a.call(rects_1);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+}
+function pushLine(figures, x1, x2, y, config) {
+    var lineAttrs = {
+        coordinates: [{ x: x1, y: y }, { x: x2, y: y }]
+    };
+    figures.push({
+        type: 'line',
+        attrs: lineAttrs,
+        styles: {
+            style: config.style === 'solid' ? 'solid' : 'dashed',
+            color: config.color,
+            size: config.width,
+            dashedValue: lineStyleToDash(config.style)
+        },
+        ignoreEvent: true
+    });
+}
+function pushSteppedLine(figures, points, xAxis, yAxis, config) {
+    // Build stepped coordinates: for each point, add horizontal then vertical segment
+    var coords = [];
+    for (var i = 0; i < points.length; i++) {
+        var x = xAxis.convertToPixel(points[i].idx);
+        var y = yAxis.convertToPixel(points[i].price);
+        if (i > 0) {
+            // Horizontal step from previous point's y to current x
+            coords.push({ x: x, y: coords[coords.length - 1].y });
+        }
+        coords.push({ x: x, y: y });
+    }
+    if (coords.length < 2)
+        return;
+    var lineAttrs = { coordinates: coords };
+    figures.push({
+        type: 'line',
+        attrs: lineAttrs,
+        styles: {
+            style: config.style === 'solid' ? 'solid' : 'dashed',
+            color: config.color,
+            size: config.width,
+            dashedValue: lineStyleToDash(config.style)
+        },
+        ignoreEvent: true
+    });
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var volumeProfileFixedRange = {
+    name: 'volumeProfileFixedRange',
+    totalStep: 3,
+    needDefaultPointFigure: true,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: false,
+    extendData: VPFR_DEFAULT,
+    createPointFigures: function (_a) {
+        var _b, _c, _d;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var points = overlay.points;
+        var ext = overlay.extendData;
+        // Drawing preview: show vertical dashed lines, no histogram
+        if (overlay.currentStep !== -1) {
+            return renderPreview(coordinates, bounding.height);
+        }
+        // Completed overlay: compute and render
+        if (coordinates.length < 2)
+            return [];
+        var dataList = chart.getDataList();
+        if (dataList.length === 0)
+            return [];
+        var maxDataIndex = dataList.length - 1;
+        // Resolve data indices from points, with clamping
+        var startIdx = points[0].dataIndex;
+        var endIdx = points[1].dataIndex;
+        if (!isNumber(startIdx) || !isNumber(endIdx))
+            return [];
+        startIdx = Math.max(0, Math.min(startIdx, maxDataIndex));
+        endIdx = Math.max(0, Math.min(endIdx, maxDataIndex));
+        // Need at least 1 bar
+        if (startIdx === endIdx)
+            return renderPreview(coordinates, bounding.height);
+        var from = Math.min(startIdx, endIdx);
+        var to = Math.max(startIdx, endIdx);
+        // Cache key includes all settings that affect computation
+        var cacheKey = "".concat(overlay.id, "_").concat(from, "_").concat(to, "_").concat(ext.rowSize, "_").concat(ext.rowsLayout, "_").concat(ext.volumeMode, "_").concat(ext.valueAreaVolume);
+        var profile = (_c = (_b = ext._cache) === null || _b === void 0 ? void 0 : _b.profile) !== null && _c !== void 0 ? _c : null;
+        if (((_d = ext._cache) === null || _d === void 0 ? void 0 : _d.rangeKey) !== cacheKey) {
+            profile = computeVPFRProfile(dataList, from, to, ext.rowSize, ext.valueAreaVolume);
+            // Write cache directly to overlay.extendData (not a copy)
+            overlay.extendData._cache = { profile: profile, rangeKey: cacheKey };
+        }
+        if (profile === null || profile.rows.length === 0)
+            return [];
+        // Compute developing lines if any are enabled
+        var needDeveloping = ext.developingPocLine.visible || ext.developingVahLine.visible || ext.developingValLine.visible;
+        var developingData = needDeveloping
+            ? computeDevelopingLines(dataList, from, to, ext.rowSize, ext.valueAreaVolume)
+            : undefined;
+        return renderProfile(profile, ext, coordinates, xAxis, yAxis, bounding.height, developingData);
+    }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 var overlays = {};
 var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag
+    simpleAnnotation, simpleTag,
+    volumeProfileFixedRange
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
@@ -10923,35 +11501,36 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var defaultStyles = chartStore.getStyles().indicator;
         var lastValueMarkStyles = defaultStyles.lastValueMark;
         var lastValueMarkTextStyles = lastValueMarkStyles.text;
-        if (lastValueMarkStyles.show) {
-            var yAxis_1 = pane.getAxisComponent();
-            var yAxisRange_1 = yAxis_1.getRange();
-            var dataList = chartStore.getDataList();
-            var dataIndex_1 = dataList.length - 1;
-            var indicators = chartStore.getIndicatorsByPaneId(pane.getId());
-            var formatter_1 = chartStore.getInnerFormatter();
-            var decimalFold_1 = chartStore.getDecimalFold();
-            var thousandsSeparator_1 = chartStore.getThousandsSeparator();
-            indicators.forEach(function (indicator) {
-                var _a;
+        var yAxis = pane.getAxisComponent();
+        var yAxisRange = yAxis.getRange();
+        var dataList = chartStore.getDataList();
+        var dataIndex = dataList.length - 1;
+        var indicators = chartStore.getIndicatorsByPaneId(pane.getId());
+        var formatter = chartStore.getInnerFormatter();
+        var decimalFold = chartStore.getDecimalFold();
+        var thousandsSeparator = chartStore.getThousandsSeparator();
+        indicators.forEach(function (indicator) {
+            var _a, _b, _c;
+            // Standard last-value labels (for indicators with figures)
+            if (lastValueMarkStyles.show) {
                 var result = indicator.result;
-                var data = (_a = result[dataIndex_1]) !== null && _a !== void 0 ? _a : {};
-                if (isValid(data) && indicator.visible) {
+                var data_1 = (_a = result[dataIndex]) !== null && _a !== void 0 ? _a : {};
+                if (isValid(data_1) && indicator.visible) {
                     var precision_1 = indicator.precision;
-                    eachFigures(indicator, dataIndex_1, defaultStyles, function (figure, figureStyles) {
+                    eachFigures(indicator, dataIndex, defaultStyles, function (figure, figureStyles) {
                         var _a;
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
-                        var value = data[figure.key];
+                        var value = data_1[figure.key];
                         if (isNumber(value)) {
-                            var y = yAxis_1.convertToNicePixel(value);
-                            var text = yAxis_1.displayValueToText(yAxis_1.realValueToDisplayValue(yAxis_1.valueToRealValue(value, { range: yAxisRange_1 }), { range: yAxisRange_1 }), precision_1);
+                            var y = yAxis.convertToNicePixel(value);
+                            var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(value, { range: yAxisRange }), { range: yAxisRange }), precision_1);
                             if (indicator.shouldFormatBigNumber) {
-                                text = formatter_1.formatBigNumber(text);
+                                text = formatter.formatBigNumber(text);
                             }
-                            text = decimalFold_1.format(thousandsSeparator_1.format(text));
+                            text = decimalFold.format(thousandsSeparator.format(text));
                             var x = 0;
                             var textAlign = 'left';
-                            if (yAxis_1.isFromZero()) {
+                            if (yAxis.isFromZero()) {
                                 x = 0;
                                 textAlign = 'left';
                             }
@@ -10973,8 +11552,35 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         }
                     });
                 }
-            });
-        }
+            }
+            // Custom price label for indicators that store _pocPrice on extendData
+            // Runs independently of lastValueMarkStyles.show
+            if (indicator.visible) {
+                var extData = indicator.extendData;
+                var pocPrice = extData === null || extData === void 0 ? void 0 : extData._pocPrice;
+                if (isNumber(pocPrice)) {
+                    var pocColor = (_b = extData.pocColor) !== null && _b !== void 0 ? _b : '#FF0000';
+                    var y = yAxis.convertToNicePixel(pocPrice);
+                    var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(pocPrice, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
+                    text = decimalFold.format(thousandsSeparator.format(text));
+                    var x = 0;
+                    var textAlign = 'left';
+                    if (yAxis.isFromZero()) {
+                        x = 0;
+                        textAlign = 'left';
+                    }
+                    else {
+                        x = bounding.width;
+                        textAlign = 'right';
+                    }
+                    (_c = _this.createFigure({
+                        name: 'text',
+                        attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
+                        styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: pocColor, color: '#FFFFFF' })
+                    })) === null || _c === void 0 ? void 0 : _c.draw(ctx);
+                }
+            }
+        });
     };
     return IndicatorLastValueView;
 }(View));
@@ -13562,6 +14168,39 @@ var Event = /** @class */ (function () {
         });
         container.addEventListener('keydown', this._boundKeyBoardDownEvent);
     }
+    /**
+     * Check if a coordinate is within any indicator's _hitArea on a pane.
+     * Returns the indicator info if hit, null otherwise.
+     */
+    Event.prototype._findIndicatorAtPoint = function (pane, x, y) {
+        var e_1, _a;
+        if (pane === null)
+            return null;
+        var chartStore = this._chart.getChartStore();
+        var indicators = chartStore.getIndicatorsByPaneId(pane.getId());
+        try {
+            for (var indicators_1 = __values(indicators), indicators_1_1 = indicators_1.next(); !indicators_1_1.done; indicators_1_1 = indicators_1.next()) {
+                var indicator = indicators_1_1.value;
+                if (!indicator.visible)
+                    continue;
+                var extData = indicator.extendData;
+                var hitArea = extData === null || extData === void 0 ? void 0 : extData._hitArea;
+                if (hitArea != null && isNumber(hitArea.left)) {
+                    if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
+                        return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId() };
+                    }
+                }
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (indicators_1_1 && !indicators_1_1.done && (_a = indicators_1.return)) _a.call(indicators_1);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        return null;
+    };
     Event.prototype.pinchStartEvent = function () {
         this._touchZoomed = true;
         this._pinchScale = 1;
@@ -13644,6 +14283,9 @@ var Event = /** @class */ (function () {
                         if (widget.getForceCursor() !== 'pointer') {
                             crosshair = undefined;
                         }
+                        widget.setCursor('pointer');
+                    }
+                    else if (this._findIndicatorAtPoint(pane, event.x, event.y) !== null) {
                         widget.setCursor('pointer');
                     }
                     else {
@@ -13761,7 +14403,16 @@ var Event = /** @class */ (function () {
             switch (name_6) {
                 case WidgetNameConstants.MAIN: {
                     var event_7 = this._makeWidgetEvent(e, widget);
-                    return widget.dispatchEvent('mouseDoubleClickEvent', event_7);
+                    var consumed = widget.dispatchEvent('mouseDoubleClickEvent', event_7);
+                    if (!consumed) {
+                        // Check if double-click is on an indicator shape (e.g., VPVR histogram)
+                        var indicatorInfo = this._findIndicatorAtPoint(pane, event_7.x, event_7.y);
+                        if (indicatorInfo !== null) {
+                            this._chart.getChartStore().executeAction('onIndicatorShapeDoubleClick', indicatorInfo);
+                            return true;
+                        }
+                    }
+                    return consumed;
                 }
                 case WidgetNameConstants.Y_AXIS: {
                     var yAxis = pane.getAxisComponent();
@@ -14088,7 +14739,7 @@ var Event = /** @class */ (function () {
         return consumed;
     };
     Event.prototype._findWidgetByEvent = function (event) {
-        var e_1, _a, e_2, _b;
+        var e_2, _a, e_3, _b;
         var x = event.x, y = event.y;
         var separatorPanes = this._chart.getSeparatorPanes();
         var separatorSize = this._chart.getStyles().separator.size;
@@ -14104,12 +14755,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
                 if (separatorPanes_1_1 && !separatorPanes_1_1.done && (_a = separatorPanes_1.return)) _a.call(separatorPanes_1);
             }
-            finally { if (e_1) throw e_1.error; }
+            finally { if (e_2) throw e_2.error; }
         }
         var drawPanes = this._chart.getDrawPanes();
         var pane = null;
@@ -14124,12 +14775,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
                 if (drawPanes_1_1 && !drawPanes_1_1.done && (_b = drawPanes_1.return)) _b.call(drawPanes_1);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         var widget = null;
         if (pane !== null) {
