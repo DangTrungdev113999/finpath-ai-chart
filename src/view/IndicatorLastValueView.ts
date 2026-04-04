@@ -29,16 +29,18 @@ export default class IndicatorLastValueView extends View<YAxis> {
     const defaultStyles = chartStore.getStyles().indicator
     const lastValueMarkStyles = defaultStyles.lastValueMark
     const lastValueMarkTextStyles = lastValueMarkStyles.text
-    if (lastValueMarkStyles.show) {
-      const yAxis = pane.getAxisComponent()
-      const yAxisRange = yAxis.getRange()
-      const dataList = chartStore.getDataList()
-      const dataIndex = dataList.length - 1
-      const indicators = chartStore.getIndicatorsByPaneId(pane.getId())
-      const formatter = chartStore.getInnerFormatter()
-      const decimalFold = chartStore.getDecimalFold()
-      const thousandsSeparator = chartStore.getThousandsSeparator()
-      indicators.forEach(indicator => {
+    const yAxis = pane.getAxisComponent()
+    const yAxisRange = yAxis.getRange()
+    const dataList = chartStore.getDataList()
+    const dataIndex = dataList.length - 1
+    const indicators = chartStore.getIndicatorsByPaneId(pane.getId())
+    const formatter = chartStore.getInnerFormatter()
+    const decimalFold = chartStore.getDecimalFold()
+    const thousandsSeparator = chartStore.getThousandsSeparator()
+
+    indicators.forEach(indicator => {
+      // Standard last-value labels (for indicators with figures)
+      if (lastValueMarkStyles.show) {
         const result = indicator.result
         const data = result[dataIndex] ?? {}
         if (isValid(data) && indicator.visible) {
@@ -86,7 +88,44 @@ export default class IndicatorLastValueView extends View<YAxis> {
             }
           })
         }
-      })
-    }
+      }
+
+      // Custom price label for indicators that store _pocPrice on extendData
+      // Runs independently of lastValueMarkStyles.show
+      if (indicator.visible) {
+        const extData = indicator.extendData as Record<string, unknown> | undefined
+        const pocPrice = extData?._pocPrice
+        if (isNumber(pocPrice)) {
+          const pocColor = (extData!.pocColor as string | undefined) ?? '#FF0000'
+          const y = yAxis.convertToNicePixel(pocPrice)
+          let text = yAxis.displayValueToText(
+            yAxis.realValueToDisplayValue(
+              yAxis.valueToRealValue(pocPrice, { range: yAxisRange }),
+              { range: yAxisRange }
+            ),
+            indicator.precision
+          )
+          text = decimalFold.format(thousandsSeparator.format(text))
+          let x = 0
+          let textAlign: CanvasTextAlign = 'left'
+          if (yAxis.isFromZero()) {
+            x = 0
+            textAlign = 'left'
+          } else {
+            x = bounding.width
+            textAlign = 'right'
+          }
+          this.createFigure({
+            name: 'text',
+            attrs: { x, y, text, align: textAlign, baseline: 'middle' },
+            styles: {
+              ...lastValueMarkTextStyles,
+              backgroundColor: pocColor,
+              color: '#FFFFFF'
+            }
+          })?.draw(ctx)
+        }
+      }
+    })
   }
 }

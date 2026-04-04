@@ -18,7 +18,7 @@ import type Coordinate from './common/Coordinate'
 import { UpdateLevel } from './common/Updater'
 import type Crosshair from './common/Crosshair'
 import { requestAnimationFrame, cancelAnimationFrame } from './common/utils/compatible'
-import { isValid } from './common/utils/typeChecks'
+import { isValid, isNumber } from './common/utils/typeChecks'
 
 import type { AxisRange } from './component/Axis'
 import type YAxis from './component/YAxis'
@@ -57,6 +57,27 @@ export default class Event implements EventHandler {
   private _pinchScale = 1
 
   private _mouseDownWidget: Nullable<Widget> = null
+
+  /**
+   * Check if a coordinate is within any indicator's _hitArea on a pane.
+   * Returns the indicator info if hit, null otherwise.
+   */
+  private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string } | null {
+    if (pane === null) return null
+    const chartStore = this._chart.getChartStore()
+    const indicators = chartStore.getIndicatorsByPaneId(pane.getId())
+    for (const indicator of indicators) {
+      if (!indicator.visible) continue
+      const extData = indicator.extendData as Record<string, unknown> | undefined
+      const hitArea = extData?._hitArea as { left: number; top: number; right: number; bottom: number } | undefined
+      if (hitArea != null && isNumber(hitArea.left)) {
+        if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
+          return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId() }
+        }
+      }
+    }
+    return null
+  }
 
   private _prevYAxisRange: Nullable<AxisRange> = null
 
@@ -197,6 +218,8 @@ export default class Event implements EventHandler {
               crosshair = undefined
             }
             widget.setCursor('pointer')
+          } else if (this._findIndicatorAtPoint(pane, event.x, event.y) !== null) {
+            widget.setCursor('pointer')
           } else {
             widget.setCursor('crosshair')
           }
@@ -318,7 +341,16 @@ export default class Event implements EventHandler {
       switch (name) {
         case WidgetNameConstants.MAIN: {
           const event = this._makeWidgetEvent(e, widget)
-          return widget.dispatchEvent('mouseDoubleClickEvent', event)
+          const consumed = widget.dispatchEvent('mouseDoubleClickEvent', event)
+          if (!consumed) {
+            // Check if double-click is on an indicator shape (e.g., VPVR histogram)
+            const indicatorInfo = this._findIndicatorAtPoint(pane, event.x, event.y)
+            if (indicatorInfo !== null) {
+              this._chart.getChartStore().executeAction('onIndicatorShapeDoubleClick', indicatorInfo)
+              return true
+            }
+          }
+          return consumed
         }
         case WidgetNameConstants.Y_AXIS: {
           const yAxis = (pane as DrawPane<YAxis>).getAxisComponent()

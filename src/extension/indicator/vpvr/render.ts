@@ -127,12 +127,11 @@ export function drawVPVR (
     }
   }
 
-  batchDraw(downOutside, settings.downVolumeColor)
-  batchDraw(upOutside, settings.upVolumeColor)
-  batchDraw(downInside, settings.vaDownColor)
-  batchDraw(upInside, settings.vaUpColor)
+  // With destination-over compositing (zLevel=-1), items drawn FIRST are
+  // closest to the front (behind candles but on top of later draws).
+  // Draw order: POC line first → histogram bars after (POC on top of bars).
 
-  // POC line: full chart width
+  // POC line: full chart width — drawn FIRST so it's on top of bars
   if (settings.showPOC && profile.rows.length > 0) {
     const pocRow = profile.rows[profile.pocIndex]
     const pocY = yAxis.convertToPixel(pocRow.mid)
@@ -145,6 +144,12 @@ export function drawVPVR (
     ctx.stroke()
     ctx.setLineDash([])
   }
+
+  // Histogram bars: drawn AFTER POC so they appear behind the POC line
+  batchDraw(downOutside, settings.downVolumeColor)
+  batchDraw(upOutside, settings.upVolumeColor)
+  batchDraw(downInside, settings.vaDownColor)
+  batchDraw(upInside, settings.vaUpColor)
 
   // Value text on bars (P2, off by default)
   if (settings.showValues) {

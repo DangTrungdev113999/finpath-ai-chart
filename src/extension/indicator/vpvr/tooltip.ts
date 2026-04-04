@@ -14,78 +14,52 @@
 
 import type { IndicatorTooltipData, IndicatorCreateTooltipDataSourceParams } from '../../../component/Indicator'
 
-import type { VPVRProfile, VPVRSettings } from './types'
-import { VPVR_DEFAULT_SETTINGS } from './constants'
-
-function formatVolume (vol: number): string {
-  if (vol >= 1e9) return `${(vol / 1e9).toFixed(3)}B`
-  if (vol >= 1e6) return `${(vol / 1e6).toFixed(3)}M`
-  if (vol >= 1e3) return `${(vol / 1e3).toFixed(1)}K`
-  return vol.toFixed(0)
-}
-
-function resolveSettings (extendData: unknown): VPVRSettings {
-  if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
-    return { ...VPVR_DEFAULT_SETTINGS, ...(extendData as Partial<VPVRSettings>) }
-  }
-  return { ...VPVR_DEFAULT_SETTINGS }
-}
+import type { VPVRProfile } from './types'
 
 export function createVPVRTooltip (params: IndicatorCreateTooltipDataSourceParams<Record<string, unknown>>): IndicatorTooltipData {
   const { indicator, crosshair, yAxis } = params
-  const settings = resolveSettings(indicator.extendData)
 
-  const volumeTypeLabel = settings.volumeType === 'upDown' ? 'Up/Down' : settings.volumeType === 'total' ? 'Total' : 'Delta'
-  const calcParamsText = `Number Of Rows ${settings.rowSize} ${volumeTypeLabel} ${settings.valueAreaPercent}`
-
+  // Return empty name + legends so canvas tooltip draws nothing
+  // React HTML tooltip handles the display
   const result: IndicatorTooltipData = {
-    name: 'VPVR',
-    calcParamsText,
+    name: '',
+    calcParamsText: '',
     features: [],
     legends: []
   }
 
-  if (!settings.showStatusLineValues) return result
+  // Always compute and store _tooltipValues on extendData for React layer to read
+  const extData = indicator.extendData as Record<string, unknown> | null
+  const cache = extData?._cache as { profile: VPVRProfile | null; rangeKey: string } | undefined
 
-  // Find the cached profile from extendData
-  const cache = settings._cache
-  if (cache?.profile == null) return result
+  if (cache?.profile != null && extData != null) {
+    const profile = cache.profile
+    const crosshairY = crosshair.y
 
-  const profile: VPVRProfile = cache.profile
+    if (crosshairY !== undefined && profile.rows.length > 0) {
+      const crosshairPrice = yAxis.convertFromPixel(crosshairY)
 
-  // Map crosshair Y position to a price level, then find the matching row
-  const crosshairY = crosshair.y
-  if (crosshairY === undefined || profile.rows.length === 0) return result
+      // Find row at crosshair price
+      let matchedRow = profile.rows[0]
+      for (const row of profile.rows) {
+        if (crosshairPrice >= row.low && crosshairPrice < row.high) {
+          matchedRow = row
+          break
+        }
+        if (crosshairPrice >= row.high && row === profile.rows[profile.rows.length - 1]) {
+          matchedRow = row
+        }
+      }
 
-  const crosshairPrice = yAxis.convertFromPixel(crosshairY)
-
-  // Binary-ish search for the row containing this price
-  let matchedRow = profile.rows[0]
-  for (const row of profile.rows) {
-    if (crosshairPrice >= row.low && crosshairPrice < row.high) {
-      matchedRow = row
-      break
-    }
-    // Handle edge case: price exactly at the top boundary of the last row
-    if (crosshairPrice >= row.high && row === profile.rows[profile.rows.length - 1]) {
-      matchedRow = row
+      // Store computed values on extendData so React tooltip loader can read them
+      extData._tooltipValues = {
+        buyVol: matchedRow.buyVol,
+        sellVol: matchedRow.sellVol,
+        totalVol: matchedRow.totalVol
+      }
     }
   }
 
-  result.legends = [
-    {
-      title: { text: 'Buy: ', color: 'rgba(21, 146, 230, 0.70)' },
-      value: { text: formatVolume(matchedRow.buyVol), color: 'rgba(21, 146, 230, 0.70)' }
-    },
-    {
-      title: { text: 'Sell: ', color: 'rgba(251, 193, 35, 0.70)' },
-      value: { text: formatVolume(matchedRow.sellVol), color: 'rgba(251, 193, 35, 0.70)' }
-    },
-    {
-      title: { text: 'Total: ', color: '#787B86' },
-      value: { text: formatVolume(matchedRow.totalVol), color: '#787B86' }
-    }
-  ]
-
+  // Return empty legends — React HTML tooltip handles the display
   return result
 }

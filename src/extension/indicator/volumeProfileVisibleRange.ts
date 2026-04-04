@@ -56,16 +56,40 @@ const volumeProfileVisibleRange: IndicatorTemplate<Record<string, unknown>, numb
 
     const rangeKey = `${from}-${to}-${settings.rowSize}-${settings.valueAreaPercent}-${settings.volumeType}`
 
-    // Check cache: reuse profile if range hasn't changed
-    let profile = settings._cache?.rangeKey === rangeKey ? settings._cache.profile ?? null : null
+    // Read cache from the ACTUAL extendData object (not the copy)
+    const extData = indicator.extendData as unknown as Record<string, unknown> | null
+    const existingCache = extData?._cache as { profile: ReturnType<typeof computeVPVRProfile> | null; rangeKey: string } | undefined
+    let profile = existingCache?.rangeKey === rangeKey ? existingCache.profile ?? null : null
 
     if (profile === null) {
       profile = computeVPVRProfile(dataList, from, to, settings)
-      // Store cache in extendData (instance-level, not module-level)
-      settings._cache = { profile, rangeKey }
+      // Store cache on the ACTUAL indicator.extendData so tooltip can read it
+      if (extData != null) {
+        extData._cache = { profile, rangeKey }
+      }
     }
 
     if (profile.rows.length === 0 || profile.maxRowVolume === 0) return true
+
+    // Store POC price + color for Y-axis label (IndicatorLastValueView reads these)
+    if (extData != null && settings.showPOC && settings.showPriceScaleLabel) {
+      extData._pocPrice = profile.rows[profile.pocIndex].mid
+      extData.pocColor = settings.pocColor
+    } else if (extData != null) {
+      extData._pocPrice = undefined
+    }
+
+    // Store hit area for cursor/click detection (Event.ts reads this)
+    if (extData != null) {
+      const maxWidth = bounding.width * (settings.widthPercent / 100)
+      const firstRow = profile.rows[0]
+      const lastRow = profile.rows[profile.rows.length - 1]
+      const topY = Math.min(yAxis.convertToPixel(lastRow.high), yAxis.convertToPixel(firstRow.high))
+      const bottomY = Math.max(yAxis.convertToPixel(firstRow.low), yAxis.convertToPixel(lastRow.low))
+      extData._hitArea = settings.placement === 'right'
+        ? { left: bounding.width - maxWidth, top: topY, right: bounding.width, bottom: bottomY }
+        : { left: 0, top: topY, right: maxWidth, bottom: bottomY }
+    }
 
     ctx.save()
     drawVPVR(ctx, profile, settings, bounding, yAxis)
