@@ -37,3 +37,26 @@ export const VPFR_DEFAULT: VPFRExtendData = {
 }
 
 export const VPFR_BACKGROUND_COLOR = 'rgba(41,98,255,0.06)'
+
+/**
+ * Resolve partial/missing extendData by merging with defaults.
+ * Handles both fresh overlays (undefined extendData) and restored overlays (partial data).
+ */
+export function resolveVPFRExtendData (raw: unknown): VPFRExtendData {
+  if (raw == null || typeof raw !== 'object') {
+    return { ...VPFR_DEFAULT }
+  }
+  const r = raw as Partial<VPFRExtendData>
+  return {
+    ...VPFR_DEFAULT,
+    ...r,
+    upVolume: { ...VPFR_DEFAULT.upVolume, ...(r.upVolume ?? {}) },
+    downVolume: { ...VPFR_DEFAULT.downVolume, ...(r.downVolume ?? {}) },
+    valueAreaUp: { ...VPFR_DEFAULT.valueAreaUp, ...(r.valueAreaUp ?? {}) },
+    valueAreaDown: { ...VPFR_DEFAULT.valueAreaDown, ...(r.valueAreaDown ?? {}) },
+    pocLine: { ...VPFR_DEFAULT.pocLine, ...(r.pocLine ?? {}) },
+    developingPocLine: { ...VPFR_DEFAULT.developingPocLine, ...(r.developingPocLine ?? {}) },
+    developingVahLine: { ...VPFR_DEFAULT.developingVahLine, ...(r.developingVahLine ?? {}) },
+    developingValLine: { ...VPFR_DEFAULT.developingValLine, ...(r.developingValLine ?? {}) }
+  }
+}

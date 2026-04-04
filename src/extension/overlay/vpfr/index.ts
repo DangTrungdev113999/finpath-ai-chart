@@ -17,7 +17,7 @@ import { isNumber } from '../../../common/utils/typeChecks'
 import type { OverlayTemplate } from '../../../component/Overlay'
 
 import type { VPFRExtendData } from './types'
-import { VPFR_DEFAULT } from './constants'
+import { VPFR_DEFAULT, resolveVPFRExtendData } from './constants'
 import { computeVPFRProfile, computeDevelopingLines } from './compute'
 import { renderPreview, renderProfile } from './render'
 
@@ -30,7 +30,9 @@ const volumeProfileFixedRange: OverlayTemplate<VPFRExtendData> = {
   extendData: VPFR_DEFAULT,
   createPointFigures: ({ chart, coordinates, bounding, overlay, xAxis, yAxis }) => {
     const points = overlay.points
-    const ext = overlay.extendData
+
+    // Resolve extendData with defaults (handles undefined, empty, or partial from persistence)
+    const ext = resolveVPFRExtendData(overlay.extendData)
 
     // Drawing preview: show vertical dashed lines, no histogram
     if (overlay.currentStep !== -1) {
@@ -66,8 +68,9 @@ const volumeProfileFixedRange: OverlayTemplate<VPFRExtendData> = {
     let profile = ext._cache?.profile ?? null
     if (ext._cache?.rangeKey !== cacheKey) {
       profile = computeVPFRProfile(dataList, from, to, ext.rowSize, ext.valueAreaVolume)
-      // Write cache directly to overlay.extendData (not a copy)
-      overlay.extendData._cache = { profile, rangeKey: cacheKey }
+      // Write cache to overlay.extendData
+      const extRef = overlay.extendData as unknown as Record<string, unknown>
+      extRef._cache = { profile, rangeKey: cacheKey }
     }
 
     if (profile === null || profile.rows.length === 0) return []
