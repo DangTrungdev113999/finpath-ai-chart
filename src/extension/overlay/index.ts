@@ -32,7 +32,6 @@ import verticalStraightLine from './verticalStraightLine'
 
 import simpleAnnotation from './simpleAnnotation'
 import simpleTag from './simpleTag'
-import volumeProfileFixedRange from './vpfr'
 
 const overlays: Record<string, OverlayInnerConstructor> = {}
 
@@ -40,8 +39,7 @@ const extensions = [
   fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
   parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
   straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-  simpleAnnotation, simpleTag,
-  volumeProfileFixedRange
+  simpleAnnotation, simpleTag
 ]
 
 extensions.forEach((template: OverlayTemplate) => {
