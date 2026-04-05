@@ -15,7 +15,6 @@
 import type { OverlayFigure } from '../../../component/Overlay'
 import type { YAxis } from '../../../component/YAxis'
 import type { RectAttrs } from '../../figure/rect'
-import type { LineAttrs } from '../../figure/line'
 
 import type { VPFRProfile, VPFRExtendData } from './types'
 import {
@@ -33,6 +32,7 @@ interface RenderParams {
   boundingWidth: number
   yAxis: YAxis
   isSelected: boolean
+  isHovered: boolean
   cp1: { x: number; y: number }
   cp2: { x: number; y: number }
 }
@@ -44,7 +44,7 @@ interface RenderParams {
 export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const {
     profile, settings, leftX, rightX,
-    yAxis, isSelected, cp1, cp2
+    yAxis, isSelected, isHovered, cp1, cp2
   } = params
 
   const figures: OverlayFigure[] = []
@@ -196,38 +196,30 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     }
   }
 
-  // 4. POC line — only within the drawn range (not extending to chart edge)
+  // 4. POC line — solid, within drawn range only
   if (settings.showPOC && pocIndex < rows.length) {
     const pocPrice = rows[pocIndex].mid
     const pocY = yAxis.convertToPixel(pocPrice)
-    const isSolid = settings.pocLineStyle === 'solid'
-
-    const pocLineAttrs: LineAttrs = {
-      coordinates: [
-        { x: leftX, y: pocY },
-        { x: rightX, y: pocY }
-      ]
-    }
-    const pocStyles: Record<string, unknown> = {
-      color: settings.pocColor,
-      size: settings.pocLineWidth
-    }
-    if (!isSolid) {
-      pocStyles.style = 'dashed'
-      pocStyles.dashedValue = settings.pocLineStyle === 'dashed' ? [4, 4] : [2, 2]
-    }
 
     figures.push({
       key: 'vpfr_poc',
       type: 'line',
-      attrs: pocLineAttrs,
-      styles: pocStyles,
+      attrs: {
+        coordinates: [
+          { x: leftX, y: pocY },
+          { x: rightX, y: pocY }
+        ]
+      },
+      styles: {
+        color: settings.pocColor,
+        size: Math.max(settings.pocLineWidth, 2)
+      },
       ignoreEvent: ignoreBodyDrag
     })
   }
 
-  // 5. Control points (circles, selected only — no selection border)
-  if (isSelected) {
+  // 5. Control points (circles, visible on hover or selected)
+  if (isSelected || isHovered) {
     // CP1 — top-left corner of range (start time, high price)
     figures.push({
       key: 'vpfr_cp1',

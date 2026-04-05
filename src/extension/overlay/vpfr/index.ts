@@ -25,7 +25,10 @@ import { renderVPFRFigures } from './render'
 // ChartImp.getChartStore() is always available but not on the public interface
 // to avoid leaking the ChartStore class into the .d.ts output.
 interface ChartInternal {
-  getChartStore: () => { getClickOverlayInfo: () => EventOverlayInfo }
+  getChartStore: () => {
+    getClickOverlayInfo: () => EventOverlayInfo
+    getHoverOverlayInfo: () => EventOverlayInfo
+  }
 }
 
 // Module-level cache — extendData is frozen/read-only, so we cache externally
@@ -113,9 +116,11 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     if (yAxis == null) return figures
 
-    // Determine selection state
-    const clickOverlayInfo = (chart as unknown as ChartInternal).getChartStore().getClickOverlayInfo()
-    const isSelected = clickOverlayInfo.overlay?.id === overlay.id
+    // Determine selection and hover state
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
 
     // X positions from coordinates (time-based)
     const leftX = Math.min(coordinates[0].x, coordinates[1].x)
@@ -135,6 +140,7 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
       boundingWidth: bounding.width,
       yAxis,
       isSelected,
+      isHovered,
       cp1,
       cp2
     })
