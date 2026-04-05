@@ -30,7 +30,7 @@ export const VPFR_DEFAULT_EXTEND_DATA: VPFRExtendData = {
   showPOC: true,
   pocColor: '#EF5350',
   pocLineWidth: 1,
-  pocLineStyle: 'dashed',
+  pocLineStyle: 'solid',
   showDevPOC: false,
   devPOCColor: '#B74848',
   devPOCLineWidth: 1,

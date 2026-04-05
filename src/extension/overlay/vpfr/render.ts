@@ -22,9 +22,7 @@ import {
   VPFR_CONTROL_POINT_RADIUS,
   VPFR_CONTROL_POINT_BORDER,
   VPFR_CONTROL_POINT_COLOR,
-  VPFR_CONTROL_POINT_BORDER_COLOR,
-  VPFR_SELECTION_BORDER_COLOR,
-  VPFR_SELECTION_BORDER_WIDTH
+  VPFR_CONTROL_POINT_BORDER_COLOR
 } from './constants'
 
 interface RenderParams {
@@ -45,7 +43,7 @@ interface RenderParams {
  */
 export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const {
-    profile, settings, leftX, rightX, boundingWidth,
+    profile, settings, leftX, rightX,
     yAxis, isSelected, cp1, cp2
   } = params
 
@@ -82,22 +80,23 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     ignoreEvent: ignoreBodyDrag
   })
 
-  // 2. Histogram box background (if colored)
-  if (settings.boxColor !== 'transparent') {
-    const boxAttrs: RectAttrs = {
-      x: leftX,
-      y: hitAreaMinY,
-      width: rangeWidth,
-      height: Math.max(1, hitAreaMaxY - hitAreaMinY)
-    }
-    figures.push({
-      key: 'vpfr_box',
-      type: 'rect',
-      attrs: boxAttrs,
-      styles: { style: 'fill', color: settings.boxColor },
-      ignoreEvent: true
-    })
+  // 2. Background fill behind histogram (always shown, semi-transparent)
+  const bgFillColor = settings.boxColor !== 'transparent'
+    ? settings.boxColor
+    : 'rgba(30, 40, 60, 0.3)'
+  const boxAttrs: RectAttrs = {
+    x: leftX,
+    y: hitAreaMinY,
+    width: rangeWidth,
+    height: Math.max(1, hitAreaMaxY - hitAreaMinY)
   }
+  figures.push({
+    key: 'vpfr_box',
+    type: 'rect',
+    attrs: boxAttrs,
+    styles: { style: 'fill', color: bgFillColor },
+    ignoreEvent: true
+  })
 
   // 3. Histogram bars — 4 batched rect groups
   if (settings.showProfile) {
@@ -197,7 +196,7 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     }
   }
 
-  // 4. POC line — extends from range to right edge of chart
+  // 4. POC line — only within the drawn range (not extending to chart edge)
   if (settings.showPOC && pocIndex < rows.length) {
     const pocPrice = rows[pocIndex].mid
     const pocY = yAxis.convertToPixel(pocPrice)
@@ -210,7 +209,7 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     const pocLineAttrs: LineAttrs = {
       coordinates: [
         { x: leftX, y: pocY },
-        { x: boundingWidth, y: pocY }
+        { x: rightX, y: pocY }
       ]
     }
     figures.push({
@@ -227,29 +226,8 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     })
   }
 
-  // 5. Selection border (dashed, selected only)
+  // 5. Control points (circles, selected only — no selection border)
   if (isSelected) {
-    const selBorderAttrs: RectAttrs = {
-      x: leftX,
-      y: hitAreaMinY,
-      width: rangeWidth,
-      height: Math.max(1, hitAreaMaxY - hitAreaMinY)
-    }
-    figures.push({
-      key: 'vpfr_selBorder',
-      type: 'rect',
-      attrs: selBorderAttrs,
-      styles: {
-        style: 'stroke',
-        borderColor: VPFR_SELECTION_BORDER_COLOR,
-        borderSize: VPFR_SELECTION_BORDER_WIDTH,
-        borderStyle: 'dashed',
-        borderDashedValue: [4, 4]
-      },
-      ignoreEvent: true
-    })
-
-    // 6. Control points (circles, selected only)
     // CP1 — top-left corner of range (start time, high price)
     figures.push({
       key: 'vpfr_cp1',
