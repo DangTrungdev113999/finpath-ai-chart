@@ -40,7 +40,6 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
   needDefaultYAxisFigure: false,
   mode: 'normal',
   modeSensitivity: 8,
-  extendData: { ...VPFR_DEFAULT_EXTEND_DATA },
 
   createPointFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
     const figures: OverlayFigure[] = []
