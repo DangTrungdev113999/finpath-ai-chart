@@ -87,6 +87,16 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
     const dataList = chart.getDataList()
     if (dataList.length === 0) return figures
 
+    const lastIndex = dataList.length - 1
+
+    // Clamp control point indices — cannot exceed last (realtime) candle
+    if (points[0].dataIndex > lastIndex) {
+      points[0].dataIndex = lastIndex
+    }
+    if (points[1].dataIndex > lastIndex) {
+      points[1].dataIndex = lastIndex
+    }
+
     const extendData = overlay.extendData
     const settings: VPFRExtendData = {
       ...VPFR_DEFAULT_EXTEND_DATA,
@@ -346,15 +356,9 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
   },
 
   performEventPressedMove: ({ points, performPointIndex, performPoint }) => {
-    // CP drag only changes time (dataIndex/timestamp), NOT price.
-    // Framework already sets points[performPointIndex].value from cursor Y position.
-    // We allow this — createPointFigures always recomputes price from candle data.
-    // We just ensure the time position is updated.
     if (performPointIndex >= 0 && performPointIndex < points.length) {
       points[performPointIndex].dataIndex = performPoint.dataIndex
       points[performPointIndex].timestamp = performPoint.timestamp
-      // Keep value so KLineChart's coordinate conversion works for the
-      // framework, but our rendering ignores it.
       points[performPointIndex].value = performPoint.value
     }
   }
