@@ -29,7 +29,7 @@ export const VPFR_DEFAULT_EXTEND_DATA: VPFRExtendData = {
   vaDownColor: 'rgba(212, 168, 67, 1.0)',
   showPOC: true,
   pocColor: '#EF5350',
-  pocLineWidth: 1,
+  pocLineWidth: 2,
   pocLineStyle: 'solid',
   showDevPOC: false,
   devPOCColor: '#B74848',

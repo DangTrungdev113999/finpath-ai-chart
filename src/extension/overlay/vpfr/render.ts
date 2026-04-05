@@ -200,11 +200,7 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   if (settings.showPOC && pocIndex < rows.length) {
     const pocPrice = rows[pocIndex].mid
     const pocY = yAxis.convertToPixel(pocPrice)
-    const dashedValue = settings.pocLineStyle === 'dashed'
-      ? [4, 4]
-      : settings.pocLineStyle === 'dotted'
-        ? [2, 2]
-        : [0]
+    const isSolid = settings.pocLineStyle === 'solid'
 
     const pocLineAttrs: LineAttrs = {
       coordinates: [
@@ -212,16 +208,20 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
         { x: rightX, y: pocY }
       ]
     }
+    const pocStyles: Record<string, unknown> = {
+      color: settings.pocColor,
+      size: settings.pocLineWidth
+    }
+    if (!isSolid) {
+      pocStyles.style = 'dashed'
+      pocStyles.dashedValue = settings.pocLineStyle === 'dashed' ? [4, 4] : [2, 2]
+    }
+
     figures.push({
       key: 'vpfr_poc',
       type: 'line',
       attrs: pocLineAttrs,
-      styles: {
-        style: settings.pocLineStyle === 'solid' ? 'solid' : 'dashed',
-        color: settings.pocColor,
-        size: settings.pocLineWidth,
-        dashedValue
-      },
+      styles: pocStyles,
       ignoreEvent: ignoreBodyDrag
     })
   }

@@ -146,19 +146,14 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
     const points = overlay.points
     if (points.length < 2 || points[0].dataIndex == null || points[1].dataIndex == null) return []
 
-    // Only show axis labels when selected
-    const clickOverlayInfo = (chart as unknown as ChartInternal).getChartStore().getClickOverlayInfo()
-    const isSelected = clickOverlayInfo.overlay?.id === overlay.id
-    if (!isSelected) return []
-
-    const dataList = chart.getDataList()
-    if (dataList.length === 0) return []
-
     // Get profile data from module-level cache
     const overlayId = overlay.id
     const cached = profileCache.get(overlayId)
     const profile = cached?.profile
     if (profile == null) return []
+
+    const extendData = overlay.extendData
+    const settings: VPFRExtendData = { ...VPFR_DEFAULT_EXTEND_DATA, ...extendData }
 
     const precision = chart.getSymbol()?.pricePrecision ?? 2
     const decimalFold = chart.getDecimalFold()
@@ -166,63 +161,98 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     const figures: OverlayFigure[] = []
 
-    // Profile high label
-    const highY = yAxis.convertToPixel(profile.profileHigh)
-    const highText = decimalFold.format(thousandsSeparator.format(profile.profileHigh.toFixed(precision)))
-    figures.push({
-      key: 'vpfr_yaxis_high',
-      type: 'text',
-      attrs: {
-        x: 0,
-        y: highY,
-        text: highText,
-        align: 'left',
-        baseline: 'middle'
-      },
-      styles: {
-        style: 'fill',
-        color: VPFR_AXIS_LABEL_TEXT_COLOR,
-        size: 11,
-        family: 'Helvetica Neue',
-        weight: 500,
-        paddingLeft: 4,
-        paddingTop: 2,
-        paddingRight: 4,
-        paddingBottom: 2,
-        backgroundColor: VPFR_AXIS_LABEL_BG,
-        borderRadius: 2
-      },
-      ignoreEvent: true
-    })
+    // POC price label — ALWAYS shown (red, like TradingView)
+    if (settings.showPOC && profile.pocIndex < profile.rows.length) {
+      const pocPrice = profile.rows[profile.pocIndex].mid
+      const pocY = yAxis.convertToPixel(pocPrice)
+      const pocText = decimalFold.format(thousandsSeparator.format(pocPrice.toFixed(precision)))
+      figures.push({
+        key: 'vpfr_yaxis_poc',
+        type: 'text',
+        attrs: {
+          x: 0,
+          y: pocY,
+          text: pocText,
+          align: 'left',
+          baseline: 'middle'
+        },
+        styles: {
+          style: 'fill',
+          color: VPFR_AXIS_LABEL_TEXT_COLOR,
+          size: 11,
+          family: 'Helvetica Neue',
+          weight: 500,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          backgroundColor: settings.pocColor,
+          borderRadius: 2
+        },
+        ignoreEvent: true
+      })
+    }
 
-    // Profile low label
-    const lowY = yAxis.convertToPixel(profile.profileLow)
-    const lowText = decimalFold.format(thousandsSeparator.format(profile.profileLow.toFixed(precision)))
-    figures.push({
-      key: 'vpfr_yaxis_low',
-      type: 'text',
-      attrs: {
-        x: 0,
-        y: lowY,
-        text: lowText,
-        align: 'left',
-        baseline: 'middle'
-      },
-      styles: {
-        style: 'fill',
-        color: VPFR_AXIS_LABEL_TEXT_COLOR,
-        size: 11,
-        family: 'Helvetica Neue',
-        weight: 500,
-        paddingLeft: 4,
-        paddingTop: 2,
-        paddingRight: 4,
-        paddingBottom: 2,
-        backgroundColor: VPFR_AXIS_LABEL_BG,
-        borderRadius: 2
-      },
-      ignoreEvent: true
-    })
+    // Selected-only: profile high/low price labels (blue)
+    const clickOverlayInfo = (chart as unknown as ChartInternal).getChartStore().getClickOverlayInfo()
+    const isSelected = clickOverlayInfo.overlay?.id === overlay.id
+    if (isSelected) {
+      const highY = yAxis.convertToPixel(profile.profileHigh)
+      const highText = decimalFold.format(thousandsSeparator.format(profile.profileHigh.toFixed(precision)))
+      figures.push({
+        key: 'vpfr_yaxis_high',
+        type: 'text',
+        attrs: {
+          x: 0,
+          y: highY,
+          text: highText,
+          align: 'left',
+          baseline: 'middle'
+        },
+        styles: {
+          style: 'fill',
+          color: VPFR_AXIS_LABEL_TEXT_COLOR,
+          size: 11,
+          family: 'Helvetica Neue',
+          weight: 500,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          backgroundColor: VPFR_AXIS_LABEL_BG,
+          borderRadius: 2
+        },
+        ignoreEvent: true
+      })
+
+      const lowY = yAxis.convertToPixel(profile.profileLow)
+      const lowText = decimalFold.format(thousandsSeparator.format(profile.profileLow.toFixed(precision)))
+      figures.push({
+        key: 'vpfr_yaxis_low',
+        type: 'text',
+        attrs: {
+          x: 0,
+          y: lowY,
+          text: lowText,
+          align: 'left',
+          baseline: 'middle'
+        },
+        styles: {
+          style: 'fill',
+          color: VPFR_AXIS_LABEL_TEXT_COLOR,
+          size: 11,
+          family: 'Helvetica Neue',
+          weight: 500,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          backgroundColor: VPFR_AXIS_LABEL_BG,
+          borderRadius: 2
+        },
+        ignoreEvent: true
+      })
+    }
 
     return figures
   },
