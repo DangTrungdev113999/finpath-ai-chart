@@ -290,10 +290,21 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       currentStep: _,
       points,
       styles,
+      extendData,
       ...others
     } = overlay
 
     merge(this, others)
+
+    // Handle extendData separately — replace entirely if current is frozen
+    // (frozen objects from Immer/store cannot be mutated in-place)
+    if (isValid(extendData)) {
+      if (Object.isFrozen(this.extendData)) {
+        this.extendData = clone(extendData)
+      } else {
+        merge(this.extendData, extendData)
+      }
+    }
 
     if (!isString(this.name)) {
       this.name = name ?? ''
