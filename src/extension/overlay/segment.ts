@@ -176,7 +176,7 @@ function formatNum (val: number, precision?: number): string {
 // OVERLAY
 // ═══════════════════════════════════════
 
-const segment: OverlayTemplate<SegmentExtendData> = {
+const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
   name: 'segment',
   totalStep: 3,
   needDefaultPointFigure: false,
@@ -187,7 +187,8 @@ const segment: OverlayTemplate<SegmentExtendData> = {
     if (coordinates.length < 2) return []
 
     const [c1, c2] = coordinates
-    const ext = overlay.extendData
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime for legacy overlays
+    const ext = overlay.extendData ?? {}
     const points = overlay.points
     const pricePrecision = chart.getSymbol()?.pricePrecision ?? 2
 
