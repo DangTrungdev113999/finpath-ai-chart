@@ -211,12 +211,40 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
     }
 
     // ─── 2. Main line figure ───
+    // When text is centered on line (vertLabelsAlign=center/middle), split line with gap
+    const hasText = ext.showLabel === true && ext.text != null && ext.text !== ''
+    const textOnLine = hasText && (ext.vertLabelsAlign === 'center' || ext.vertLabelsAlign === 'middle')
 
-    figures.push({
-      key: 'seg_line',
-      type: 'line',
-      attrs: { coordinates: [lineStart, lineEnd] }
-    })
+    if (textOnLine) {
+      const lineDx = lineEnd.x - lineStart.x
+      const lineDy = lineEnd.y - lineStart.y
+      const lineLen = Math.sqrt(lineDx * lineDx + lineDy * lineDy)
+      const textLen = ext.text!.length * (ext.fontsize ?? 14) * 0.6 + 16
+      const halfGap = Math.min(textLen / 2, lineLen * 0.4)
+      const gapStartT = Math.max(0, 0.5 - halfGap / lineLen)
+      const gapEndT = Math.min(1, 0.5 + halfGap / lineLen)
+
+      if (gapStartT > 0.01) {
+        figures.push({
+          key: 'seg_line_a',
+          type: 'line',
+          attrs: { coordinates: [lineStart, { x: lineStart.x + lineDx * gapStartT, y: lineStart.y + lineDy * gapStartT }] }
+        })
+      }
+      if (gapEndT < 0.99) {
+        figures.push({
+          key: 'seg_line_b',
+          type: 'line',
+          attrs: { coordinates: [{ x: lineStart.x + lineDx * gapEndT, y: lineStart.y + lineDy * gapEndT }, lineEnd] }
+        })
+      }
+    } else {
+      figures.push({
+        key: 'seg_line',
+        type: 'line',
+        attrs: { coordinates: [lineStart, lineEnd] }
+      })
+    }
 
     // ─── 3. Arrow endpoints ───
 

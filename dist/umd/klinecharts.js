@@ -5102,11 +5102,11 @@ var segment = {
     needDefaultXAxisFigure: true,
     needDefaultYAxisFigure: true,
     createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
         if (coordinates.length < 2)
             return [];
-        var _t = __read(coordinates, 2), c1 = _t[0], c2 = _t[1];
+        var _u = __read(coordinates, 2), c1 = _u[0], c2 = _u[1];
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime for legacy overlays
         var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
         var points = overlay.points;
@@ -5118,22 +5118,50 @@ var segment = {
         var lineStart = { x: c1.x, y: c1.y };
         var lineEnd = { x: c2.x, y: c2.y };
         if (extendLeft || extendRight) {
-            var _u = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, extendLeft, extendRight), 2), s = _u[0], e = _u[1];
+            var _v = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, extendLeft, extendRight), 2), s = _v[0], e = _v[1];
             lineStart = s;
             lineEnd = e;
         }
         // ─── 2. Main line figure ───
-        figures.push({
-            key: 'seg_line',
-            type: 'line',
-            attrs: { coordinates: [lineStart, lineEnd] }
-        });
+        // When text is centered on line (vertLabelsAlign=center/middle), split line with gap
+        var hasText = ext.showLabel === true && ext.text != null && ext.text !== '';
+        var textOnLine = hasText && (ext.vertLabelsAlign === 'center' || ext.vertLabelsAlign === 'middle');
+        if (textOnLine) {
+            var lineDx = lineEnd.x - lineStart.x;
+            var lineDy = lineEnd.y - lineStart.y;
+            var lineLen = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
+            var textLen = ext.text.length * ((_e = ext.fontsize) !== null && _e !== void 0 ? _e : 14) * 0.6 + 16;
+            var halfGap = Math.min(textLen / 2, lineLen * 0.4);
+            var gapStartT = Math.max(0, 0.5 - halfGap / lineLen);
+            var gapEndT = Math.min(1, 0.5 + halfGap / lineLen);
+            if (gapStartT > 0.01) {
+                figures.push({
+                    key: 'seg_line_a',
+                    type: 'line',
+                    attrs: { coordinates: [lineStart, { x: lineStart.x + lineDx * gapStartT, y: lineStart.y + lineDy * gapStartT }] }
+                });
+            }
+            if (gapEndT < 0.99) {
+                figures.push({
+                    key: 'seg_line_b',
+                    type: 'line',
+                    attrs: { coordinates: [{ x: lineStart.x + lineDx * gapEndT, y: lineStart.y + lineDy * gapEndT }, lineEnd] }
+                });
+            }
+        }
+        else {
+            figures.push({
+                key: 'seg_line',
+                type: 'line',
+                attrs: { coordinates: [lineStart, lineEnd] }
+            });
+        }
         // ─── 3. Arrow endpoints ───
-        var leftEnd = (_e = ext.leftEnd) !== null && _e !== void 0 ? _e : 0;
-        var rightEnd = (_f = ext.rightEnd) !== null && _f !== void 0 ? _f : 0;
+        var leftEnd = (_f = ext.leftEnd) !== null && _f !== void 0 ? _f : 0;
+        var rightEnd = (_g = ext.rightEnd) !== null && _g !== void 0 ? _g : 0;
         // Get line color from overlay styles
         var overlayStyles = overlay.styles;
-        var lineColor = (_h = (_g = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _g === void 0 ? void 0 : _g.color) !== null && _h !== void 0 ? _h : '#2196F3';
+        var lineColor = (_j = (_h = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _h === void 0 ? void 0 : _h.color) !== null && _j !== void 0 ? _j : '#2196F3';
         if (leftEnd === 1) {
             var arrowTip = extendLeft ? lineStart : c1;
             var arrowFrom = c2;
@@ -5164,9 +5192,9 @@ var segment = {
         }
         // ─── 4. Selection state ───
         var chartStore = chart.getChartStore();
-        var isSelected = ((_j = chartStore.getClickOverlayInfo().overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id;
+        var isSelected = ((_k = chartStore.getClickOverlayInfo().overlay) === null || _k === void 0 ? void 0 : _k.id) === overlay.id;
         var hoverInfo = chartStore.getHoverOverlayInfo();
-        var isHovered = ((_k = hoverInfo.overlay) === null || _k === void 0 ? void 0 : _k.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isHovered = ((_l = hoverInfo.overlay) === null || _l === void 0 ? void 0 : _l.id) === overlay.id && hoverInfo.figureType !== 'none';
         var isActive = isSelected || isHovered;
         // ─── 5. Middle point ───
         if (ext.showMiddlePoint === true) {
@@ -5270,12 +5298,12 @@ var segment = {
         }
         // ─── 8. Text label ───
         if (ext.showLabel === true && ext.text != null && ext.text !== '') {
-            var textColor = (_l = ext.textcolor) !== null && _l !== void 0 ? _l : lineColor;
-            var fontSize = (_m = ext.fontsize) !== null && _m !== void 0 ? _m : 14;
+            var textColor = (_m = ext.textcolor) !== null && _m !== void 0 ? _m : lineColor;
+            var fontSize = (_o = ext.fontsize) !== null && _o !== void 0 ? _o : 14;
             var isBold = ext.bold === true;
             var isItalic = ext.italic === true;
-            var hAlign = (_o = ext.horzLabelsAlign) !== null && _o !== void 0 ? _o : 'center';
-            var vAlign = (_p = ext.vertLabelsAlign) !== null && _p !== void 0 ? _p : 'bottom';
+            var hAlign = (_p = ext.horzLabelsAlign) !== null && _p !== void 0 ? _p : 'center';
+            var vAlign = (_q = ext.vertLabelsAlign) !== null && _q !== void 0 ? _q : 'bottom';
             // Calculate rotation angle to follow the line direction
             var dx = c2.x - c1.x;
             var dy = c2.y - c1.y;
@@ -5297,7 +5325,7 @@ var segment = {
             // "bottom" (default) = text ABOVE line (TradingView convention: baseline at bottom → text hangs above)
             // "top" = text BELOW line
             // "center"/"middle" = text centered on line
-            var lineWidth = (_r = (_q = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _q === void 0 ? void 0 : _q.size) !== null && _r !== void 0 ? _r : 2;
+            var lineWidth = (_s = (_r = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _r === void 0 ? void 0 : _r.size) !== null && _s !== void 0 ? _s : 2;
             var offsetPx = 0;
             var baseline = 'middle';
             if (vAlign === 'bottom') {
@@ -5378,7 +5406,7 @@ var segment = {
             }
             if (statLines.length > 0) {
                 var statsText = statLines.join('  ');
-                var statsPos = (_s = ext.statsPosition) !== null && _s !== void 0 ? _s : 2;
+                var statsPos = (_t = ext.statsPosition) !== null && _t !== void 0 ? _t : 2;
                 var midX = (c1.x + c2.x) / 2;
                 var midY = (c1.y + c2.y) / 2;
                 var sx = Math.max(c1.x, c2.x) + 8;
