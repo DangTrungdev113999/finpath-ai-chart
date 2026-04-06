@@ -17,12 +17,6 @@ import type { YAxis } from '../../../component/YAxis'
 import type { RectAttrs } from '../../figure/rect'
 
 import type { VPFRProfile, VPFRExtendData } from './types'
-import {
-  VPFR_CONTROL_POINT_RADIUS,
-  VPFR_CONTROL_POINT_BORDER,
-  VPFR_CONTROL_POINT_COLOR,
-  VPFR_CONTROL_POINT_BORDER_COLOR
-} from './constants'
 
 interface RenderParams {
   profile: VPFRProfile
@@ -33,6 +27,7 @@ interface RenderParams {
   yAxis: YAxis
   isSelected: boolean
   isHovered: boolean
+  isDarkTheme: boolean
   cp1: { x: number; y: number }
   cp2: { x: number; y: number }
 }
@@ -44,7 +39,7 @@ interface RenderParams {
 export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const {
     profile, settings, leftX, rightX,
-    yAxis, isSelected, isHovered, cp1, cp2
+    yAxis, isSelected, isHovered, isDarkTheme, cp1, cp2
   } = params
 
   const figures: OverlayFigure[] = []
@@ -251,34 +246,50 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     })
   }
 
-  // 5. Control points (circles, visible on hover or selected)
+  // 5. Control points — same style as rectangle (theme-aware fill, blue border)
   if (isSelected || isHovered) {
-    // CP1 — top-left corner of range (start time, high price)
+    const cpFill = isDarkTheme ? '#131722' : '#ffffff'
+    const cpBorder = '#1592E6'
+    const cpRadius = 5
+    const cpBorderSize = 1.5
+    const cpR = cpRadius + cpBorderSize
+
+    // CP1 — top-left (start time, high price) → nwse-resize cursor
     figures.push({
       key: 'vpfr_cp1',
       type: 'circle',
-      attrs: { x: cp1.x, y: cp1.y, r: VPFR_CONTROL_POINT_RADIUS + VPFR_CONTROL_POINT_BORDER },
+      attrs: {
+        x: cp1.x,
+        y: cp1.y,
+        r: cpR
+      },
       styles: {
         style: 'stroke_fill',
-        color: VPFR_CONTROL_POINT_COLOR,
-        borderColor: VPFR_CONTROL_POINT_BORDER_COLOR,
-        borderSize: VPFR_CONTROL_POINT_BORDER
+        color: cpFill,
+        borderColor: cpBorder,
+        borderSize: cpBorderSize
       },
-      pointIndex: 0
+      pointIndex: 0,
+      cursor: 'nwse-resize'
     })
 
-    // CP2 — bottom-right corner of range (end time, low price)
+    // CP2 — bottom-right (end time, low price) → nwse-resize cursor
     figures.push({
       key: 'vpfr_cp2',
       type: 'circle',
-      attrs: { x: cp2.x, y: cp2.y, r: VPFR_CONTROL_POINT_RADIUS + VPFR_CONTROL_POINT_BORDER },
+      attrs: {
+        x: cp2.x,
+        y: cp2.y,
+        r: cpR
+      },
       styles: {
         style: 'stroke_fill',
-        color: VPFR_CONTROL_POINT_COLOR,
-        borderColor: VPFR_CONTROL_POINT_BORDER_COLOR,
-        borderSize: VPFR_CONTROL_POINT_BORDER
+        color: cpFill,
+        borderColor: cpBorder,
+        borderSize: cpBorderSize
       },
-      pointIndex: 1
+      pointIndex: 1,
+      cursor: 'nwse-resize'
     })
   }
 

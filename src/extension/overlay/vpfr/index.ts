@@ -28,7 +28,14 @@ interface ChartInternal {
   getChartStore: () => {
     getClickOverlayInfo: () => EventOverlayInfo
     getHoverOverlayInfo: () => EventOverlayInfo
+    getStyles: () => { yAxis: { tickText: { color: string } } }
   }
+}
+
+function isLightColor (hex: string): boolean {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
+  if (m === null) return false
+  return (parseInt(m[1], 16) * 299 + parseInt(m[2], 16) * 587 + parseInt(m[3], 16) * 114) / 1000 > 128
 }
 
 // Module-level cache — extendData is frozen/read-only, so we cache externally
@@ -142,11 +149,13 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     if (yAxis == null) return figures
 
-    // Determine selection and hover state
+    // Determine selection, hover, and theme state
     const chartStore = (chart as unknown as ChartInternal).getChartStore()
     const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
     const hoverInfo = chartStore.getHoverOverlayInfo()
     const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    const tickTextColor = String(chartStore.getStyles().yAxis.tickText.color)
+    const isDarkTheme = isLightColor(tickTextColor)
 
     // X positions from coordinates (time-based)
     const leftX = Math.min(coordinates[0].x, coordinates[1].x)
@@ -167,6 +176,7 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
       yAxis,
       isSelected,
       isHovered,
+      isDarkTheme,
       cp1,
       cp2
     })
