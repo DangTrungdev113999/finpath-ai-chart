@@ -92,13 +92,40 @@ export function getTextRect (attrs: TextAttrs, styles: Partial<TextStyle>): Rect
 export function checkCoordinateOnText (coordinate: Coordinate, attrs: TextAttrs | TextAttrs[], styles: Partial<TextStyle>): boolean {
   let texts: TextAttrs[] = []
   texts = texts.concat(attrs)
+  const { size = 12, weight = 'normal', family } = styles
+  const lineHeight = size * 1.3
+
   for (const text of texts) {
-    const { x, y, width, height } = getTextRect(text, styles)
+    // When explicit width+height are set (word-wrap mode), use actual text content height for hit testing
+    // instead of the full container height — so only clicks on the text lines register
+    let hitRect: RectAttrs = { x: 0, y: 0, width: 0, height: 0 }
+    if (text.width != null && text.height != null) {
+      const contentWidth = text.width
+      // Estimate line count from text width vs available width
+      const textW = calcTextWidth(text.text, size, weight, family)
+      const lineCount = Math.max(1, Math.ceil(textW / contentWidth))
+      const contentHeight = lineCount * lineHeight
+
+      // Use getTextRect for X positioning but override height with actual content height
+      const fullRect = getTextRect(text, styles)
+      // Re-center vertically based on actual content height (same logic as drawText)
+      const vAlign = text.baseline ?? 'top'
+      let startY = fullRect.y
+      if (vAlign === 'middle') {
+        startY = fullRect.y + (fullRect.height - contentHeight) / 2
+      } else if (vAlign === 'bottom' || vAlign === 'alphabetic' || vAlign === 'ideographic') {
+        startY = fullRect.y + fullRect.height - contentHeight
+      }
+      hitRect = { x: fullRect.x, y: startY, width: fullRect.width, height: contentHeight }
+    } else {
+      hitRect = getTextRect(text, styles)
+    }
+
     if (
-      coordinate.x >= x &&
-      coordinate.x <= x + width &&
-      coordinate.y >= y &&
-      coordinate.y <= y + height
+      coordinate.x >= hitRect.x &&
+      coordinate.x <= hitRect.x + hitRect.width &&
+      coordinate.y >= hitRect.y &&
+      coordinate.y <= hitRect.y + hitRect.height
     ) {
       return true
     }
