@@ -83,7 +83,7 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   // 2. Background fill behind histogram (always shown, semi-transparent)
   const bgFillColor = settings.boxColor !== 'transparent'
     ? settings.boxColor
-    : 'rgba(30, 40, 60, 0.3)'
+    : 'rgba(128, 128, 128, 0.08)'
   const boxAttrs: RectAttrs = {
     x: leftX,
     y: hitAreaMinY,
