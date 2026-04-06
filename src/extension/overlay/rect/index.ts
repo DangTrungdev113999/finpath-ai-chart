@@ -9,8 +9,9 @@
 import type { OverlayTemplate, OverlayFigure } from '../../../component/Overlay'
 import type { EventOverlayInfo } from '../../../Store'
 import {
-  CP_RADIUS, CP_BORDER, CP_COLOR, CP_BG_COLOR,
-  CP_SQUARE_SIZE, CP_SQUARE_BORDER
+  CP_COLOR, CP_BG_COLOR,
+  CP_CORNER_SIZE, CP_CORNER_BORDER,
+  CP_MID_SIZE, CP_MID_BORDER
 } from './constants'
 
 // Internal helper to access ChartStore from Chart interface
@@ -181,52 +182,41 @@ const rect: OverlayTemplate<RectExtendData> = {
       const midX = (left + right) / 2
       const midY = (top + bottom) / 2
 
-      // Helper: circle handle (corner)
-      const circleCP = (key: string, x: number, y: number, pIdx: number, cur: string): OverlayFigure => ({
-        key,
-        type: 'circle',
-        attrs: { x, y, r: CP_RADIUS + CP_BORDER },
-        styles: {
-          style: 'stroke_fill',
-          color: CP_BG_COLOR,
-          borderColor: CP_COLOR,
-          borderSize: CP_BORDER
-        },
-        pointIndex: pIdx,
-        cursor: cur
-      })
+      // Helper: square handle — corners are larger, midpoints smaller
+      const makeCP = (key: string, x: number, y: number, pIdx: number, cur: string, isCorner: boolean): OverlayFigure => {
+        const size = isCorner ? CP_CORNER_SIZE : CP_MID_SIZE
+        const border = isCorner ? CP_CORNER_BORDER : CP_MID_BORDER
+        return {
+          key,
+          type: 'rect',
+          attrs: {
+            x: x - size / 2,
+            y: y - size / 2,
+            width: size,
+            height: size
+          },
+          styles: {
+            style: 'stroke_fill',
+            color: CP_BG_COLOR,
+            borderColor: CP_COLOR,
+            borderSize: border
+          },
+          pointIndex: pIdx,
+          cursor: cur
+        }
+      }
 
-      // Helper: square handle (midpoint) — rendered as small rect
-      const squareCP = (key: string, x: number, y: number, pIdx: number, cur: string): OverlayFigure => ({
-        key,
-        type: 'rect',
-        attrs: {
-          x: x - CP_SQUARE_SIZE / 2,
-          y: y - CP_SQUARE_SIZE / 2,
-          width: CP_SQUARE_SIZE,
-          height: CP_SQUARE_SIZE
-        },
-        styles: {
-          style: 'stroke_fill',
-          color: CP_BG_COLOR,
-          borderColor: CP_COLOR,
-          borderSize: CP_SQUARE_BORDER
-        },
-        pointIndex: pIdx,
-        cursor: cur
-      })
+      // 4 corners (larger squares)
+      figures.push(makeCP('rect_tl', left, top, 0, 'nwse-resize', true))
+      figures.push(makeCP('rect_tr', right, top, 1, 'nesw-resize', true))
+      figures.push(makeCP('rect_br', right, bottom, 1, 'nwse-resize', true))
+      figures.push(makeCP('rect_bl', left, bottom, 0, 'nesw-resize', true))
 
-      // 4 corners (circles)
-      figures.push(circleCP('rect_tl', left, top, 0, 'nwse-resize'))
-      figures.push(circleCP('rect_tr', right, top, 1, 'nesw-resize'))
-      figures.push(circleCP('rect_br', right, bottom, 1, 'nwse-resize'))
-      figures.push(circleCP('rect_bl', left, bottom, 0, 'nesw-resize'))
-
-      // 4 midpoints (squares)
-      figures.push(squareCP('rect_mt', midX, top, 0, 'ns-resize'))
-      figures.push(squareCP('rect_mr', right, midY, 1, 'ew-resize'))
-      figures.push(squareCP('rect_mb', midX, bottom, 1, 'ns-resize'))
-      figures.push(squareCP('rect_ml', left, midY, 0, 'ew-resize'))
+      // 4 midpoints (smaller squares)
+      figures.push(makeCP('rect_mt', midX, top, 0, 'ns-resize', false))
+      figures.push(makeCP('rect_mr', right, midY, 1, 'ew-resize', false))
+      figures.push(makeCP('rect_mb', midX, bottom, 1, 'ns-resize', false))
+      figures.push(makeCP('rect_ml', left, midY, 0, 'ew-resize', false))
     }
 
     return figures
