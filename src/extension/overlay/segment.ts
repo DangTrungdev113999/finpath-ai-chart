@@ -210,41 +210,13 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       lineEnd = e
     }
 
-    // ─── 2. Main line figure (split if text label is visible) ───
+    // ─── 2. Main line figure ───
 
-    const hasText = ext.showLabel === true && ext.text != null && ext.text !== ''
-    if (hasText) {
-      // Split line into two segments with a gap for the text
-      const lineLen = Math.sqrt((lineEnd.x - lineStart.x) ** 2 + (lineEnd.y - lineStart.y) ** 2)
-      const textLen = ext.text!.length * (ext.fontsize ?? 14) * 0.6 + 16 // estimated text width + padding
-      const halfGap = Math.min(textLen / 2, lineLen * 0.4) // cap gap at 80% of line
-      const t = 0.5 // gap centered at midpoint
-      const dx = lineEnd.x - lineStart.x
-      const dy = lineEnd.y - lineStart.y
-      const gapStartT = Math.max(0, t - halfGap / lineLen)
-      const gapEndT = Math.min(1, t + halfGap / lineLen)
-
-      if (gapStartT > 0.01) {
-        figures.push({
-          key: 'seg_line_a',
-          type: 'line',
-          attrs: { coordinates: [lineStart, { x: lineStart.x + dx * gapStartT, y: lineStart.y + dy * gapStartT }] }
-        })
-      }
-      if (gapEndT < 0.99) {
-        figures.push({
-          key: 'seg_line_b',
-          type: 'line',
-          attrs: { coordinates: [{ x: lineStart.x + dx * gapEndT, y: lineStart.y + dy * gapEndT }, lineEnd] }
-        })
-      }
-    } else {
-      figures.push({
-        key: 'seg_line',
-        type: 'line',
-        attrs: { coordinates: [lineStart, lineEnd] }
-      })
-    }
+    figures.push({
+      key: 'seg_line',
+      type: 'line',
+      attrs: { coordinates: [lineStart, lineEnd] }
+    })
 
     // ─── 3. Arrow endpoints ───
 
@@ -412,22 +384,41 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       const fontSize = ext.fontsize ?? 14
       const isBold = ext.bold === true
       const isItalic = ext.italic === true
-
-      // Position at midpoint of the line
-      const midX = (c1.x + c2.x) / 2
-      const midY = (c1.y + c2.y) / 2
+      const hAlign = ext.horzLabelsAlign ?? 'center'
+      const vAlign = ext.vertLabelsAlign ?? 'bottom'
 
       // Calculate rotation angle to follow the line direction
       const dx = c2.x - c1.x
       const dy = c2.y - c1.y
       let angle = Math.atan2(dy, dx)
-      // Keep text readable (not upside down): if angle > 90° or < -90°, flip it
+      // Keep text readable (not upside down)
       if (angle > Math.PI / 2) angle -= Math.PI
       if (angle < -Math.PI / 2) angle += Math.PI
 
-      // Text sits directly on the line (gap in line provides clearance)
-      // Offset slightly above center so text baseline aligns with line
-      const offsetPx = 2
+      // Horizontal position along the line: left=near c1, center=midpoint, right=near c2
+      let t = 0.5
+      if (hAlign === 'left') t = 0.15
+      else if (hAlign === 'right') t = 0.85
+      const anchorX = c1.x + dx * t
+      const anchorY = c1.y + dy * t
+
+      // Vertical offset perpendicular to line:
+      // "bottom" (default) = text ABOVE line (TradingView convention: baseline at bottom → text hangs above)
+      // "top" = text BELOW line
+      // "center"/"middle" = text centered on line
+      const lineWidth = overlayStyles?.line?.size ?? 2
+      let offsetPx = 0
+      let baseline: CanvasTextBaseline = 'middle'
+      if (vAlign === 'bottom') {
+        // Text above line — offset upward perpendicular to line
+        offsetPx = fontSize * 0.5 + lineWidth + 4
+        baseline = 'bottom'
+      } else if (vAlign === 'top') {
+        // Text below line — offset downward perpendicular to line
+        offsetPx = -(fontSize * 0.5 + lineWidth + 4)
+        baseline = 'top'
+      }
+      // Perpendicular direction (pointing "above" the line)
       const perpX = -Math.sin(angle) * offsetPx
       const perpY = Math.cos(angle) * offsetPx
 
@@ -435,11 +426,11 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
         key: 'seg_label',
         type: 'text',
         attrs: {
-          x: midX + perpX,
-          y: midY + perpY,
+          x: anchorX + perpX,
+          y: anchorY + perpY,
           text: ext.text,
           align: 'center' as CanvasTextAlign,
-          baseline: 'middle' as CanvasTextBaseline,
+          baseline,
           rotation: angle
         },
         styles: {
