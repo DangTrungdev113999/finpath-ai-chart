@@ -5102,11 +5102,11 @@ var segment = {
     needDefaultXAxisFigure: true,
     needDefaultYAxisFigure: true,
     createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
         if (coordinates.length < 2)
             return [];
-        var _r = __read(coordinates, 2), c1 = _r[0], c2 = _r[1];
+        var _p = __read(coordinates, 2), c1 = _p[0], c2 = _p[1];
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime for legacy overlays
         var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
         var points = overlay.points;
@@ -5118,7 +5118,7 @@ var segment = {
         var lineStart = { x: c1.x, y: c1.y };
         var lineEnd = { x: c2.x, y: c2.y };
         if (extendLeft || extendRight) {
-            var _s = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, extendLeft, extendRight), 2), s = _s[0], e = _s[1];
+            var _q = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, extendLeft, extendRight), 2), s = _q[0], e = _q[1];
             lineStart = s;
             lineEnd = e;
         }
@@ -5274,31 +5274,32 @@ var segment = {
             var fontSize = (_m = ext.fontsize) !== null && _m !== void 0 ? _m : 14;
             var isBold = ext.bold === true;
             var isItalic = ext.italic === true;
-            var hAlign = ((_o = ext.horzLabelsAlign) !== null && _o !== void 0 ? _o : 'center');
-            var vAlign = (_p = ext.vertLabelsAlign) !== null && _p !== void 0 ? _p : 'bottom';
-            // Position the label near the midpoint of the line
+            // Position at midpoint of the line
             var midX = (c1.x + c2.x) / 2;
             var midY = (c1.y + c2.y) / 2;
-            // Offset based on vertical alignment
-            var textY = midY - 10;
-            var textBaseline = 'bottom';
-            if (vAlign === 'top') {
-                textY = midY + 10;
-                textBaseline = 'top';
-            }
-            else if (vAlign === 'center' || vAlign === 'middle') {
-                textY = midY;
-                textBaseline = 'middle';
-            }
+            // Calculate rotation angle to follow the line direction
+            var dx = c2.x - c1.x;
+            var dy = c2.y - c1.y;
+            var angle = Math.atan2(dy, dx);
+            // Keep text readable (not upside down): if angle > 90° or < -90°, flip it
+            if (angle > Math.PI / 2)
+                angle -= Math.PI;
+            if (angle < -Math.PI / 2)
+                angle += Math.PI;
+            // Offset text slightly above the line
+            var offsetPx = fontSize * 0.4 + 4;
+            var perpX = -Math.sin(angle) * offsetPx;
+            var perpY = Math.cos(angle) * offsetPx;
             figures.push({
                 key: 'seg_label',
                 type: 'text',
                 attrs: {
-                    x: midX,
-                    y: textY,
+                    x: midX + perpX,
+                    y: midY + perpY,
                     text: ext.text,
-                    align: hAlign,
-                    baseline: textBaseline
+                    align: 'center',
+                    baseline: 'bottom',
+                    rotation: angle
                 },
                 styles: {
                     color: textColor,
@@ -5354,7 +5355,7 @@ var segment = {
             }
             if (statLines.length > 0) {
                 var statsText = statLines.join('  ');
-                var statsPos = (_q = ext.statsPosition) !== null && _q !== void 0 ? _q : 2;
+                var statsPos = (_o = ext.statsPosition) !== null && _o !== void 0 ? _o : 2;
                 var midX = (c1.x + c2.x) / 2;
                 var midY = (c1.y + c2.y) / 2;
                 var sx = Math.max(c1.x, c2.x) + 8;
@@ -9372,6 +9373,13 @@ function drawText(ctx, attrs, styles) {
     texts.forEach(function (text, index) {
         var _a, _b;
         var rect = rects[index];
+        var hasRotation = text.rotation != null && text.rotation !== 0;
+        if (hasRotation) {
+            ctx.save();
+            ctx.translate(text.x, text.y);
+            ctx.rotate(text.rotation);
+            ctx.translate(-text.x, -text.y);
+        }
         if (text.width != null && text.height != null) {
             // Multi-line word wrap + clip to bounds
             ctx.save();
@@ -9408,6 +9416,9 @@ function drawText(ctx, attrs, styles) {
         }
         else {
             ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop);
+        }
+        if (hasRotation) {
+            ctx.restore();
         }
     });
 }

@@ -971,6 +971,8 @@ export interface TextAttrs {
 	height?: number;
 	align?: CanvasTextAlign;
 	baseline?: CanvasTextBaseline;
+	/** Rotation angle in radians, applied around (x, y) */
+	rotation?: number;
 }
 export type IndicatorSeries = "normal" | "price" | "volume";
 export type IndicatorFigureStyle = Partial<Omit<SmoothLineStyle, "style">> & Partial<Omit<RectStyle, "style">> & Partial<TextStyle> & Partial<{

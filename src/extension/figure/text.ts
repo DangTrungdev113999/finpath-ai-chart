@@ -156,6 +156,13 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
 
   texts.forEach((text, index) => {
     const rect = rects[index]
+    const hasRotation = text.rotation != null && text.rotation !== 0
+    if (hasRotation) {
+      ctx.save()
+      ctx.translate(text.x, text.y)
+      ctx.rotate(text.rotation!)
+      ctx.translate(-text.x, -text.y)
+    }
     if (text.width != null && text.height != null) {
       // Multi-line word wrap + clip to bounds
       ctx.save()
@@ -193,6 +200,9 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
     } else {
       ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop)
     }
+    if (hasRotation) {
+      ctx.restore()
+    }
   })
 }
 
@@ -204,6 +214,8 @@ export interface TextAttrs {
   height?: number
   align?: CanvasTextAlign
   baseline?: CanvasTextBaseline
+  /** Rotation angle in radians, applied around (x, y) */
+  rotation?: number
 }
 
 const text: FigureTemplate<TextAttrs | TextAttrs[], Partial<TextStyle>> = {

@@ -384,33 +384,34 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       const fontSize = ext.fontsize ?? 14
       const isBold = ext.bold === true
       const isItalic = ext.italic === true
-      const hAlign = (ext.horzLabelsAlign ?? 'center') as CanvasTextAlign
-      const vAlign = ext.vertLabelsAlign ?? 'bottom'
 
-      // Position the label near the midpoint of the line
+      // Position at midpoint of the line
       const midX = (c1.x + c2.x) / 2
       const midY = (c1.y + c2.y) / 2
 
-      // Offset based on vertical alignment
-      let textY = midY - 10
-      let textBaseline: CanvasTextBaseline = 'bottom'
-      if (vAlign === 'top') {
-        textY = midY + 10
-        textBaseline = 'top'
-      } else if (vAlign === 'center' || vAlign === 'middle') {
-        textY = midY
-        textBaseline = 'middle'
-      }
+      // Calculate rotation angle to follow the line direction
+      const dx = c2.x - c1.x
+      const dy = c2.y - c1.y
+      let angle = Math.atan2(dy, dx)
+      // Keep text readable (not upside down): if angle > 90° or < -90°, flip it
+      if (angle > Math.PI / 2) angle -= Math.PI
+      if (angle < -Math.PI / 2) angle += Math.PI
+
+      // Offset text slightly above the line
+      const offsetPx = fontSize * 0.4 + 4
+      const perpX = -Math.sin(angle) * offsetPx
+      const perpY = Math.cos(angle) * offsetPx
 
       figures.push({
         key: 'seg_label',
         type: 'text',
         attrs: {
-          x: midX,
-          y: textY,
+          x: midX + perpX,
+          y: midY + perpY,
           text: ext.text,
-          align: hAlign,
-          baseline: textBaseline
+          align: 'center' as CanvasTextAlign,
+          baseline: 'bottom' as CanvasTextBaseline,
+          rotation: angle
         },
         styles: {
           color: textColor,
