@@ -160,7 +160,7 @@ const rect: OverlayTemplate<RectExtendData> = {
       figures.push({
         key: 'rect_text',
         type: 'text',
-        attrs: { x: tx, y: ty, text, align: horzAlign, baseline: vertAlign, width: width - PAD * 2 },
+        attrs: { x: tx, y: ty, text, align: horzAlign, baseline: vertAlign, width: width - PAD * 2, height: height - PAD * 2 },
         styles: {
           color: textColor,
           size: textSize,

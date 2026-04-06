@@ -21,6 +21,31 @@ import type { FigureTemplate } from '../../component/Figure'
 
 import { type RectAttrs, drawRect } from './rect'
 
+/**
+ * Word-wrap text into lines that fit within maxWidth.
+ * Uses canvas measureText for accurate width calculation.
+ */
+function wrapText (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+
+  for (const word of words) {
+    const testLine = currentLine.length > 0 ? `${currentLine} ${word}` : word
+    const metrics = ctx.measureText(testLine)
+    if (metrics.width > maxWidth && currentLine.length > 0) {
+      lines.push(currentLine)
+      currentLine = word
+    } else {
+      currentLine = testLine
+    }
+  }
+  if (currentLine.length > 0) {
+    lines.push(currentLine)
+  }
+  return lines.length > 0 ? lines : ['']
+}
+
 export function getTextRect (attrs: TextAttrs, styles: Partial<TextStyle>): RectAttrs {
   const { size = 12, paddingLeft = 0, paddingTop = 0, paddingRight = 0, paddingBottom = 0, weight = 'normal', family } = styles
   const { x, y, text, align = 'left', baseline = 'top', width: w, height: h } = attrs
@@ -100,15 +125,34 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
   ctx.font = createFont(size, weight, family)
   ctx.fillStyle = color
 
+  const lineHeight = size * 1.3
+
   texts.forEach((text, index) => {
     const rect = rects[index]
-    // If width is explicitly set in attrs, clip text instead of compressing
-    if (text.width != null) {
+    if (text.width != null && text.height != null) {
+      // Multi-line word wrap + clip to bounds
       ctx.save()
       ctx.beginPath()
       ctx.rect(rect.x, rect.y, rect.width, rect.height)
       ctx.clip()
-      ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop)
+
+      const innerWidth = rect.width - paddingLeft
+      const lines = wrapText(ctx, text.text, innerWidth)
+
+      // Draw each line with text alignment
+      const align = text.align ?? 'left'
+      for (let i = 0; i < lines.length; i++) {
+        const ly = rect.y + paddingTop + i * lineHeight
+        let lx = rect.x + paddingLeft
+        if (align === 'center') {
+          const lw = ctx.measureText(lines[i]).width
+          lx = rect.x + (rect.width - lw) / 2
+        } else if (align === 'right' || align === 'end') {
+          const lw = ctx.measureText(lines[i]).width
+          lx = rect.x + rect.width - lw - paddingLeft
+        }
+        ctx.fillText(lines[i], lx, ly)
+      }
       ctx.restore()
     } else {
       ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop)
