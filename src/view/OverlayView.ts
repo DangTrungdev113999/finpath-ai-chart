@@ -39,6 +39,15 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
     this._initEvent()
   }
 
+  private _isLightColor (hex: string): boolean {
+    const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
+    if (match === null) return false
+    const r = parseInt(match[1], 16)
+    const g = parseInt(match[2], 16)
+    const b = parseInt(match[3], 16)
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128
+  }
+
   private _initEvent (): void {
     const widget = this.getWidget()
     const pane = widget.getPane()
@@ -542,12 +551,19 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         (hoverOverlayInfo.overlay?.id === overlay.id && hoverOverlayInfo.figureType !== 'none') ||
         (clickOverlayInfo.overlay?.id === overlay.id && clickOverlayInfo.figureType !== 'none')
       ) {
-        const defaultStyles = chartStore.getStyles().overlay
+        const chartStyles = chartStore.getStyles()
+        const defaultStyles = chartStyles.overlay
         const styles = overlay.styles
         const pointStyles = { ...defaultStyles.point, ...styles?.point }
+
+        // Detect theme for CP fill: light tick text = dark theme → dark fill
+
+        const tickTextColor = String(chartStyles.yAxis.tickText.color)
+        const isDarkTheme = this._isLightColor(tickTextColor)
+        const themedFill = isDarkTheme ? '#131722' : '#ffffff'
+
         coordinates.forEach(({ x, y }, index) => {
           let radius = pointStyles.radius
-          let color = pointStyles.color
           let borderColor = pointStyles.borderColor
           let borderSize = pointStyles.borderSize
           if (
@@ -556,11 +572,11 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
             hoverOverlayInfo.figure?.key === `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
           ) {
             radius = pointStyles.activeRadius
-            color = pointStyles.activeColor
             borderColor = pointStyles.activeBorderColor
             borderSize = pointStyles.activeBorderSize
           }
 
+          const figureKey = `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
           this.createFigure(
             {
               name: 'circle',
@@ -572,17 +588,18 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
               'point',
               index,
               {
-                key: `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`,
+                key: figureKey,
                 type: 'circle',
                 attrs: { x, y, r: radius + borderSize },
-                styles: { color: borderColor }
+                styles: { color: borderColor },
+                cursor: 'pointer'
               }
             ) ?? undefined
           )?.draw(ctx)
           this.createFigure({
             name: 'circle',
             attrs: { x, y, r: radius },
-            styles: { color }
+            styles: { color: themedFill }
           })?.draw(ctx)
         })
       }
