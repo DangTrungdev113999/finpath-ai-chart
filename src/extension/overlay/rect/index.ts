@@ -9,9 +9,19 @@
 import type { OverlayTemplate, OverlayFigure } from '../../../component/Overlay'
 import type { EventOverlayInfo } from '../../../Store'
 import {
+  CP_COLOR,
   CP_RADIUS, CP_CIRCLE_BORDER,
   CP_MID_SIZE, CP_MID_BORDER, CP_MID_BORDER_RADIUS
 } from './constants'
+
+function isLightColor (hex: string): boolean {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
+  if (match == null) return false
+  const r = parseInt(match[1], 16)
+  const g = parseInt(match[2], 16)
+  const b = parseInt(match[3], 16)
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128
+}
 
 // Internal helper to access ChartStore from Chart interface
 interface ChartInternal {
@@ -69,8 +79,8 @@ const rect: OverlayTemplate<RectExtendData> = {
   name: 'rectEnhanced',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: false,
-  needDefaultYAxisFigure: false,
+  needDefaultXAxisFigure: true,
+  needDefaultYAxisFigure: true,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
     if (coordinates.length < 2) return []
@@ -180,10 +190,10 @@ const rect: OverlayTemplate<RectExtendData> = {
       const midX = (left + right) / 2
       const midY = (top + bottom) / 2
 
-      // Get themed colors from chart overlay styles
-      const overlayStyles = chart.getStyles().overlay
-      const cpColor = overlayStyles.point.borderColor
-      const cpBg = overlayStyles.point.color
+      // Detect theme from Y-axis tick text color: light text = dark theme
+      const tickTextColor = chart.getStyles().yAxis.tickText.color
+      const cpBg = isLightColor(tickTextColor) ? '#131722' : '#ffffff'
+      const cpColor = CP_COLOR
 
       // Corner handle (circle)
       const cornerCP = (key: string, x: number, y: number, pIdx: number, cur: string): OverlayFigure => ({
@@ -234,71 +244,6 @@ const rect: OverlayTemplate<RectExtendData> = {
       figures.push(midCP('rect_ml', left, midY, 0, 'ew-resize'))
     }
 
-    return figures
-  },
-
-  // Custom Y-axis labels — use borderColor (not textColor) for background
-  createYAxisFigures: ({ chart, overlay, coordinates, bounding }) => {
-    if (coordinates.length < 2) return []
-
-    const chartStore = (chart as unknown as ChartInternal).getChartStore()
-    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
-    if (!isSelected) return []
-
-    const borderColor = overlay.extendData.borderColor ?? DEFAULT_BORDER_COLOR
-    const precision = chart.getSymbol()?.pricePrecision ?? 2
-    const decimalFold = chart.getDecimalFold()
-    const thousandsSeparator = chart.getThousandsSeparator()
-
-    const topY = Math.min(coordinates[0].y, coordinates[1].y)
-    const bottomY = Math.max(coordinates[0].y, coordinates[1].y)
-    const figures: OverlayFigure[] = []
-
-    figures.push({
-      type: 'rect',
-      attrs: { x: 0, y: topY, width: bounding.width, height: bottomY - topY },
-      styles: { color: borderColor, style: 'fill' },
-      ignoreEvent: true
-    })
-
-    overlay.points.forEach((point, index) => {
-      if (point.value != null) {
-        let text = point.value.toFixed(precision)
-        text = thousandsSeparator.format(text)
-        text = decimalFold.format(text)
-        figures.push({
-          type: 'text',
-          attrs: { x: bounding.width, y: coordinates[index].y, text, align: 'right' as CanvasTextAlign, baseline: 'middle' as CanvasTextBaseline },
-          styles: { color: '#ffffff', backgroundColor: borderColor, paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2 },
-          ignoreEvent: true
-        })
-      }
-    })
-    return figures
-  },
-
-  // Custom X-axis labels — use borderColor for background
-  createXAxisFigures: ({ chart, overlay, coordinates }) => {
-    if (coordinates.length < 2) return []
-
-    const chartStore = (chart as unknown as ChartInternal).getChartStore()
-    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
-    if (!isSelected) return []
-
-    const borderColor = overlay.extendData.borderColor ?? DEFAULT_BORDER_COLOR
-    const figures: OverlayFigure[] = []
-
-    overlay.points.forEach((point, index) => {
-      if (point.timestamp != null) {
-        const dateStr = new Date(point.timestamp).toLocaleString()
-        figures.push({
-          type: 'text',
-          attrs: { x: coordinates[index].x, y: 0, text: dateStr, align: 'center' as CanvasTextAlign, baseline: 'top' as CanvasTextBaseline },
-          styles: { color: '#ffffff', backgroundColor: borderColor, paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2 },
-          ignoreEvent: true
-        })
-      }
-    })
     return figures
   },
 

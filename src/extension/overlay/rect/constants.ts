@@ -1,7 +1,10 @@
 /**
- * Rectangle overlay constants — control point sizes
- * Colors are read from chart.getStyles().overlay.point (themed)
+ * Rectangle overlay constants — control point sizes + border color
+ * CP fill color is detected from chart theme (dark → black, light → white)
  */
+
+// CP border color (always blue)
+export const CP_COLOR = '#1592E6'
 
 // Corner control points (circles)
 export const CP_RADIUS = 5
