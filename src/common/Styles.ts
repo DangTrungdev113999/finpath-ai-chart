@@ -708,7 +708,7 @@ function getDefaultCrosshairStyle (): CrosshairStyle {
 }
 
 function getDefaultOverlayStyle (): OverlayStyle {
-  const pointBorderColor = hexToRgb(Color.BLUE, 0.35)
+  const pointBorderColor = Color.BLUE
   const alphaBg = hexToRgb(Color.BLUE, 0.25)
   function text (): TextStyle {
     return {
@@ -733,12 +733,12 @@ function getDefaultOverlayStyle (): OverlayStyle {
     point: {
       color: Color.BLUE,
       borderColor: pointBorderColor,
-      borderSize: 1,
+      borderSize: 1.5,
       radius: 5,
       activeColor: Color.BLUE,
       activeBorderColor: pointBorderColor,
-      activeBorderSize: 3,
-      activeRadius: 5
+      activeBorderSize: 2,
+      activeRadius: 6
     },
     line: {
       style: 'solid',
