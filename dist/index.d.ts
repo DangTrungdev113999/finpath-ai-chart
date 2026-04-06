@@ -652,6 +652,8 @@ export interface OverlayPerformEventParams {
 	performPointIndex: number;
 	performPoint: Partial<Point>;
 	prevPoints: Array<Partial<Point>>;
+	/** Key of the figure that triggered the drag (from OverlayFigure.key) */
+	figureKey?: string;
 }
 export interface OverlayEventCollection<E> {
 	onDrawStart: Nullable<OverlayEventCallback<E>>;
@@ -681,6 +683,11 @@ export interface OverlayFigure {
 	 * Dragging it will call eventPressedPointMove(point, pointIndex) instead of eventPressedOtherMove.
 	 */
 	pointIndex?: number;
+	/**
+	 * Custom CSS cursor when hovering over this figure.
+	 * Defaults to 'pointer' if not set.
+	 */
+	cursor?: string;
 }
 export interface OverlayCreateFiguresCallbackParams<E> {
 	chart: Chart;
