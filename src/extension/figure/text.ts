@@ -90,8 +90,7 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
     family,
     weight,
     paddingLeft = 0,
-    paddingTop = 0,
-    paddingRight = 0
+    paddingTop = 0
   } = styles
   const rects = texts.map(text => getTextRect(text, styles))
   drawRect(ctx, rects, { ...styles, color: styles.backgroundColor })
@@ -103,7 +102,17 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
 
   texts.forEach((text, index) => {
     const rect = rects[index]
-    ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop, rect.width - paddingLeft - paddingRight)
+    // If width is explicitly set in attrs, clip text instead of compressing
+    if (text.width != null) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(rect.x, rect.y, rect.width, rect.height)
+      ctx.clip()
+      ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop)
+      ctx.restore()
+    } else {
+      ctx.fillText(text.text, rect.x + paddingLeft, rect.y + paddingTop)
+    }
   })
 }
 
