@@ -210,13 +210,41 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       lineEnd = e
     }
 
-    // ─── 2. Main line figure ───
+    // ─── 2. Main line figure (split if text label is visible) ───
 
-    figures.push({
-      key: 'seg_line',
-      type: 'line',
-      attrs: { coordinates: [lineStart, lineEnd] }
-    })
+    const hasText = ext.showLabel === true && ext.text != null && ext.text !== ''
+    if (hasText) {
+      // Split line into two segments with a gap for the text
+      const lineLen = Math.sqrt((lineEnd.x - lineStart.x) ** 2 + (lineEnd.y - lineStart.y) ** 2)
+      const textLen = ext.text!.length * (ext.fontsize ?? 14) * 0.6 + 16 // estimated text width + padding
+      const halfGap = Math.min(textLen / 2, lineLen * 0.4) // cap gap at 80% of line
+      const t = 0.5 // gap centered at midpoint
+      const dx = lineEnd.x - lineStart.x
+      const dy = lineEnd.y - lineStart.y
+      const gapStartT = Math.max(0, t - halfGap / lineLen)
+      const gapEndT = Math.min(1, t + halfGap / lineLen)
+
+      if (gapStartT > 0.01) {
+        figures.push({
+          key: 'seg_line_a',
+          type: 'line',
+          attrs: { coordinates: [lineStart, { x: lineStart.x + dx * gapStartT, y: lineStart.y + dy * gapStartT }] }
+        })
+      }
+      if (gapEndT < 0.99) {
+        figures.push({
+          key: 'seg_line_b',
+          type: 'line',
+          attrs: { coordinates: [{ x: lineStart.x + dx * gapEndT, y: lineStart.y + dy * gapEndT }, lineEnd] }
+        })
+      }
+    } else {
+      figures.push({
+        key: 'seg_line',
+        type: 'line',
+        attrs: { coordinates: [lineStart, lineEnd] }
+      })
+    }
 
     // ─── 3. Arrow endpoints ───
 
@@ -397,8 +425,9 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       if (angle > Math.PI / 2) angle -= Math.PI
       if (angle < -Math.PI / 2) angle += Math.PI
 
-      // Offset text slightly above the line
-      const offsetPx = fontSize * 0.4 + 4
+      // Text sits directly on the line (gap in line provides clearance)
+      // Offset slightly above center so text baseline aligns with line
+      const offsetPx = 2
       const perpX = -Math.sin(angle) * offsetPx
       const perpY = Math.cos(angle) * offsetPx
 
@@ -410,7 +439,7 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
           y: midY + perpY,
           text: ext.text,
           align: 'center' as CanvasTextAlign,
-          baseline: 'bottom' as CanvasTextBaseline,
+          baseline: 'middle' as CanvasTextBaseline,
           rotation: angle
         },
         styles: {
