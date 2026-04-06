@@ -52,10 +52,20 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
 
   if (rows.length === 0 || maxRowVolume === 0) return figures
 
-  const topY = yAxis.convertToPixel(profileHigh)
-  const bottomY = yAxis.convertToPixel(profileLow)
+  let topY = yAxis.convertToPixel(profileHigh)
+  let bottomY = yAxis.convertToPixel(profileLow)
   const rangeWidth = Math.abs(rightX - leftX)
   const maxBarWidth = rangeWidth * (settings.widthPercent / 100)
+
+  // Safeguard: ensure minimum pixel height for the histogram area
+  // Prevents "squished" rendering when price range is very narrow
+  const MIN_PROFILE_HEIGHT = 40
+  const rawHeight = Math.abs(bottomY - topY)
+  if (rawHeight < MIN_PROFILE_HEIGHT) {
+    const midY = (topY + bottomY) / 2
+    topY = midY - MIN_PROFILE_HEIGHT / 2
+    bottomY = midY + MIN_PROFILE_HEIGHT / 2
+  }
 
   // Ignore pressed-move events on hit area and histogram bars
   // so body drag falls through to chart pan
@@ -105,12 +115,22 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     const vaUpRects: RectAttrs[] = []
     const vaDownRects: RectAttrs[] = []
 
+    // Scale row positions into the (possibly expanded) topY..bottomY range
+    const profileRange = profileHigh - profileLow
+    const pxHeight = Math.abs(bottomY - topY)
+    const pxTop = Math.min(topY, bottomY)
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       if (row.totalVol === 0) continue
 
-      const rowTopY = yAxis.convertToPixel(row.high)
-      const rowBottomY = yAxis.convertToPixel(row.low)
+      // Map row price bounds to adjusted pixel coordinates
+      const rowTopY = profileRange > 0
+        ? pxTop + ((profileHigh - row.high) / profileRange) * pxHeight
+        : pxTop
+      const rowBottomY = profileRange > 0
+        ? pxTop + ((profileHigh - row.low) / profileRange) * pxHeight
+        : pxTop + pxHeight
       const barHeight = Math.max(1, Math.abs(rowBottomY - rowTopY) - 1)
       const barY = Math.min(rowTopY, rowBottomY) + 0.5
 
