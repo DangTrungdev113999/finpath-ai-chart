@@ -57,14 +57,15 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const rangeWidth = Math.abs(rightX - leftX)
   const maxBarWidth = rangeWidth * (settings.widthPercent / 100)
 
-  // Safeguard: ensure minimum pixel height for the histogram area
+  // Safeguard: ensure each row has at least 3px height
   // Prevents "squished" rendering when price range is very narrow
-  const MIN_PROFILE_HEIGHT = 40
+  const MIN_ROW_HEIGHT = 3
+  const minProfileHeight = rows.length * MIN_ROW_HEIGHT
   const rawHeight = Math.abs(bottomY - topY)
-  if (rawHeight < MIN_PROFILE_HEIGHT) {
+  if (rawHeight < minProfileHeight) {
     const midY = (topY + bottomY) / 2
-    topY = midY - MIN_PROFILE_HEIGHT / 2
-    bottomY = midY + MIN_PROFILE_HEIGHT / 2
+    topY = midY - minProfileHeight / 2
+    bottomY = midY + minProfileHeight / 2
   }
 
   // Ignore pressed-move events on hit area and histogram bars
