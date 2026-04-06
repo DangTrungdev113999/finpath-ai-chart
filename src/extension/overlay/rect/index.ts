@@ -146,7 +146,13 @@ const rect: OverlayTemplate<RectExtendData> = {
       })
     }
 
-    // 3. Text
+    // 3. Selection state (needed for text placeholder + control points)
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+
+    // 4. Text (or placeholder when selected + no text)
     const isEditing = ext.isEditing === true
     const text = ext.text ?? ''
     if (!isEditing && text !== '') {
@@ -178,13 +184,31 @@ const rect: OverlayTemplate<RectExtendData> = {
           backgroundColor: 'transparent'
         }
       })
+    } else if (!isEditing && text === '' && (isSelected || isHovered)) {
+      // Placeholder: "+ Add text" when selected/hovered and no text
+      const placeholderColor = borderColor
+      figures.push({
+        key: 'rect_text_placeholder',
+        type: 'text',
+        attrs: {
+          x: left + width * 0.5,
+          y: top + height * 0.5,
+          text: '+ Add text',
+          align: 'center' as CanvasTextAlign,
+          baseline: 'middle' as CanvasTextBaseline
+        },
+        styles: {
+          color: placeholderColor,
+          size: 13,
+          weight: 'normal',
+          style: 'normal',
+          backgroundColor: 'transparent'
+        },
+        cursor: 'text'
+      })
     }
 
-    // 4. Control points (only when selected or hovered)
-    const chartStore = (chart as unknown as ChartInternal).getChartStore()
-    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
-    const hoverInfo = chartStore.getHoverOverlayInfo()
-    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    // 5. Control points (only when selected or hovered)
 
     if (isSelected || isHovered) {
       const midX = (left + right) / 2
