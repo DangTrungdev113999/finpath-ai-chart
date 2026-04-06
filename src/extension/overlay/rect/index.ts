@@ -157,10 +157,11 @@ const rect: OverlayTemplate<RectExtendData> = {
       if (vertAlign === 'top') { ty = top + PAD }
       if (vertAlign === 'bottom') { ty = bottom - PAD }
 
+      const maxTextWidth = width - PAD * 2
       figures.push({
         key: 'rect_text',
         type: 'text',
-        attrs: { x: tx, y: ty, text, align: horzAlign, baseline: vertAlign },
+        attrs: { x: tx, y: ty, text, align: horzAlign, baseline: vertAlign, width: maxTextWidth },
         styles: {
           color: textColor,
           size: textSize,
