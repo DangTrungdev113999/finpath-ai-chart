@@ -109,7 +109,7 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     // Build cache key from all computation parameters
     const overlayId = overlay.id
-    const rangeKey = `${fromIdx}-${toIdx}-${settings.rowSize}-${settings.valueAreaPercent}-${settings.volumeType}`
+    const rangeKey = `${fromIdx}-${toIdx}-${settings.rowSize}-${settings.valueAreaPercent}-${settings.volumeType}-${dataList.length}`
 
     // Use cached profile if available (module-level cache, keyed by overlay id)
     const cached = profileCache.get(overlayId)
