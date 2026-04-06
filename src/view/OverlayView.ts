@@ -562,26 +562,27 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         const isDarkTheme = this._isLightColor(tickTextColor)
         const themedFill = isDarkTheme ? '#131722' : '#ffffff'
 
+        // Fixed CP sizes for consistent look across all overlays
+        const cpRadius = 5
+        const cpBorder = 1.5
+        const cpOuterR = cpRadius + cpBorder
+        const cpActiveOuterR = cpRadius + 2
+
         coordinates.forEach(({ x, y }, index) => {
-          let radius = pointStyles.radius
-          let borderColor = pointStyles.borderColor
-          let borderSize = pointStyles.borderSize
-          if (
+          const isHoveredPoint =
             hoverOverlayInfo.overlay?.id === overlay.id &&
             hoverOverlayInfo.figureType === 'point' &&
             hoverOverlayInfo.figure?.key === `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
-          ) {
-            radius = pointStyles.activeRadius
-            borderColor = pointStyles.activeBorderColor
-            borderSize = pointStyles.activeBorderSize
-          }
+          const outerR = isHoveredPoint ? cpActiveOuterR : cpOuterR
+          const borderColor = pointStyles.borderColor
 
           const figureKey = `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
+          // Render as stroke_fill circle (same as rectEnhanced CPs)
           this.createFigure(
             {
               name: 'circle',
-              attrs: { x, y, r: radius + borderSize },
-              styles: { color: borderColor }
+              attrs: { x, y, r: outerR },
+              styles: { style: 'stroke_fill', color: themedFill, borderColor, borderSize: cpBorder }
             },
             this._createFigureEvents(
               overlay,
@@ -590,17 +591,12 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
               {
                 key: figureKey,
                 type: 'circle',
-                attrs: { x, y, r: radius + borderSize },
-                styles: { color: borderColor },
+                attrs: { x, y, r: outerR },
+                styles: { style: 'stroke_fill', color: themedFill, borderColor, borderSize: cpBorder },
                 cursor: 'pointer'
               }
             ) ?? undefined
           )?.draw(ctx)
-          this.createFigure({
-            name: 'circle',
-            attrs: { x, y, r: radius },
-            styles: { color: themedFill }
-          })?.draw(ctx)
         })
       }
     }
