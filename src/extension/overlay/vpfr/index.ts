@@ -14,7 +14,6 @@
 
 import type { OverlayTemplate, OverlayFigure } from '../../../component/Overlay'
 import type { EventOverlayInfo } from '../../../Store'
-import type { LineAttrs } from '../../figure/line'
 
 import type { VPFRExtendData, VPFRProfile } from './types'
 import { VPFR_DEFAULT_EXTEND_DATA, VPFR_AXIS_LABEL_BG, VPFR_AXIS_LABEL_TEXT_COLOR } from './constants'
@@ -56,32 +55,60 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     if (coordinates.length === 0) return figures
 
-    // Drawing in progress with only 1 point — nothing to show yet
-    if (coordinates.length === 1) {
-      return figures
-    }
-
-    // Drawing step 2 — cursor is moving, show dashed preview line
     const isDrawing = overlay.currentStep > 0 && overlay.currentStep !== -1
+
+    // Drawing preview — show vertical dashed lines + range highlight
     if (isDrawing) {
-      const previewLineAttrs: LineAttrs = {
-        coordinates: [
-          { x: coordinates[0].x, y: coordinates[0].y },
-          { x: coordinates[1].x, y: coordinates[1].y }
-        ]
+      const topEdge = 0
+      const bottomEdge = bounding.height
+      const dashStyle = {
+        style: 'dashed' as const,
+        color: '#2196F3',
+        size: 1,
+        dashedValue: [4, 4]
       }
+
+      // Vertical dashed line at first click position
       figures.push({
-        key: 'vpfr_preview',
+        key: 'vpfr_preview_v1',
         type: 'line',
-        attrs: previewLineAttrs,
-        styles: {
-          style: 'dashed',
-          color: '#2196F3',
-          size: 1,
-          dashedValue: [6, 4]
+        attrs: {
+          coordinates: [
+            { x: coordinates[0].x, y: topEdge },
+            { x: coordinates[0].x, y: bottomEdge }
+          ]
         },
+        styles: dashStyle,
         ignoreEvent: true
       })
+
+      if (coordinates.length >= 2) {
+        // Vertical dashed line at cursor position
+        figures.push({
+          key: 'vpfr_preview_v2',
+          type: 'line',
+          attrs: {
+            coordinates: [
+              { x: coordinates[1].x, y: topEdge },
+              { x: coordinates[1].x, y: bottomEdge }
+            ]
+          },
+          styles: dashStyle,
+          ignoreEvent: true
+        })
+
+        // Range highlight fill between the two vertical lines
+        const xLeft = Math.min(coordinates[0].x, coordinates[1].x)
+        const xRight = Math.max(coordinates[0].x, coordinates[1].x)
+        figures.push({
+          key: 'vpfr_preview_fill',
+          type: 'rect',
+          attrs: { x: xLeft, y: topEdge, width: Math.max(1, xRight - xLeft), height: bottomEdge },
+          styles: { style: 'fill', color: 'rgba(33, 150, 243, 0.08)' },
+          ignoreEvent: true
+        })
+      }
+
       return figures
     }
 
@@ -183,9 +210,39 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
   },
 
   createYAxisFigures: ({ chart, overlay, coordinates, yAxis }) => {
-    if (coordinates.length < 2 || yAxis == null) return []
+    if (coordinates.length === 0 || yAxis == null) return []
 
+    const isDrawing = overlay.currentStep > 0 && overlay.currentStep !== -1
     const points = overlay.points
+
+    // During drawing — show Y-axis label at first click price
+    if (isDrawing && points.length >= 1 && points[0].value != null) {
+      const precision = chart.getSymbol()?.pricePrecision ?? 2
+      const decimalFold = chart.getDecimalFold()
+      const thousandsSeparator = chart.getThousandsSeparator()
+      const priceText = decimalFold.format(thousandsSeparator.format(points[0].value.toFixed(precision)))
+      const pY = yAxis.convertToPixel(points[0].value)
+      return [{
+        key: 'vpfr_yaxis_drawing',
+        type: 'text',
+        attrs: { x: 0, y: pY, text: priceText, align: 'left', baseline: 'middle' },
+        styles: {
+          style: 'fill',
+          color: VPFR_AXIS_LABEL_TEXT_COLOR,
+          size: 11,
+          family: 'Helvetica Neue',
+          weight: 500,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          backgroundColor: VPFR_AXIS_LABEL_BG,
+          borderRadius: 2
+        },
+        ignoreEvent: true
+      }]
+    }
+
     if (points.length < 2 || points[0].dataIndex == null || points[1].dataIndex == null) return []
 
     // Get profile data from module-level cache
@@ -319,14 +376,71 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
   },
 
   createXAxisFigures: ({ chart, overlay, coordinates }) => {
+    if (coordinates.length === 0) return []
+
+    const isDrawing = overlay.currentStep > 0 && overlay.currentStep !== -1
+    const points = overlay.points
+
+    // Format timestamps as date labels
+    const formatDate = (timestamp: number): string => {
+      const d = new Date(timestamp)
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${month}/${day}`
+    }
+
+    // During drawing — show X-axis label at first click date (+ cursor date if available)
+    if (isDrawing && points.length >= 1 && points[0].timestamp != null) {
+      const drawingFigures: OverlayFigure[] = []
+      drawingFigures.push({
+        key: 'vpfr_xaxis_drawing_cp1',
+        type: 'text',
+        attrs: { x: coordinates[0].x, y: 0, text: formatDate(points[0].timestamp), align: 'center', baseline: 'top' },
+        styles: {
+          style: 'fill',
+          color: VPFR_AXIS_LABEL_TEXT_COLOR,
+          size: 11,
+          family: 'Helvetica Neue',
+          weight: 500,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          backgroundColor: VPFR_AXIS_LABEL_BG,
+          borderRadius: 2
+        },
+        ignoreEvent: true
+      })
+      if (coordinates.length >= 2 && points.length >= 2 && points[1].timestamp != null) {
+        drawingFigures.push({
+          key: 'vpfr_xaxis_drawing_cp2',
+          type: 'text',
+          attrs: { x: coordinates[1].x, y: 0, text: formatDate(points[1].timestamp), align: 'center', baseline: 'top' },
+          styles: {
+            style: 'fill',
+            color: VPFR_AXIS_LABEL_TEXT_COLOR,
+            size: 11,
+            family: 'Helvetica Neue',
+            weight: 500,
+            paddingLeft: 4,
+            paddingTop: 2,
+            paddingRight: 4,
+            paddingBottom: 2,
+            backgroundColor: VPFR_AXIS_LABEL_BG,
+            borderRadius: 2
+          },
+          ignoreEvent: true
+        })
+      }
+      return drawingFigures
+    }
+
     if (coordinates.length < 2) return []
 
     // Only show axis labels when selected
     const clickOverlayInfo = (chart as unknown as ChartInternal).getChartStore().getClickOverlayInfo()
     const isSelected = clickOverlayInfo.overlay?.id === overlay.id
     if (!isSelected) return []
-
-    const points = overlay.points
     if (points.length < 2) return []
 
     const figures: OverlayFigure[] = []
@@ -349,14 +463,6 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
       },
       ignoreEvent: true
     })
-
-    // Format timestamps as date labels
-    const formatDate = (timestamp: number): string => {
-      const d = new Date(timestamp)
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${month}/${day}`
-    }
 
     // CP1 date label
     if (points[0].timestamp != null) {
