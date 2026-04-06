@@ -1,10 +1,7 @@
 /**
- * Rectangle overlay constants — TradingView-style control points
+ * Rectangle overlay constants — control point sizes
+ * Colors are read from chart.getStyles().overlay.point (themed)
  */
-
-// Control point colors (shared)
-export const CP_COLOR = '#1592E6'
-export const CP_BG_COLOR = '#131722'
 
 // Corner control points (circles)
 export const CP_RADIUS = 5
