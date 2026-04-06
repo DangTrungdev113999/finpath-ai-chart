@@ -15120,10 +15120,18 @@ var Event = /** @class */ (function () {
         return consumed;
     };
     Event.prototype.mouseClickEvent = function (e) {
-        var widget = this._findWidgetByEvent(e).widget;
+        var _a = this._findWidgetByEvent(e), pane = _a.pane, widget = _a.widget;
         if (widget !== null) {
             var event_5 = this._makeWidgetEvent(e, widget);
-            return widget.dispatchEvent('mouseClickEvent', event_5);
+            var consumed = widget.dispatchEvent('mouseClickEvent', event_5);
+            if (!consumed && widget.getName() === WidgetNameConstants.MAIN) {
+                var indicatorInfo = this._findIndicatorAtPoint(pane, event_5.x, event_5.y);
+                if (indicatorInfo !== null) {
+                    this._chart.getChartStore().executeAction('onIndicatorShapeClick', indicatorInfo);
+                    return true;
+                }
+            }
+            return consumed;
         }
         return false;
     };

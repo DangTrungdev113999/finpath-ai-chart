@@ -305,10 +305,18 @@ export default class Event implements EventHandler {
   }
 
   mouseClickEvent (e: MouseTouchEvent): boolean {
-    const { widget } = this._findWidgetByEvent(e)
+    const { pane, widget } = this._findWidgetByEvent(e)
     if (widget !== null) {
       const event = this._makeWidgetEvent(e, widget)
-      return widget.dispatchEvent('mouseClickEvent', event)
+      const consumed = widget.dispatchEvent('mouseClickEvent', event)
+      if (!consumed && widget.getName() === WidgetNameConstants.MAIN) {
+        const indicatorInfo = this._findIndicatorAtPoint(pane, event.x, event.y)
+        if (indicatorInfo !== null) {
+          this._chart.getChartStore().executeAction('onIndicatorShapeClick', indicatorInfo)
+          return true
+        }
+      }
+      return consumed
     }
     return false
   }
