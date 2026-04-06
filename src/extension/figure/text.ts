@@ -138,11 +138,20 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
 
       const innerWidth = rect.width - paddingLeft
       const lines = wrapText(ctx, text.text, innerWidth)
-
-      // Draw each line with text alignment
+      const totalTextH = lines.length * lineHeight
       const align = text.align ?? 'left'
+      const vAlign = text.baseline ?? 'top'
+
+      // Vertical offset: center text lines within shape bounds
+      let startY = rect.y + paddingTop
+      if (vAlign === 'middle') {
+        startY = rect.y + (rect.height - totalTextH) / 2
+      } else if (vAlign === 'bottom' || vAlign === 'alphabetic' || vAlign === 'ideographic') {
+        startY = rect.y + rect.height - totalTextH - paddingTop
+      }
+
       for (let i = 0; i < lines.length; i++) {
-        const ly = rect.y + paddingTop + i * lineHeight
+        const ly = startY + i * lineHeight
         let lx = rect.x + paddingLeft
         if (align === 'center') {
           const lw = ctx.measureText(lines[i]).width
