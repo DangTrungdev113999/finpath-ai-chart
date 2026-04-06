@@ -552,9 +552,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         (clickOverlayInfo.overlay?.id === overlay.id && clickOverlayInfo.figureType !== 'none')
       ) {
         const chartStyles = chartStore.getStyles()
-        const defaultStyles = chartStyles.overlay
-        const styles = overlay.styles
-        const pointStyles = { ...defaultStyles.point, ...styles?.point }
+        // CP colors: border always #1592E6, fill from theme
 
         // Detect theme for CP fill: light tick text = dark theme → dark fill
 
@@ -574,7 +572,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
             hoverOverlayInfo.figureType === 'point' &&
             hoverOverlayInfo.figure?.key === `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
           const outerR = isHoveredPoint ? cpActiveOuterR : cpOuterR
-          const borderColor = pointStyles.borderColor
+          const borderColor = '#1592E6'
 
           const figureKey = `${OVERLAY_FIGURE_KEY_PREFIX}point_${index}`
           // Render as stroke_fill circle (same as rectEnhanced CPs)
