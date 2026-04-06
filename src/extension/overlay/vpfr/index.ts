@@ -235,11 +235,31 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
       })
     }
 
-    // Selected-only: profile high/low price labels (blue)
+    // Selected-only: Y-axis bg fill + high/low price labels (blue)
     const clickOverlayInfo = (chart as unknown as ChartInternal).getChartStore().getClickOverlayInfo()
     const isSelected = clickOverlayInfo.overlay?.id === overlay.id
     if (isSelected) {
       const highY = yAxis.convertToPixel(profile.profileHigh)
+      const lowY = yAxis.convertToPixel(profile.profileLow)
+      const yAxisMinY = Math.min(highY, lowY)
+      const yAxisHeight = Math.abs(lowY - highY)
+
+      // Blue bg fill from high to low on Y-axis
+      figures.push({
+        key: 'vpfr_yaxis_fill',
+        type: 'rect',
+        attrs: {
+          x: 0,
+          y: yAxisMinY,
+          width: 100,
+          height: Math.max(1, yAxisHeight)
+        },
+        styles: {
+          style: 'fill',
+          color: 'rgba(33, 150, 243, 0.15)'
+        },
+        ignoreEvent: true
+      })
       const highText = decimalFold.format(thousandsSeparator.format(profile.profileHigh.toFixed(precision)))
       figures.push({
         key: 'vpfr_yaxis_high',
@@ -267,7 +287,6 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
         ignoreEvent: true
       })
 
-      const lowY = yAxis.convertToPixel(profile.profileLow)
       const lowText = decimalFold.format(thousandsSeparator.format(profile.profileLow.toFixed(precision)))
       figures.push({
         key: 'vpfr_yaxis_low',
