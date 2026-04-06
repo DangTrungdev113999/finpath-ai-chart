@@ -4093,7 +4093,7 @@ var OverlayImp = /** @class */ (function () {
         this.override(overlay);
     }
     OverlayImp.prototype.override = function (overlay) {
-        var _a, _b;
+        var _a;
         this._prevOverlay = clone(__assign(__assign({}, this), { _prevOverlay: null }));
         var id = overlay.id, name = overlay.name; overlay.currentStep; var points = overlay.points, styles = overlay.styles, extendData = overlay.extendData, others = __rest(overlay, ["id", "name", "currentStep", "points", "styles", "extendData"]);
         merge(this, others);
@@ -4114,8 +4114,12 @@ var OverlayImp = /** @class */ (function () {
             this.id = id;
         }
         if (isValid(styles)) {
-            (_a = this.styles) !== null && _a !== void 0 ? _a : (this.styles = {});
-            merge(this.styles, styles);
+            if (this.styles == null || Object.isFrozen(this.styles)) {
+                this.styles = clone(styles);
+            }
+            else {
+                merge(this.styles, styles);
+            }
         }
         if (isArray(points) && points.length > 0) {
             var repeatTotalStep = 0;
@@ -4142,7 +4146,7 @@ var OverlayImp = /** @class */ (function () {
                 }
             }
             if (this.currentStep === OVERLAY_DRAW_STEP_FINISHED) {
-                (_b = this.performEventPressedMove) === null || _b === void 0 ? void 0 : _b.call(this, {
+                (_a = this.performEventPressedMove) === null || _a === void 0 ? void 0 : _a.call(this, {
                     currentStep: this.currentStep,
                     mode: this.mode,
                     points: this.points,

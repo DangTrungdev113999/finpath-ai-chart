@@ -322,8 +322,11 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
     }
 
     if (isValid(styles)) {
-      this.styles ??= {}
-      merge(this.styles, styles)
+      if (this.styles == null || Object.isFrozen(this.styles)) {
+        this.styles = clone(styles)
+      } else {
+        merge(this.styles, styles)
+      }
     }
 
     if (isArray(points) && points.length > 0) {
