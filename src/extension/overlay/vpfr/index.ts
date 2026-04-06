@@ -331,6 +331,25 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     const figures: OverlayFigure[] = []
 
+    // Blue bg fill between CP1 and CP2 on X-axis
+    const xLeft = Math.min(coordinates[0].x, coordinates[1].x)
+    const xRight = Math.max(coordinates[0].x, coordinates[1].x)
+    figures.push({
+      key: 'vpfr_xaxis_fill',
+      type: 'rect',
+      attrs: {
+        x: xLeft,
+        y: 0,
+        width: Math.max(1, xRight - xLeft),
+        height: 30
+      },
+      styles: {
+        style: 'fill',
+        color: 'rgba(33, 150, 243, 0.15)'
+      },
+      ignoreEvent: true
+    })
+
     // Format timestamps as date labels
     const formatDate = (timestamp: number): string => {
       const d = new Date(timestamp)
