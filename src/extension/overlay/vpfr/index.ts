@@ -80,7 +80,7 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     // Overlay is complete — render full histogram
     const points = overlay.points
-    if (points.length < 2 || points[0].dataIndex == null || points[1].dataIndex == null) {
+    if (points.length < 2) {
       return figures
     }
 
@@ -89,13 +89,29 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
 
     const lastIndex = dataList.length - 1
 
-    // Clamp control point indices — cannot exceed last (realtime) candle
-    if (points[0].dataIndex > lastIndex) {
-      points[0].dataIndex = lastIndex
+    // Resolve bar indices from timestamps (dataIndex is NOT stable across reload)
+    const ts0 = points[0].timestamp
+    const ts1 = points[1].timestamp
+    let idx0 = points[0].dataIndex ?? 0
+    let idx1 = points[1].dataIndex ?? 0
+
+    // Find correct dataIndex by matching timestamp in dataList
+    if (ts0 != null) {
+      const found = dataList.findIndex(d => d.timestamp === ts0)
+      if (found >= 0) idx0 = found
     }
-    if (points[1].dataIndex > lastIndex) {
-      points[1].dataIndex = lastIndex
+    if (ts1 != null) {
+      const found = dataList.findIndex(d => d.timestamp === ts1)
+      if (found >= 0) idx1 = found
     }
+
+    // Clamp to valid range
+    idx0 = Math.max(0, Math.min(idx0, lastIndex))
+    idx1 = Math.max(0, Math.min(idx1, lastIndex))
+
+    // Sync back so coordinates render correctly
+    points[0].dataIndex = idx0
+    points[1].dataIndex = idx1
 
     const extendData = overlay.extendData
     const settings: VPFRExtendData = {
@@ -104,8 +120,8 @@ const vpfr: OverlayTemplate<VPFRExtendData> = {
     }
 
     // Normalize indices — handle CP1 dragged past CP2
-    const fromIdx = Math.min(points[0].dataIndex, points[1].dataIndex)
-    const toIdx = Math.max(points[0].dataIndex, points[1].dataIndex)
+    const fromIdx = Math.min(idx0, idx1)
+    const toIdx = Math.max(idx0, idx1)
 
     // Build cache key from all computation parameters
     const overlayId = overlay.id

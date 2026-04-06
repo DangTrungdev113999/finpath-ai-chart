@@ -58,14 +58,24 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const maxBarWidth = rangeWidth * (settings.widthPercent / 100)
 
   // Safeguard: ensure each row has at least 5px height
-  // Prevents "squished" rendering when price range is very narrow
   const MIN_ROW_HEIGHT = 5
   const minProfileHeight = rows.length * MIN_ROW_HEIGHT
   const rawHeight = Math.abs(bottomY - topY)
+  console.log('[VPFR render]', {
+    profileHigh,
+    profileLow,
+    rawTopY: topY,
+    rawBottomY: bottomY,
+    rawHeight,
+    minProfileHeight,
+    willExpand: rawHeight < minProfileHeight,
+    rowCount: rows.length
+  })
   if (rawHeight < minProfileHeight) {
     const midY = (topY + bottomY) / 2
     topY = midY - minProfileHeight / 2
     bottomY = midY + minProfileHeight / 2
+    console.log('[VPFR render] expanded:', { topY, bottomY, newHeight: Math.abs(bottomY - topY) })
   }
 
   // Ignore pressed-move events on hit area and histogram bars
