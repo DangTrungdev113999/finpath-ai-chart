@@ -187,7 +187,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
           if (!overlay.lock) {
             const point = this._coordinateToPoint(overlay, event)
             if (figureType === 'point') {
-              overlay.eventPressedPointMove(point, figureIndex)
+              overlay.eventPressedPointMove(point, figureIndex, figure?.key ?? undefined)
             } else {
               overlay.eventPressedOtherMove(point, this.getWidget().getPane().getChart().getChartStore())
             }
@@ -197,7 +197,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
             if (prevented) {
               this.getWidget().setForceCursor(null)
             } else {
-              this.getWidget().setForceCursor('pointer')
+              this.getWidget().setForceCursor(figure?.cursor ?? 'pointer')
             }
           }
           return true
@@ -269,7 +269,7 @@ export default class OverlayView<C extends Axis = YAxis> extends View<C> {
         if (prevented) {
           this.getWidget().setForceCursor(null)
         } else {
-          this.getWidget().setForceCursor('pointer')
+          this.getWidget().setForceCursor(figure.cursor ?? 'pointer')
         }
       }
 

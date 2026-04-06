@@ -36,6 +36,8 @@ export interface OverlayPerformEventParams {
   performPointIndex: number
   performPoint: Partial<Point>
   prevPoints: Array<Partial<Point>>
+  /** Key of the figure that triggered the drag (from OverlayFigure.key) */
+  figureKey?: string
 }
 
 export interface OverlayEventCollection<E> {
@@ -78,6 +80,11 @@ export interface OverlayFigure {
    * Dragging it will call eventPressedPointMove(point, pointIndex) instead of eventPressedOtherMove.
    */
   pointIndex?: number
+  /**
+   * Custom CSS cursor when hovering over this figure.
+   * Defaults to 'pointer' if not set.
+   */
+  cursor?: string
 }
 
 export interface OverlayCreateFiguresCallbackParams<E> {
@@ -414,7 +421,7 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
     })
   }
 
-  eventPressedPointMove (point: Partial<Point>, pointIndex: number): void {
+  eventPressedPointMove (point: Partial<Point>, pointIndex: number, figureKey?: string): void {
     if (pointIndex >= this.points.length) {
       while (this.points.length <= pointIndex) {
         this.points.push({})
@@ -433,7 +440,8 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
       mode: this.mode,
       performPointIndex: pointIndex,
       performPoint: this.points[pointIndex],
-      prevPoints: this._prevPressedPoints
+      prevPoints: this._prevPressedPoints,
+      figureKey
     })
   }
 
