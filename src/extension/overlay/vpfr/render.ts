@@ -57,9 +57,9 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   const rangeWidth = Math.abs(rightX - leftX)
   const maxBarWidth = rangeWidth * (settings.widthPercent / 100)
 
-  // Safeguard: ensure each row has at least 3px height
+  // Safeguard: ensure each row has at least 5px height
   // Prevents "squished" rendering when price range is very narrow
-  const MIN_ROW_HEIGHT = 3
+  const MIN_ROW_HEIGHT = 5
   const minProfileHeight = rows.length * MIN_ROW_HEIGHT
   const rawHeight = Math.abs(bottomY - topY)
   if (rawHeight < minProfileHeight) {
@@ -109,6 +109,11 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     ignoreEvent: true
   })
 
+  // Shared coordinate mapping for histogram bars and POC line
+  const profileRange = profileHigh - profileLow
+  const adjustedPxHeight = Math.abs(bottomY - topY)
+  const adjustedPxTop = Math.min(topY, bottomY)
+
   // 3. Histogram bars — 4 batched rect groups
   if (settings.showProfile) {
     const upOutsideRects: RectAttrs[] = []
@@ -116,22 +121,17 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
     const vaUpRects: RectAttrs[] = []
     const vaDownRects: RectAttrs[] = []
 
-    // Scale row positions into the (possibly expanded) topY..bottomY range
-    const profileRange = profileHigh - profileLow
-    const pxHeight = Math.abs(bottomY - topY)
-    const pxTop = Math.min(topY, bottomY)
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       if (row.totalVol === 0) continue
 
       // Map row price bounds to adjusted pixel coordinates
       const rowTopY = profileRange > 0
-        ? pxTop + ((profileHigh - row.high) / profileRange) * pxHeight
-        : pxTop
+        ? adjustedPxTop + ((profileHigh - row.high) / profileRange) * adjustedPxHeight
+        : adjustedPxTop
       const rowBottomY = profileRange > 0
-        ? pxTop + ((profileHigh - row.low) / profileRange) * pxHeight
-        : pxTop + pxHeight
+        ? adjustedPxTop + ((profileHigh - row.low) / profileRange) * adjustedPxHeight
+        : adjustedPxTop + adjustedPxHeight
       const barHeight = Math.max(1, Math.abs(rowBottomY - rowTopY) - 1)
       const barY = Math.min(rowTopY, rowBottomY) + 0.5
 
@@ -220,7 +220,9 @@ export function renderVPFRFigures (params: RenderParams): OverlayFigure[] {
   // 4. POC line — solid, within drawn range only
   if (settings.showPOC && pocIndex < rows.length) {
     const pocPrice = rows[pocIndex].mid
-    const pocY = yAxis.convertToPixel(pocPrice)
+    const pocY = profileRange > 0
+      ? adjustedPxTop + ((profileHigh - pocPrice) / profileRange) * adjustedPxHeight
+      : adjustedPxTop + adjustedPxHeight / 2
 
     figures.push({
       key: 'vpfr_poc',
