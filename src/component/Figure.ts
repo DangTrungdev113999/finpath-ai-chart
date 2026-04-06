@@ -17,7 +17,7 @@ import type Coordinate from '../common/Coordinate'
 import Eventful from '../common/Eventful'
 import type { MouseTouchEvent } from '../common/EventHandler'
 
-export const DEVIATION = 2
+export const DEVIATION = 6
 
 export interface Figure<A = unknown, S = unknown> {
   name: string

@@ -4539,7 +4539,7 @@ var Eventful = /** @class */ (function () {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var DEVIATION = 2;
+var DEVIATION = 6;
 var FigureImp = /** @class */ (function (_super) {
     __extends(FigureImp, _super);
     function FigureImp(figure) {
@@ -4983,35 +4983,447 @@ var rayLine = {
 };
 
 /**
+ * Segment overlay — TradingView-style trend line
+ *
+ * Data points: 2 (endpoints)
+ * Features: extend left/right, arrow endpoints, middle point,
+ *           price labels, text label, stats display, control points
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
+function isLightColor$2(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+// Control point constants (match rect overlay)
+var CP_COLOR$1 = '#1592E6';
+var CP_RADIUS$1 = 5;
+var CP_CIRCLE_BORDER$1 = 1.5;
+// Arrow head constants
+var ARROW_LENGTH = 14;
+var ARROW_WIDTH = 6;
+/**
+ * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
+ */
+function getArrowCoordinates(from, tip) {
+    var dx = tip.x - from.x;
+    var dy = tip.y - from.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0)
+        return [];
+    // Unit vector along the line
+    var ux = dx / len;
+    var uy = dy / len;
+    // Perpendicular unit vector
+    var px = -uy;
+    var py = ux;
+    // Base of the arrowhead
+    var bx = tip.x - ux * ARROW_LENGTH;
+    var by = tip.y - uy * ARROW_LENGTH;
+    return [
+        { x: tip.x, y: tip.y },
+        { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
+        { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
+    ];
+}
+/**
+ * Extend a line segment from c1->c2 to bounding edges.
+ */
+function getExtendedCoordinates(c1, c2, boundingWidth, boundingHeight, extendLeft, extendRight) {
+    var start = { x: c1.x, y: c1.y };
+    var end = { x: c2.x, y: c2.y };
+    var isVertical = c1.x === c2.x;
+    if (isVertical) {
+        if (extendLeft) {
+            // Extend from c1 in its direction away from c2
+            if (c1.y <= c2.y) {
+                start = { x: c1.x, y: 0 };
+            }
+            else {
+                start = { x: c1.x, y: boundingHeight };
+            }
+        }
+        if (extendRight) {
+            // Extend from c2 in its direction away from c1
+            if (c1.y <= c2.y) {
+                end = { x: c2.x, y: boundingHeight };
+            }
+            else {
+                end = { x: c2.x, y: 0 };
+            }
+        }
+        return [start, end];
+    }
+    if (extendLeft) {
+        // Extend from c1 backward (away from c2)
+        var direction = c1.x < c2.x ? 0 : boundingWidth;
+        start = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
+        };
+    }
+    if (extendRight) {
+        // Extend from c2 forward (away from c1)
+        var direction = c1.x < c2.x ? boundingWidth : 0;
+        end = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
+        };
+    }
+    return [start, end];
+}
+/**
+ * Format a number for display
+ */
+function formatNum(val, precision) {
+    var p = precision !== null && precision !== void 0 ? precision : 2;
+    return val.toFixed(p).replace(/\.?0+$/, '');
+}
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var segment = {
     name: 'segment',
     totalStep: 3,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: true,
     needDefaultYAxisFigure: true,
     createPointFigures: function (_a) {
-        var coordinates = _a.coordinates;
-        if (coordinates.length === 2) {
-            return [
-                {
-                    type: 'line',
-                    attrs: { coordinates: coordinates }
-                }
-            ];
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _q = __read(coordinates, 2), c1 = _q[0], c2 = _q[1];
+        var ext = overlay.extendData;
+        var points = overlay.points;
+        var pricePrecision = (_c = (_b = chart.getSymbol()) === null || _b === void 0 ? void 0 : _b.pricePrecision) !== null && _c !== void 0 ? _c : 2;
+        var figures = [];
+        // ─── 1. Compute line coordinates (with optional extend) ───
+        var extendLeft = ext.extendLeft === true;
+        var extendRight = ext.extendRight === true;
+        var lineStart = { x: c1.x, y: c1.y };
+        var lineEnd = { x: c2.x, y: c2.y };
+        if (extendLeft || extendRight) {
+            var _r = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, extendLeft, extendRight), 2), s = _r[0], e = _r[1];
+            lineStart = s;
+            lineEnd = e;
         }
-        return [];
+        // ─── 2. Main line figure ───
+        figures.push({
+            key: 'seg_line',
+            type: 'line',
+            attrs: { coordinates: [lineStart, lineEnd] }
+        });
+        // ─── 3. Arrow endpoints ───
+        var leftEnd = (_d = ext.leftEnd) !== null && _d !== void 0 ? _d : 0;
+        var rightEnd = (_e = ext.rightEnd) !== null && _e !== void 0 ? _e : 0;
+        // Get line color from overlay styles
+        var overlayStyles = overlay.styles;
+        var lineColor = (_g = (_f = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _f === void 0 ? void 0 : _f.color) !== null && _g !== void 0 ? _g : '#2196F3';
+        if (leftEnd === 1) {
+            var arrowTip = extendLeft ? lineStart : c1;
+            var arrowFrom = c2;
+            var arrowCoords = getArrowCoordinates(arrowFrom, arrowTip);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'seg_arrow_left',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        if (rightEnd === 1) {
+            var arrowTip = extendRight ? lineEnd : c2;
+            var arrowFrom = c1;
+            var arrowCoords = getArrowCoordinates(arrowFrom, arrowTip);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'seg_arrow_right',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 4. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_h = chartStore.getClickOverlayInfo().overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_j = hoverInfo.overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 5. Middle point ───
+        if (ext.showMiddlePoint === true) {
+            var midX = (c1.x + c2.x) / 2;
+            var midY = (c1.y + c2.y) / 2;
+            if (isActive) {
+                var tickTextColor = chart.getStyles().yAxis.tickText.color;
+                var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
+                figures.push({
+                    key: 'seg_mid',
+                    type: 'circle',
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                    styles: {
+                        style: 'stroke_fill',
+                        color: cpBg,
+                        borderColor: CP_COLOR$1,
+                        borderSize: CP_CIRCLE_BORDER$1
+                    },
+                    pointIndex: 0,
+                    cursor: 'move'
+                });
+            }
+        }
+        // ─── 6. Control points at endpoints (when selected/hovered) ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'seg_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR$1,
+                    borderSize: CP_CIRCLE_BORDER$1
+                },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'seg_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR$1,
+                    borderSize: CP_CIRCLE_BORDER$1
+                },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 7. Price labels at endpoints ───
+        if (ext.showPriceLabels === true && points.length >= 2) {
+            var p1Value = points[0].value;
+            var p2Value = points[1].value;
+            if (p1Value != null) {
+                var precision = pricePrecision;
+                figures.push({
+                    key: 'seg_price0',
+                    type: 'text',
+                    attrs: {
+                        x: c1.x,
+                        y: c1.y - 18,
+                        text: formatNum(p1Value, precision),
+                        align: 'center',
+                        baseline: 'bottom'
+                    },
+                    styles: {
+                        color: lineColor,
+                        size: 11,
+                        weight: 'normal',
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+            if (p2Value != null) {
+                var precision = pricePrecision;
+                figures.push({
+                    key: 'seg_price1',
+                    type: 'text',
+                    attrs: {
+                        x: c2.x,
+                        y: c2.y - 18,
+                        text: formatNum(p2Value, precision),
+                        align: 'center',
+                        baseline: 'bottom'
+                    },
+                    styles: {
+                        color: lineColor,
+                        size: 11,
+                        weight: 'normal',
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 8. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_k = ext.textcolor) !== null && _k !== void 0 ? _k : lineColor;
+            var fontSize = (_l = ext.fontsize) !== null && _l !== void 0 ? _l : 14;
+            var isBold = ext.bold === true;
+            var isItalic = ext.italic === true;
+            var hAlign = ((_m = ext.horzLabelsAlign) !== null && _m !== void 0 ? _m : 'center');
+            var vAlign = (_o = ext.vertLabelsAlign) !== null && _o !== void 0 ? _o : 'bottom';
+            // Position the label near the midpoint of the line
+            var midX = (c1.x + c2.x) / 2;
+            var midY = (c1.y + c2.y) / 2;
+            // Offset based on vertical alignment
+            var textY = midY - 10;
+            var textBaseline = 'bottom';
+            if (vAlign === 'top') {
+                textY = midY + 10;
+                textBaseline = 'top';
+            }
+            else if (vAlign === 'center' || vAlign === 'middle') {
+                textY = midY;
+                textBaseline = 'middle';
+            }
+            figures.push({
+                key: 'seg_label',
+                type: 'text',
+                attrs: {
+                    x: midX,
+                    y: textY,
+                    text: ext.text,
+                    align: hAlign,
+                    baseline: textBaseline
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: isBold ? 'bold' : 'normal',
+                    style: isItalic ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 9. Stats display ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = (ext.showPriceRange === true ||
+            ext.showPercentPriceRange === true ||
+            ext.showBarsRange === true ||
+            ext.showDateTimeRange === true ||
+            ext.showDistance === true ||
+            ext.showAngle === true);
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Value = points[0].value;
+            var p2Value = points[1].value;
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showPriceRange === true && p1Value != null && p2Value != null) {
+                var diff = p2Value - p1Value;
+                var sign = diff >= 0 ? '+' : '';
+                var precision = pricePrecision;
+                statLines.push("".concat(sign).concat(formatNum(diff, precision)));
+            }
+            if (ext.showPercentPriceRange === true && p1Value != null && p2Value != null && p1Value !== 0) {
+                var pct = ((p2Value - p1Value) / Math.abs(p1Value)) * 100;
+                var sign = pct >= 0 ? '+' : '';
+                statLines.push("".concat(sign).concat(formatNum(pct), "%"));
+            }
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                var bars = Math.abs(p2Index - p1Index);
+                statLines.push("".concat(bars, " bars"));
+            }
+            if (ext.showDistance === true) {
+                var dx = c2.x - c1.x;
+                var dy = c2.y - c1.y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                statLines.push("Dist: ".concat(formatNum(dist, 1), "px"));
+            }
+            if (ext.showAngle === true) {
+                var dx = c2.x - c1.x;
+                var dy = c2.y - c1.y;
+                // Angle from horizontal, positive = up (canvas Y is inverted)
+                var angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+                statLines.push("".concat(formatNum(angle, 1), "\u00B0"));
+            }
+            if (statLines.length > 0) {
+                var statsText = statLines.join('  ');
+                var statsPos = (_p = ext.statsPosition) !== null && _p !== void 0 ? _p : 2;
+                var midX = (c1.x + c2.x) / 2;
+                var midY = (c1.y + c2.y) / 2;
+                var sx = Math.max(c1.x, c2.x) + 8;
+                var sy = midY;
+                var sAlign = 'left';
+                var sBaseline = 'middle';
+                switch (statsPos) {
+                    case 0: // left
+                        sx = Math.min(c1.x, c2.x) - 8;
+                        sy = midY;
+                        sAlign = 'right';
+                        break;
+                    case 1: // top
+                        sx = midX;
+                        sy = Math.min(c1.y, c2.y) - 12;
+                        sAlign = 'center';
+                        sBaseline = 'bottom';
+                        break;
+                    case 3: // bottom
+                        sx = midX;
+                        sy = Math.max(c1.y, c2.y) + 12;
+                        sAlign = 'center';
+                        sBaseline = 'top';
+                        break;
+                    default: // 2 = right
+                        sx = Math.max(c1.x, c2.x) + 8;
+                        sy = midY;
+                        sAlign = 'left';
+                        break;
+                }
+                figures.push({
+                    key: 'seg_stats',
+                    type: 'text',
+                    attrs: {
+                        x: sx,
+                        y: sy,
+                        text: statsText,
+                        align: sAlign,
+                        baseline: sBaseline
+                    },
+                    styles: {
+                        color: lineColor,
+                        size: 11,
+                        weight: 'normal',
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var _b, _c;
+        var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey;
+        if (figureKey == null || figureKey === '' || prevPoints.length < 2)
+            return;
+        if (figureKey === 'seg_mid') {
+            // Middle point drag: move both points by the same delta
+            // The engine sets points[0] to the new dragged position (pointIndex=0).
+            // We compute delta from midpoint's original position and apply to both points.
+            if (prevPoints[0].dataIndex != null && prevPoints[1].dataIndex != null &&
+                prevPoints[0].value != null && prevPoints[1].value != null) {
+                var midOrigIndex = Math.round((prevPoints[0].dataIndex + prevPoints[1].dataIndex) / 2);
+                var midOrigValue = (prevPoints[0].value + prevPoints[1].value) / 2;
+                var newIndex = (_b = points[0].dataIndex) !== null && _b !== void 0 ? _b : midOrigIndex;
+                var newValue = (_c = points[0].value) !== null && _c !== void 0 ? _c : midOrigValue;
+                var dxFromMid = newIndex - midOrigIndex;
+                var dyFromMid = newValue - midOrigValue;
+                points[0] = __assign(__assign({}, prevPoints[0]), { dataIndex: prevPoints[0].dataIndex + dxFromMid, value: prevPoints[0].value + dyFromMid, timestamp: undefined });
+                points[1] = __assign(__assign({}, prevPoints[1]), { dataIndex: prevPoints[1].dataIndex + dxFromMid, value: prevPoints[1].value + dyFromMid, timestamp: undefined });
+            }
+        }
+        // seg_cp0, seg_cp1: standard behavior — no constraint needed
     }
 };
 

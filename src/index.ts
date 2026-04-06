@@ -67,6 +67,7 @@ import { registerFigure, getSupportedFigures, getFigureClass } from './extension
 import { registerIndicator, getSupportedIndicators } from './extension/indicator/index'
 import { registerLocale, getSupportedLocales } from './extension/i18n/index'
 import { registerOverlay, getOverlayClass, getSupportedOverlays } from './extension/overlay/index'
+import type { SegmentExtendData } from './extension/overlay/segment'
 import { registerStyles } from './extension/styles/index'
 import { registerXAxis } from './extension/x-axis'
 import { registerYAxis } from './extension/y-axis'
@@ -175,5 +176,6 @@ export {
   utils,
   type LineType, type PolygonType, type TooltipShowRule, type TooltipShowType, type FeatureType, type TooltipFeaturePosition, type CandleTooltipRectPosition,
   type CandleType, type FormatDateType, type ZoomAnchor,
-  type DomPosition, type ActionType, type IndicatorSeries, type OverlayMode
+  type DomPosition, type ActionType, type IndicatorSeries, type OverlayMode,
+  type SegmentExtendData
 }
