@@ -413,7 +413,7 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       const isBold = ext.bold === true
       const isItalic = ext.italic === true
       const hAlign = ext.horzLabelsAlign ?? 'center'
-      const vAlign = ext.vertLabelsAlign ?? 'bottom'
+      const vAlign = ext.vertLabelsAlign ?? 'top'
 
       // Calculate rotation angle to follow the line direction
       const dx = c2.x - c1.x
@@ -431,19 +431,19 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       const anchorY = c1.y + dy * t
 
       // Vertical offset perpendicular to line:
-      // "bottom" (default) = text ABOVE line (TradingView convention: baseline at bottom → text hangs above)
-      // "top" = text BELOW line
+      // "top" = text ABOVE line (TradingView: "Trên đầu" — default)
+      // "bottom" = text BELOW line (TradingView: "Dưới cùng")
       // "center"/"middle" = text centered on line
       const lineWidth = overlayStyles?.line?.size ?? 2
       let offsetPx = 0
       let baseline: CanvasTextBaseline = 'middle'
-      if (vAlign === 'bottom') {
-        // Text above line — offset upward perpendicular to line
-        offsetPx = fontSize * 0.5 + lineWidth + 4
+      if (vAlign === 'top') {
+        // Text above line — offset upward perpendicular to line (min 5px gap)
+        offsetPx = Math.max(5, lineWidth + 5)
         baseline = 'bottom'
-      } else if (vAlign === 'top') {
-        // Text below line — offset downward perpendicular to line
-        offsetPx = -(fontSize * 0.5 + lineWidth + 4)
+      } else if (vAlign === 'bottom') {
+        // Text below line — offset downward perpendicular to line (min 5px gap)
+        offsetPx = -Math.max(5, lineWidth + 5)
         baseline = 'top'
       }
       // Perpendicular direction (pointing "above" the line)

@@ -5298,7 +5298,7 @@ var segment = {
             var isBold = ext.bold === true;
             var isItalic = ext.italic === true;
             var hAlign = (_p = ext.horzLabelsAlign) !== null && _p !== void 0 ? _p : 'center';
-            var vAlign = (_q = ext.vertLabelsAlign) !== null && _q !== void 0 ? _q : 'bottom';
+            var vAlign = (_q = ext.vertLabelsAlign) !== null && _q !== void 0 ? _q : 'top';
             // Calculate rotation angle to follow the line direction
             var dx = c2.x - c1.x;
             var dy = c2.y - c1.y;
@@ -5317,20 +5317,20 @@ var segment = {
             var anchorX = c1.x + dx * t;
             var anchorY = c1.y + dy * t;
             // Vertical offset perpendicular to line:
-            // "bottom" (default) = text ABOVE line (TradingView convention: baseline at bottom → text hangs above)
-            // "top" = text BELOW line
+            // "top" = text ABOVE line (TradingView: "Trên đầu" — default)
+            // "bottom" = text BELOW line (TradingView: "Dưới cùng")
             // "center"/"middle" = text centered on line
             var lineWidth = (_s = (_r = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _r === void 0 ? void 0 : _r.size) !== null && _s !== void 0 ? _s : 2;
             var offsetPx = 0;
             var baseline = 'middle';
-            if (vAlign === 'bottom') {
-                // Text above line — offset upward perpendicular to line
-                offsetPx = fontSize * 0.5 + lineWidth + 4;
+            if (vAlign === 'top') {
+                // Text above line — offset upward perpendicular to line (min 5px gap)
+                offsetPx = Math.max(5, lineWidth + 5);
                 baseline = 'bottom';
             }
-            else if (vAlign === 'top') {
-                // Text below line — offset downward perpendicular to line
-                offsetPx = -(fontSize * 0.5 + lineWidth + 4);
+            else if (vAlign === 'bottom') {
+                // Text below line — offset downward perpendicular to line (min 5px gap)
+                offsetPx = -Math.max(5, lineWidth + 5);
                 baseline = 'top';
             }
             // Perpendicular direction (pointing "above" the line)
