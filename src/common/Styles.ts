@@ -586,7 +586,7 @@ function getDefaultIndicatorStyle (): IndicatorStyle {
       offsetTop: 6,
       offsetRight: 4,
       offsetBottom: 6,
-      showRule: 'always',
+      showRule: 'none',
       showType: 'standard',
       title: {
         show: true,

@@ -1190,7 +1190,7 @@ function getDefaultIndicatorStyle() {
             offsetTop: 6,
             offsetRight: 4,
             offsetBottom: 6,
-            showRule: 'always',
+            showRule: 'none',
             showType: 'standard',
             title: {
                 show: true,
@@ -2764,15 +2764,7 @@ var ichimokuCloud = {
         ctx.restore();
         // Return true: we drew everything, suppress native figures pipeline
         return true;
-    },
-    // Suppress the library's built-in canvas tooltip entirely.
-    // Tooltip is handled by React HTML in finpath-web (IchimokuTooltipRow).
-    createTooltipDataSource: function () { return ({
-        name: '',
-        calcParamsText: '',
-        features: [],
-        legends: []
-    }); }
+    }
 };
 
 /**

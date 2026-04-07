@@ -357,16 +357,7 @@ const ichimokuCloud: IndicatorTemplate<IchimokuData, number, IchimokuExtendData>
 
     // Return true: we drew everything, suppress native figures pipeline
     return true
-  },
-
-  // Suppress the library's built-in canvas tooltip entirely.
-  // Tooltip is handled by React HTML in finpath-web (IchimokuTooltipRow).
-  createTooltipDataSource: () => ({
-    name: '',
-    calcParamsText: '',
-    features: [],
-    legends: []
-  })
+  }
 }
 
 export default ichimokuCloud
