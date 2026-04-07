@@ -13,8 +13,7 @@
  */
 
 import type { KLineData } from '../../common/Data'
-import type { IndicatorTemplate, IndicatorTooltipData, IndicatorCreateTooltipDataSourceParams } from '../../component/Indicator'
-import type { TooltipLegend } from '../../common/Styles'
+import type { IndicatorTemplate } from '../../component/Indicator'
 
 // ═══════════════════════════════════════════════════════════════
 // Data interface: raw values stored per bar (before offset)
@@ -358,96 +357,6 @@ const ichimokuCloud: IndicatorTemplate<IchimokuData, number, IchimokuExtendData>
 
     // Return true: we drew everything, suppress native figures pipeline
     return true
-  },
-
-  // ─── createTooltipDataSource(): displacement-aware crosshair values ────
-  createTooltipDataSource: (params: IndicatorCreateTooltipDataSourceParams<IchimokuData>): IndicatorTooltipData => {
-    const { indicator, crosshair } = params
-    const result = indicator.result
-    const dataIndex = crosshair.dataIndex ?? -1
-    const calcParams = indicator.calcParams as unknown as number[]
-    const displacement = calcParams[3] > 0 ? calcParams[3] : 26
-    const offset = displacement - 1
-
-    const legends: TooltipLegend[] = []
-
-    // Resolve extendData for visibility and color
-    const ext = (indicator.extendData ?? {}) as IchimokuExtendData
-    const showTenkan = ext.showTenkan ?? true
-    const showKijun = ext.showKijun ?? true
-    const showSenkouA = ext.showSenkouA ?? true
-    const showSenkouB = ext.showSenkouB ?? true
-    const showChikou = ext.showChikou ?? true
-
-    const tenkanColor = ext.tenkanColor ?? DEFAULT_TENKAN_COLOR
-    const kijunColor = ext.kijunColor ?? DEFAULT_KIJUN_COLOR
-    const senkouAColor = ext.senkouAColor ?? DEFAULT_SENKOU_A_COLOR
-    const senkouBColor = ext.senkouBColor ?? DEFAULT_SENKOU_B_COLOR
-    const chikouColor = ext.chikouColor ?? DEFAULT_CHIKOU_COLOR
-
-    const precision = indicator.precision
-
-    const formatVal = (v: number | undefined | null): string => {
-      if (v == null) return '--'
-      return v.toFixed(precision)
-    }
-
-    // Tenkan and Kijun: from current bar's data
-    const currentData = (dataIndex >= 0 && dataIndex < result.length) ? result[dataIndex] : null
-
-    if (showTenkan) {
-      legends.push({
-        title: { text: 'T: ', color: tenkanColor },
-        value: { text: formatVal(currentData?.tenkan), color: tenkanColor }
-      })
-    }
-    if (showKijun) {
-      legends.push({
-        title: { text: 'K: ', color: kijunColor },
-        value: { text: formatVal(currentData?.kijun), color: kijunColor }
-      })
-    }
-
-    // Senkou A/B: the values displayed at current bar index were calculated
-    // at (dataIndex - offset) because they were plotted forward by +offset
-    const senkouSourceIndex = dataIndex - offset
-    const senkouData = (senkouSourceIndex >= 0 && senkouSourceIndex < result.length)
-      ? result[senkouSourceIndex]
-      : null
-
-    if (showSenkouA) {
-      legends.push({
-        title: { text: 'A: ', color: senkouAColor },
-        value: { text: formatVal(senkouData?.senkouA), color: senkouAColor }
-      })
-    }
-    if (showSenkouB) {
-      legends.push({
-        title: { text: 'B: ', color: senkouBColor },
-        value: { text: formatVal(senkouData?.senkouB), color: senkouBColor }
-      })
-    }
-
-    // Chikou: the value displayed at current bar was from (dataIndex + offset)
-    // because it was plotted backward by -offset
-    const chikouSourceIndex = dataIndex + offset
-    const chikouData = (chikouSourceIndex >= 0 && chikouSourceIndex < result.length)
-      ? result[chikouSourceIndex]
-      : null
-
-    if (showChikou) {
-      legends.push({
-        title: { text: 'C: ', color: chikouColor },
-        value: { text: formatVal(chikouData?.chikou), color: chikouColor }
-      })
-    }
-
-    return {
-      name: 'Ichimoku',
-      calcParamsText: `(${calcParams.join(',')})`,
-      features: [],
-      legends
-    }
   }
 }
 
