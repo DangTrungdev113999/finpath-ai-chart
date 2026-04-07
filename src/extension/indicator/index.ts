@@ -28,6 +28,7 @@ import differentOfMovingAverage from './differentOfMovingAverage'
 import directionalMovementIndex from './directionalMovementIndex'
 import easeOfMovementValue from './easeOfMovementValue'
 import exponentialMovingAverage from './exponentialMovingAverage'
+import ichimokuCloud from './ichimokuCloud'
 import momentum from './momentum'
 import movingAverage from './movingAverage'
 import movingAverageConvergenceDivergence from './movingAverageConvergenceDivergence'
@@ -50,7 +51,7 @@ const indicators: Record<string, IndicatorConstructor> = {}
 const extensions = [
   averagePrice, awesomeOscillator, bias, bollingerBands, brar,
   bullAndBearIndex, commodityChannelIndex, currentRatio, differentOfMovingAverage,
-  directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, momentum,
+  directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
   movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
   psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
   stoch, stopAndReverse, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, volumeRatio, williamsR

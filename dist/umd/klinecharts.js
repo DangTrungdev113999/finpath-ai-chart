@@ -2532,6 +2532,338 @@ var exponentialMovingAverage = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// ═══════════════════════════════════════════════════════════════
+// Default colors (matching TradingView exactly)
+// ═══════════════════════════════════════════════════════════════
+var DEFAULT_TENKAN_COLOR = '#2962FF';
+var DEFAULT_KIJUN_COLOR = '#B71C1C';
+var DEFAULT_SENKOU_A_COLOR = '#A5D6A7';
+var DEFAULT_SENKOU_B_COLOR = '#EF9A9A';
+var DEFAULT_CHIKOU_COLOR = '#43A047';
+// 10% opacity, matching TradingView
+var DEFAULT_BULLISH_CLOUD_COLOR = 'rgba(67, 160, 71, 0.1)';
+var DEFAULT_BEARISH_CLOUD_COLOR = 'rgba(244, 67, 54, 0.1)';
+// ═══════════════════════════════════════════════════════════════
+// Donchian midline: (highest high + lowest low) / 2 over N bars
+// ═══════════════════════════════════════════════════════════════
+function donchian(dataList, endIndex, period) {
+    var startIdx = Math.max(0, endIndex - period + 1);
+    var highestHigh = -Infinity;
+    var lowestLow = Infinity;
+    for (var i = startIdx; i <= endIndex; i++) {
+        if (dataList[i].high > highestHigh)
+            highestHigh = dataList[i].high;
+        if (dataList[i].low < lowestLow)
+            lowestLow = dataList[i].low;
+    }
+    return (highestHigh + lowestLow) / 2;
+}
+// ═══════════════════════════════════════════════════════════════
+// Helper: draw a polyline from an array of {barIndex, value}
+// with an optional bar-index offset (for displaced lines)
+// ═══════════════════════════════════════════════════════════════
+function drawLine$1(ctx, points, offset, color, lineWidth, xAxis, yAxis) {
+    var e_1, _a;
+    if (points.length < 2)
+        return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    var started = false;
+    try {
+        for (var points_1 = __values(points), points_1_1 = points_1.next(); !points_1_1.done; points_1_1 = points_1.next()) {
+            var pt = points_1_1.value;
+            var x = xAxis.convertToPixel(pt.barIndex + offset);
+            var y = yAxis.convertToPixel(pt.value);
+            if (!started) {
+                ctx.moveTo(x, y);
+                started = true;
+            }
+            else {
+                ctx.lineTo(x, y);
+            }
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (points_1_1 && !points_1_1.done && (_a = points_1.return)) _a.call(points_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    ctx.stroke();
+}
+function drawCloudFill(ctx, points, offset, bullishColor, bearishColor, xAxis, yAxis) {
+    if (points.length < 2)
+        return;
+    // Split at crossovers and fill each segment with the correct color
+    var segStart = 0;
+    for (var i = 1; i < points.length; i++) {
+        var prevBullish = points[i - 1].a >= points[i - 1].b;
+        var currBullish = points[i].a >= points[i].b;
+        if (prevBullish !== currBullish || i === points.length - 1) {
+            // Include the crossover point (or last point) in the current segment
+            var segEnd = i;
+            var segment = points.slice(segStart, segEnd + 1);
+            var isBullish = points[segStart].a >= points[segStart].b;
+            if (segment.length >= 2) {
+                ctx.fillStyle = isBullish ? bullishColor : bearishColor;
+                ctx.beginPath();
+                // Trace Senkou A forward
+                var x0 = xAxis.convertToPixel(segment[0].barIndex + offset);
+                var y0 = yAxis.convertToPixel(segment[0].a);
+                ctx.moveTo(x0, y0);
+                for (var j = 1; j < segment.length; j++) {
+                    ctx.lineTo(xAxis.convertToPixel(segment[j].barIndex + offset), yAxis.convertToPixel(segment[j].a));
+                }
+                // Trace Senkou B backward to close polygon
+                for (var j = segment.length - 1; j >= 0; j--) {
+                    ctx.lineTo(xAxis.convertToPixel(segment[j].barIndex + offset), yAxis.convertToPixel(segment[j].b));
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+            // Next segment starts at the crossover point
+            segStart = i;
+        }
+    }
+}
+// ═══════════════════════════════════════════════════════════════
+// Ichimoku Cloud IndicatorTemplate
+// ═══════════════════════════════════════════════════════════════
+var ichimokuCloud = {
+    name: 'IK',
+    shortName: 'Ichimoku',
+    series: 'price',
+    precision: 2,
+    shouldOhlc: true,
+    // [conversionPeriod, basePeriod, spanBPeriod, displacement]
+    calcParams: [9, 26, 52, 26],
+    figures: [
+        { key: 'tenkan', title: 'T: ', type: 'line' },
+        { key: 'kijun', title: 'K: ', type: 'line' },
+        { key: 'senkouA', title: 'A: ', type: 'line' },
+        { key: 'senkouB', title: 'B: ', type: 'line' },
+        { key: 'chikou', title: 'C: ', type: 'line' }
+    ],
+    // ─── calc(): donchian midline for each component ────────────────────────
+    calc: function (dataList, indicator) {
+        var _a, _b, _c;
+        var params = indicator.calcParams;
+        var conversionPeriod = (_a = params[0]) !== null && _a !== void 0 ? _a : 9;
+        var basePeriod = (_b = params[1]) !== null && _b !== void 0 ? _b : 26;
+        var spanBPeriod = (_c = params[2]) !== null && _c !== void 0 ? _c : 52;
+        return dataList.map(function (kLineData, i) {
+            var result = {};
+            // Tenkan-sen: donchian(conversionPeriod)
+            result.tenkan = donchian(dataList, i, conversionPeriod);
+            // Kijun-sen: donchian(basePeriod)
+            result.kijun = donchian(dataList, i, basePeriod);
+            // Senkou Span A: (tenkan + kijun) / 2 (raw, before +offset)
+            result.senkouA = (result.tenkan + result.kijun) / 2;
+            // Senkou Span B: donchian(spanBPeriod) (raw, before +offset)
+            result.senkouB = donchian(dataList, i, spanBPeriod);
+            // Chikou Span: close price (raw, before -offset)
+            result.chikou = kLineData.close;
+            return result;
+        });
+    },
+    // ─── draw(): custom rendering with displacement offsets + cloud fill ────
+    // Returns true always because ALL lines need offset-aware rendering
+    draw: function (params) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
+        var ctx = params.ctx, indicator = params.indicator, xAxis = params.xAxis, yAxis = params.yAxis, chart = params.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return true;
+        var calcParams = indicator.calcParams;
+        var displacement = calcParams[3] > 0 ? calcParams[3] : 26;
+        // +25 for senkou forward, -25 for chikou backward
+        var offset = displacement - 1;
+        // ─── Resolve extendData settings ────────────────────────────────────
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_a = indicator.extendData) !== null && _a !== void 0 ? _a : {});
+        var showTenkan = (_b = ext.showTenkan) !== null && _b !== void 0 ? _b : true;
+        var showKijun = (_c = ext.showKijun) !== null && _c !== void 0 ? _c : true;
+        var showSenkouA = (_d = ext.showSenkouA) !== null && _d !== void 0 ? _d : true;
+        var showSenkouB = (_e = ext.showSenkouB) !== null && _e !== void 0 ? _e : true;
+        var showChikou = (_f = ext.showChikou) !== null && _f !== void 0 ? _f : true;
+        var showCloud = (_g = ext.showCloud) !== null && _g !== void 0 ? _g : true;
+        var tenkanColor = (_h = ext.tenkanColor) !== null && _h !== void 0 ? _h : DEFAULT_TENKAN_COLOR;
+        var kijunColor = (_j = ext.kijunColor) !== null && _j !== void 0 ? _j : DEFAULT_KIJUN_COLOR;
+        var senkouAColor = (_k = ext.senkouAColor) !== null && _k !== void 0 ? _k : DEFAULT_SENKOU_A_COLOR;
+        var senkouBColor = (_l = ext.senkouBColor) !== null && _l !== void 0 ? _l : DEFAULT_SENKOU_B_COLOR;
+        var chikouColor = (_m = ext.chikouColor) !== null && _m !== void 0 ? _m : DEFAULT_CHIKOU_COLOR;
+        var bullishCloudColor = (_o = ext.bullishCloudColor) !== null && _o !== void 0 ? _o : DEFAULT_BULLISH_CLOUD_COLOR;
+        var bearishCloudColor = (_p = ext.bearishCloudColor) !== null && _p !== void 0 ? _p : DEFAULT_BEARISH_CLOUD_COLOR;
+        var defaultLw = (_q = ext.lineWidth) !== null && _q !== void 0 ? _q : 1;
+        var tenkanWidth = (_r = ext.tenkanWidth) !== null && _r !== void 0 ? _r : defaultLw;
+        var kijunWidth = (_s = ext.kijunWidth) !== null && _s !== void 0 ? _s : defaultLw;
+        var senkouAWidth = (_t = ext.senkouAWidth) !== null && _t !== void 0 ? _t : defaultLw;
+        var senkouBWidth = (_u = ext.senkouBWidth) !== null && _u !== void 0 ? _u : defaultLw;
+        var chikouWidth = (_v = ext.chikouWidth) !== null && _v !== void 0 ? _v : defaultLw;
+        // ─── Visible range ──────────────────────────────────────────────────
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from;
+        var to = visibleRange.to;
+        if (from >= to)
+            return true;
+        // Expand the range to account for displacement offsets:
+        // - Senkou lines are drawn at (barIndex + offset), so data from
+        //   (visibleFrom - offset) to (visibleTo) may be visible
+        // - Chikou is drawn at (barIndex - offset), so data from
+        //   (visibleFrom) to (visibleTo + offset) may be visible
+        var dataLen = result.length;
+        var cloudFrom = Math.max(0, from - offset);
+        var cloudTo = Math.min(dataLen, to + offset);
+        ctx.save();
+        // ─── Cloud fill ─────────────────────────────────────────────────────
+        if (showCloud) {
+            var cloudPoints = [];
+            for (var i = cloudFrom; i < cloudTo && i < dataLen; i++) {
+                var item = result[i];
+                if (item.senkouA != null && item.senkouB != null) {
+                    cloudPoints.push({ barIndex: i, a: item.senkouA, b: item.senkouB });
+                }
+            }
+            if (cloudPoints.length >= 2) {
+                ctx.globalCompositeOperation = 'source-over';
+                drawCloudFill(ctx, cloudPoints, offset, bullishCloudColor, bearishCloudColor, xAxis, yAxis);
+            }
+        }
+        // ─── Build point arrays for lines ───────────────────────────────────
+        var tenkanPoints = [];
+        var kijunPoints = [];
+        var senkouAPoints = [];
+        var senkouBPoints = [];
+        var chikouPoints = [];
+        for (var i = cloudFrom; i < cloudTo && i < dataLen; i++) {
+            var item = result[i];
+            if (showTenkan && item.tenkan != null) {
+                tenkanPoints.push({ barIndex: i, value: item.tenkan });
+            }
+            if (showKijun && item.kijun != null) {
+                kijunPoints.push({ barIndex: i, value: item.kijun });
+            }
+            if (showSenkouA && item.senkouA != null) {
+                senkouAPoints.push({ barIndex: i, value: item.senkouA });
+            }
+            if (showSenkouB && item.senkouB != null) {
+                senkouBPoints.push({ barIndex: i, value: item.senkouB });
+            }
+            if (showChikou && item.chikou != null) {
+                chikouPoints.push({ barIndex: i, value: item.chikou });
+            }
+        }
+        // ─── Draw lines ─────────────────────────────────────────────────────
+        // Tenkan and Kijun: offset = 0 (drawn at natural bar position)
+        drawLine$1(ctx, tenkanPoints, 0, tenkanColor, tenkanWidth, xAxis, yAxis);
+        drawLine$1(ctx, kijunPoints, 0, kijunColor, kijunWidth, xAxis, yAxis);
+        // Senkou A and B: offset = +(displacement - 1) bars forward
+        drawLine$1(ctx, senkouAPoints, offset, senkouAColor, senkouAWidth, xAxis, yAxis);
+        drawLine$1(ctx, senkouBPoints, offset, senkouBColor, senkouBWidth, xAxis, yAxis);
+        // Chikou: offset = -(displacement - 1) bars backward
+        drawLine$1(ctx, chikouPoints, -offset, chikouColor, chikouWidth, xAxis, yAxis);
+        ctx.restore();
+        // Return true: we drew everything, suppress native figures pipeline
+        return true;
+    },
+    // ─── createTooltipDataSource(): displacement-aware crosshair values ────
+    createTooltipDataSource: function (params) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+        var indicator = params.indicator, crosshair = params.crosshair;
+        var result = indicator.result;
+        var dataIndex = (_a = crosshair.dataIndex) !== null && _a !== void 0 ? _a : -1;
+        var calcParams = indicator.calcParams;
+        var displacement = calcParams[3] > 0 ? calcParams[3] : 26;
+        var offset = displacement - 1;
+        var legends = [];
+        // Resolve extendData for visibility and color
+        var ext = ((_b = indicator.extendData) !== null && _b !== void 0 ? _b : {});
+        var showTenkan = (_c = ext.showTenkan) !== null && _c !== void 0 ? _c : true;
+        var showKijun = (_d = ext.showKijun) !== null && _d !== void 0 ? _d : true;
+        var showSenkouA = (_e = ext.showSenkouA) !== null && _e !== void 0 ? _e : true;
+        var showSenkouB = (_f = ext.showSenkouB) !== null && _f !== void 0 ? _f : true;
+        var showChikou = (_g = ext.showChikou) !== null && _g !== void 0 ? _g : true;
+        var tenkanColor = (_h = ext.tenkanColor) !== null && _h !== void 0 ? _h : DEFAULT_TENKAN_COLOR;
+        var kijunColor = (_j = ext.kijunColor) !== null && _j !== void 0 ? _j : DEFAULT_KIJUN_COLOR;
+        var senkouAColor = (_k = ext.senkouAColor) !== null && _k !== void 0 ? _k : DEFAULT_SENKOU_A_COLOR;
+        var senkouBColor = (_l = ext.senkouBColor) !== null && _l !== void 0 ? _l : DEFAULT_SENKOU_B_COLOR;
+        var chikouColor = (_m = ext.chikouColor) !== null && _m !== void 0 ? _m : DEFAULT_CHIKOU_COLOR;
+        var precision = indicator.precision;
+        var formatVal = function (v) {
+            if (v == null)
+                return '--';
+            return v.toFixed(precision);
+        };
+        // Tenkan and Kijun: from current bar's data
+        var currentData = (dataIndex >= 0 && dataIndex < result.length) ? result[dataIndex] : null;
+        if (showTenkan) {
+            legends.push({
+                title: { text: 'T: ', color: tenkanColor },
+                value: { text: formatVal(currentData === null || currentData === void 0 ? void 0 : currentData.tenkan), color: tenkanColor }
+            });
+        }
+        if (showKijun) {
+            legends.push({
+                title: { text: 'K: ', color: kijunColor },
+                value: { text: formatVal(currentData === null || currentData === void 0 ? void 0 : currentData.kijun), color: kijunColor }
+            });
+        }
+        // Senkou A/B: the values displayed at current bar index were calculated
+        // at (dataIndex - offset) because they were plotted forward by +offset
+        var senkouSourceIndex = dataIndex - offset;
+        var senkouData = (senkouSourceIndex >= 0 && senkouSourceIndex < result.length)
+            ? result[senkouSourceIndex]
+            : null;
+        if (showSenkouA) {
+            legends.push({
+                title: { text: 'A: ', color: senkouAColor },
+                value: { text: formatVal(senkouData === null || senkouData === void 0 ? void 0 : senkouData.senkouA), color: senkouAColor }
+            });
+        }
+        if (showSenkouB) {
+            legends.push({
+                title: { text: 'B: ', color: senkouBColor },
+                value: { text: formatVal(senkouData === null || senkouData === void 0 ? void 0 : senkouData.senkouB), color: senkouBColor }
+            });
+        }
+        // Chikou: the value displayed at current bar was from (dataIndex + offset)
+        // because it was plotted backward by -offset
+        var chikouSourceIndex = dataIndex + offset;
+        var chikouData = (chikouSourceIndex >= 0 && chikouSourceIndex < result.length)
+            ? result[chikouSourceIndex]
+            : null;
+        if (showChikou) {
+            legends.push({
+                title: { text: 'C: ', color: chikouColor },
+                value: { text: formatVal(chikouData === null || chikouData === void 0 ? void 0 : chikouData.chikou), color: chikouColor }
+            });
+        }
+        return {
+            name: 'Ichimoku',
+            calcParamsText: "(".concat(calcParams.join(','), ")"),
+            features: [],
+            legends: legends
+        };
+    }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * mtm
  * 公式 MTM（N日）=C－CN
@@ -4008,7 +4340,7 @@ var indicators = {};
 var extensions$2 = [
     averagePrice, awesomeOscillator, bias, bollingerBands, brar,
     bullAndBearIndex, commodityChannelIndex, currentRatio, differentOfMovingAverage,
-    directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, momentum,
+    directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
     stoch, stopAndReverse, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, volumeRatio, williamsR
@@ -4097,14 +4429,16 @@ var OverlayImp = /** @class */ (function () {
         this._prevOverlay = clone(__assign(__assign({}, this), { _prevOverlay: null }));
         var id = overlay.id, name = overlay.name; overlay.currentStep; var points = overlay.points, styles = overlay.styles, extendData = overlay.extendData, others = __rest(overlay, ["id", "name", "currentStep", "points", "styles", "extendData"]);
         merge(this, others);
-        // Handle extendData separately — replace entirely if current is frozen
-        // (frozen objects from Immer/store cannot be mutated in-place)
+        // Handle extendData separately — always produce a mutable merged result
+        // (frozen objects from Immer/store and their sub-objects cannot be mutated)
         if (isValid(extendData)) {
-            if (Object.isFrozen(this.extendData)) {
-                this.extendData = clone(extendData);
+            if (isValid(this.extendData)) {
+                // Clone existing first to ensure all sub-objects are mutable, then merge new values
+                this.extendData = clone(this.extendData);
+                merge(this.extendData, extendData);
             }
             else {
-                merge(this.extendData, extendData);
+                this.extendData = clone(extendData);
             }
         }
         if (!isString(this.name)) {

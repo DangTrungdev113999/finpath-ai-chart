@@ -303,13 +303,15 @@ export default class OverlayImp<E = unknown> implements Overlay<E> {
 
     merge(this, others)
 
-    // Handle extendData separately — replace entirely if current is frozen
-    // (frozen objects from Immer/store cannot be mutated in-place)
+    // Handle extendData separately — always produce a mutable merged result
+    // (frozen objects from Immer/store and their sub-objects cannot be mutated)
     if (isValid(extendData)) {
-      if (Object.isFrozen(this.extendData)) {
-        this.extendData = clone(extendData)
-      } else {
+      if (isValid(this.extendData)) {
+        // Clone existing first to ensure all sub-objects are mutable, then merge new values
+        this.extendData = clone(this.extendData)
         merge(this.extendData, extendData)
+      } else {
+        this.extendData = clone(extendData)
       }
     }
 
