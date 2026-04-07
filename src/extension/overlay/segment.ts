@@ -435,15 +435,16 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       // "bottom" = text BELOW line (TradingView: "Dưới cùng")
       // "center"/"middle" = text centered on line
       const lineWidth = overlayStyles?.line?.size ?? 2
+      const gap = 5
       let offsetPx = 0
       let baseline: CanvasTextBaseline = 'middle'
       if (vAlign === 'top') {
-        // Text above line — offset upward perpendicular to line (min 5px gap)
-        offsetPx = Math.max(5, lineWidth + 5)
+        // Text above line: offset = half lineWidth + gap + full fontSize (since rotation makes baseline unreliable)
+        offsetPx = lineWidth / 2 + gap + fontSize
         baseline = 'bottom'
       } else if (vAlign === 'bottom') {
-        // Text below line — offset downward perpendicular to line (min 5px gap)
-        offsetPx = -Math.max(5, lineWidth + 5)
+        // Text below line
+        offsetPx = -(lineWidth / 2 + gap + fontSize)
         baseline = 'top'
       }
       // Perpendicular direction (pointing "above" the line)
