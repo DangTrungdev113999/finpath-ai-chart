@@ -2764,7 +2764,15 @@ var ichimokuCloud = {
         ctx.restore();
         // Return true: we drew everything, suppress native figures pipeline
         return true;
-    }
+    },
+    // Suppress the library's built-in canvas tooltip entirely.
+    // Tooltip is handled by React HTML in finpath-web (IchimokuTooltipRow).
+    createTooltipDataSource: function () { return ({
+        name: '',
+        calcParamsText: '',
+        features: [],
+        legends: []
+    }); }
 };
 
 /**
