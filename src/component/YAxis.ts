@@ -361,7 +361,7 @@ export default abstract class YAxisImp extends AxisImp implements YAxis {
           const formatExtendText = chartStore.getInnerFormatter().formatExtendText
           priceMarkStyles.last.extendTexts.forEach((item, index) => {
             const text = formatExtendText({ type: 'last_price', data, index })
-            if (text.length > 0 && item.show) {
+            if (text.length > 0 && item.show && item.position !== 'left_price') {
               lastPriceTextWidth = Math.max(lastPriceTextWidth, item.paddingLeft + calcTextWidth(text, item.size, item.weight, item.family) + item.paddingRight)
             }
           })

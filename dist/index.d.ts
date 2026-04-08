@@ -182,10 +182,11 @@ export interface CandleHighLowPriceMarkStyle {
 	textWeight: string;
 }
 export type CandleLastPriceMarkLineStyle = Omit<StateLineStyle, "color">;
-export type CandleLastPriceMarkExtendTextPosition = "above_price" | "below_price";
+export type CandleLastPriceMarkExtendTextPosition = "above_price" | "below_price" | "left_price";
 export type CandleLastPriceMarkExtendTextStyle = LastValueMarkTextStyle & {
 	position: CandleLastPriceMarkExtendTextPosition;
 	updateInterval: number;
+	backgroundColor?: string;
 };
 export interface CandleLastPriceMarkStyle extends ChangeColor {
 	show: boolean;

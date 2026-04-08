@@ -172,7 +172,7 @@ export function drawText (ctx: CanvasRenderingContext2D, attrs: TextAttrs | Text
 
       const innerWidth = rect.width - paddingLeft
       const lines = wrapText(ctx, text.text, innerWidth)
-      const totalTextH = lines.length * lineHeight
+      const totalTextH = lines.length === 1 ? size : lines.length * lineHeight
       const align = text.align ?? 'left'
       const vAlign = text.baseline ?? 'top'
 

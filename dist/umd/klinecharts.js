@@ -9696,7 +9696,7 @@ function drawText(ctx, attrs, styles) {
             ctx.clip();
             var innerWidth_1 = rect.width - paddingLeft;
             var lines = wrapText(ctx, text.text, innerWidth_1);
-            var totalTextH = lines.length * lineHeight;
+            var totalTextH = lines.length === 1 ? size : lines.length * lineHeight;
             var align = (_a = text.align) !== null && _a !== void 0 ? _a : 'left';
             var vAlign = (_b = text.baseline) !== null && _b !== void 0 ? _b : 'top';
             // Vertical offset: center text lines within shape bounds
@@ -11972,7 +11972,7 @@ var CandleLastPriceView = /** @class */ (function (_super) {
         return _super !== null && _super.apply(this, arguments) || this;
     }
     CandleLastPriceView.prototype.drawImp = function (ctx) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d, _e;
         var widget = this.getWidget();
         var pane = widget.getPane();
         var bounding = widget.getBounding();
@@ -11983,36 +11983,75 @@ var CandleLastPriceView = /** @class */ (function (_super) {
         if (priceMarkStyles.show && lastPriceMarkStyles.show && lastPriceMarkLineStyles.show) {
             var yAxis = pane.getAxisComponent();
             var dataList = chartStore.getDataList();
-            var data = dataList[dataList.length - 1];
-            if (isValid(data)) {
-                var close_1 = data.close, open_1 = data.open;
+            var data_1 = dataList[dataList.length - 1];
+            if (isValid(data_1)) {
+                var close_1 = data_1.close, open_1 = data_1.open;
                 var comparePrice = lastPriceMarkStyles.compareRule === 'current_open' ? open_1 : ((_b = (_a = dataList[dataList.length - 2]) === null || _a === void 0 ? void 0 : _a.close) !== null && _b !== void 0 ? _b : close_1);
-                var priceY = yAxis.convertToNicePixel(close_1);
-                var color = '';
+                var priceY_1 = yAxis.convertToNicePixel(close_1);
+                var color_1 = '';
                 if (close_1 > comparePrice) {
-                    color = lastPriceMarkStyles.upColor;
+                    color_1 = lastPriceMarkStyles.upColor;
                 }
                 else if (close_1 < comparePrice) {
-                    color = lastPriceMarkStyles.downColor;
+                    color_1 = lastPriceMarkStyles.downColor;
                 }
                 else {
-                    color = lastPriceMarkStyles.noChangeColor;
+                    color_1 = lastPriceMarkStyles.noChangeColor;
                 }
                 (_c = this.createFigure({
                     name: 'line',
                     attrs: {
                         coordinates: [
-                            { x: 0, y: priceY },
-                            { x: bounding.width, y: priceY }
+                            { x: 0, y: priceY_1 },
+                            { x: bounding.width, y: priceY_1 }
                         ]
                     },
                     styles: {
                         style: lastPriceMarkLineStyles.style,
-                        color: color,
+                        color: color_1,
                         size: lastPriceMarkLineStyles.size,
                         dashedValue: lastPriceMarkLineStyles.dashedValue
                     }
                 })) === null || _c === void 0 ? void 0 : _c.draw(ctx);
+                // Draw left_price extend texts at right edge of candle area
+                var formatExtendText_1 = chartStore.getInnerFormatter().formatExtendText;
+                var leftFigures_1 = [];
+                lastPriceMarkStyles.extendTexts.forEach(function (item, index) {
+                    var _a;
+                    if (item.position === 'left_price' && item.show) {
+                        var text = formatExtendText_1({ type: 'last_price', data: data_1, index: index });
+                        if (text.length > 0) {
+                            var itemWidth = item.paddingLeft + calcTextWidth(text, item.size, item.weight, item.family) + item.paddingRight;
+                            var itemHeight = item.paddingTop + item.size + item.paddingBottom;
+                            leftFigures_1.push({
+                                name: 'text',
+                                attrs: {
+                                    x: 0,
+                                    y: priceY_1,
+                                    width: itemWidth,
+                                    height: itemHeight,
+                                    text: text,
+                                    align: 'right',
+                                    baseline: 'middle'
+                                },
+                                styles: __assign(__assign({}, item), { backgroundColor: (_a = item.backgroundColor) !== null && _a !== void 0 ? _a : color_1 })
+                            });
+                        }
+                    }
+                });
+                if (leftFigures_1.length > 0) {
+                    var gap = 2;
+                    var rightX = bounding.width;
+                    // Draw right-to-left from the right edge
+                    for (var i = leftFigures_1.length - 1; i >= 0; i--) {
+                        var fig = leftFigures_1[i];
+                        rightX -= gap;
+                        fig.attrs.x = rightX;
+                        fig.attrs.align = 'right';
+                        (_d = this.createFigure(fig)) === null || _d === void 0 ? void 0 : _d.draw(ctx);
+                        rightX -= ((_e = fig.attrs.width) !== null && _e !== void 0 ? _e : 0);
+                    }
+                }
             }
         }
     };
@@ -12920,6 +12959,8 @@ var CandleLastPriceLabelView = /** @class */ (function (_super) {
                 var aboveY_1 = priceY - priceTextHalfHeight - paddingTop;
                 var belowY_1 = priceY + priceTextHalfHeight + paddingBottom;
                 lastPriceMarkStyles.extendTexts.forEach(function (item, index) {
+                    if (item.position === 'left_price')
+                        return; // left_price is rendered by CandleLastPriceLineView
                     var text = formatExtendText_1({ type: 'last_price', data: data_1, index: index });
                     if (text.length > 0 && item.show) {
                         var textHalfHeight = item.size / 2;
@@ -13694,7 +13735,7 @@ var YAxisImp = /** @class */ (function (_super) {
                     var formatExtendText_1 = chartStore.getInnerFormatter().formatExtendText;
                     priceMarkStyles.last.extendTexts.forEach(function (item, index) {
                         var text = formatExtendText_1({ type: 'last_price', data: data_1, index: index });
-                        if (text.length > 0 && item.show) {
+                        if (text.length > 0 && item.show && item.position !== 'left_price') {
                             lastPriceTextWidth = Math.max(lastPriceTextWidth, item.paddingLeft + calcTextWidth(text, item.size, item.weight, item.family) + item.paddingRight);
                         }
                     });

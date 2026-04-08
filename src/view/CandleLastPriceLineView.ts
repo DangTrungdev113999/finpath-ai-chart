@@ -13,9 +13,14 @@
  */
 
 import { isValid } from '../common/utils/typeChecks'
+import { calcTextWidth } from '../common/utils/canvas'
+import type { TextStyle } from '../common/Styles'
 import type YAxis from '../component/YAxis'
 
 import View from './View'
+
+import type { FigureCreate } from '../component/Figure'
+import type { TextAttrs } from '../extension/figure/text'
 
 export default class CandleLastPriceView extends View {
   override drawImp (ctx: CanvasRenderingContext2D): void {
@@ -57,6 +62,45 @@ export default class CandleLastPriceView extends View {
             dashedValue: lastPriceMarkLineStyles.dashedValue
           }
         })?.draw(ctx)
+
+        // Draw left_price extend texts at right edge of candle area
+        const formatExtendText = chartStore.getInnerFormatter().formatExtendText
+        const leftFigures: Array<FigureCreate<TextAttrs, TextStyle>> = []
+        lastPriceMarkStyles.extendTexts.forEach((item, index) => {
+          if (item.position === 'left_price' && item.show) {
+            const text = formatExtendText({ type: 'last_price', data, index })
+            if (text.length > 0) {
+              const itemWidth = item.paddingLeft + calcTextWidth(text, item.size, item.weight, item.family) + item.paddingRight
+              const itemHeight = item.paddingTop + item.size + item.paddingBottom
+              leftFigures.push({
+                name: 'text',
+                attrs: {
+                  x: 0,
+                  y: priceY,
+                  width: itemWidth,
+                  height: itemHeight,
+                  text,
+                  align: 'right',
+                  baseline: 'middle'
+                },
+                styles: { ...item, backgroundColor: item.backgroundColor ?? color }
+              })
+            }
+          }
+        })
+        if (leftFigures.length > 0) {
+          const gap = 2
+          let rightX = bounding.width
+          // Draw right-to-left from the right edge
+          for (let i = leftFigures.length - 1; i >= 0; i--) {
+            const fig = leftFigures[i]
+            rightX -= gap
+            fig.attrs.x = rightX
+            fig.attrs.align = 'right'
+            this.createFigure(fig)?.draw(ctx)
+            rightX -= (fig.attrs.width ?? 0)
+          }
+        }
       }
     }
   }

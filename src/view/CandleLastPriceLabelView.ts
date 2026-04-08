@@ -93,6 +93,7 @@ export default class CandleLastPriceLabelView extends View {
         let aboveY = priceY - priceTextHalfHeight - paddingTop
         let belowY = priceY + priceTextHalfHeight + paddingBottom
         lastPriceMarkStyles.extendTexts.forEach((item, index) => {
+          if (item.position === 'left_price') return // left_price is rendered by CandleLastPriceLineView
           const text = formatExtendText({ type: 'last_price', data, index })
           if (text.length > 0 && item.show) {
             const textHalfHeight = item.size / 2
