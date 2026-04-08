@@ -12992,7 +12992,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
         indicators.forEach(function (indicator) {
-            var _a, _b, _c;
+            var _a, _b, _c, _d, _e, _f, _g, _h;
             // Standard last-value labels (for indicators with figures)
             if (lastValueMarkStyles.show) {
                 var result = indicator.result;
@@ -13060,6 +13060,37 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
                         styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: pocColor, color: '#FFFFFF' })
                     })) === null || _c === void 0 ? void 0 : _c.draw(ctx);
+                }
+                // Dynamic label: reads indicator.result at the last visible candle index.
+                // Set extendData._labelField = "pe" (or "pb") to enable.
+                var labelField = extData === null || extData === void 0 ? void 0 : extData._labelField;
+                if (typeof labelField === 'string' && labelField.length > 0) {
+                    var visibleRange = chartStore.getVisibleRange();
+                    var lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1);
+                    var resultData = ((_d = indicator.result[lastVisibleIdx]) !== null && _d !== void 0 ? _d : {});
+                    var labelValue = resultData[labelField];
+                    if (isNumber(labelValue)) {
+                        var stylesLines = indicator.styles.lines;
+                        var labelColor = (_g = (_e = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _e !== void 0 ? _e : (_f = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _f === void 0 ? void 0 : _f.color) !== null && _g !== void 0 ? _g : '#1E88FF';
+                        var y = yAxis.convertToNicePixel(labelValue);
+                        var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(labelValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
+                        text = decimalFold.format(thousandsSeparator.format(text));
+                        var x = 0;
+                        var textAlign = 'left';
+                        if (yAxis.isFromZero()) {
+                            x = 0;
+                            textAlign = 'left';
+                        }
+                        else {
+                            x = bounding.width;
+                            textAlign = 'right';
+                        }
+                        (_h = _this.createFigure({
+                            name: 'text',
+                            attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
+                            styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: labelColor, color: '#FFFFFF' })
+                        })) === null || _h === void 0 ? void 0 : _h.draw(ctx);
+                    }
                 }
             }
         });

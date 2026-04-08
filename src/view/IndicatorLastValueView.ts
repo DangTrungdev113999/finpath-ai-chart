@@ -125,6 +125,48 @@ export default class IndicatorLastValueView extends View<YAxis> {
             }
           })?.draw(ctx)
         }
+
+        // Dynamic label: reads indicator.result at the last visible candle index.
+        // Set extendData._labelField = "pe" (or "pb") to enable.
+        const labelField = extData?._labelField
+        if (typeof labelField === 'string' && labelField.length > 0) {
+          const visibleRange = chartStore.getVisibleRange()
+          const lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1)
+          const resultData = (indicator.result[lastVisibleIdx] ?? {}) as Record<string, unknown>
+          const labelValue = resultData[labelField]
+          if (isNumber(labelValue)) {
+            const stylesLines = (indicator.styles as Record<string, unknown>).lines as Array<{ color?: string }> | undefined
+            const labelColor = (extData?.pocColor as string | undefined) ??
+              stylesLines?.[0]?.color ?? '#1E88FF'
+            const y = yAxis.convertToNicePixel(labelValue)
+            let text = yAxis.displayValueToText(
+              yAxis.realValueToDisplayValue(
+                yAxis.valueToRealValue(labelValue, { range: yAxisRange }),
+                { range: yAxisRange }
+              ),
+              indicator.precision
+            )
+            text = decimalFold.format(thousandsSeparator.format(text))
+            let x = 0
+            let textAlign: CanvasTextAlign = 'left'
+            if (yAxis.isFromZero()) {
+              x = 0
+              textAlign = 'left'
+            } else {
+              x = bounding.width
+              textAlign = 'right'
+            }
+            this.createFigure({
+              name: 'text',
+              attrs: { x, y, text, align: textAlign, baseline: 'middle' },
+              styles: {
+                ...lastValueMarkTextStyles,
+                backgroundColor: labelColor,
+                color: '#FFFFFF'
+              }
+            })?.draw(ctx)
+          }
+        }
       }
     })
   }
