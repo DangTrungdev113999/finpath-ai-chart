@@ -25,6 +25,7 @@ import type YAxis from './component/YAxis'
 import type XAxis from './component/XAxis'
 
 import type Chart from './Chart'
+import { SCALE_MULTIPLIER } from './Store'
 import type Pane from './pane/Pane'
 import type DrawPane from './pane/DrawPane'
 import { PaneIdConstants } from './pane/types'
@@ -81,9 +82,8 @@ export default class Event implements EventHandler {
 
   private _prevYAxisRange: Nullable<AxisRange> = null
 
-  private _xAxisStartScaleCoordinate: Nullable<Coordinate> = null
   private _xAxisStartScaleDistance = 0
-  private _xAxisScale = 1
+  private _xAxisStartBarSpace = 0
 
   private _yAxisStartScaleDistance = 0
 
@@ -297,9 +297,11 @@ export default class Event implements EventHandler {
     this._mouseDownWidget = null
     this._startScrollCoordinate = null
     this._prevYAxisRange = null
-    this._xAxisStartScaleCoordinate = null
+
     this._xAxisStartScaleDistance = 0
-    this._xAxisScale = 1
+
+    this._xAxisStartBarSpace = 0
+
     this._yAxisStartScaleDistance = 0
     return consumed
   }
@@ -516,9 +518,11 @@ export default class Event implements EventHandler {
       }
       this._startScrollCoordinate = null
       this._prevYAxisRange = null
-      this._xAxisStartScaleCoordinate = null
+
       this._xAxisStartScaleDistance = 0
-      this._xAxisScale = 1
+
+      this._xAxisStartBarSpace = 0
+
       this._yAxisStartScaleDistance = 0
     }
     return false
@@ -612,8 +616,8 @@ export default class Event implements EventHandler {
     if (consumed) {
       this._chart.updatePane(UpdateLevel.Overlay)
     }
-    this._xAxisStartScaleCoordinate = { x: event.x, y: event.y }
     this._xAxisStartScaleDistance = event.pageX
+    this._xAxisStartBarSpace = this._chart.getChartStore().getBarSpace().bar
     return consumed
   }
 
@@ -622,11 +626,18 @@ export default class Event implements EventHandler {
     if (!consumed) {
       const xAxis = widget.getPane().getAxisComponent()
       if (xAxis.scrollZoomEnabled && this._xAxisStartScaleDistance !== 0) {
-        const scale = this._xAxisStartScaleDistance / event.pageX
-        if (Number.isFinite(scale)) {
-          const zoomScale = (scale - this._xAxisScale) * 10
-          this._xAxisScale = scale
-          this._chart.getChartStore().zoom(zoomScale, this._xAxisStartScaleCoordinate, 'xAxis')
+        // Logarithmic zoom: each pixel of drag multiplies/divides bar space by SCALE_BASE
+        // drag right (dx > 0) → zoom out, drag left (dx < 0) → zoom in
+        const dx = event.pageX - this._xAxisStartScaleDistance
+        const SCALE_BASE = 1.006
+        const scaleFactor = Math.pow(SCALE_BASE, dx)
+        const newBarSpace = this._xAxisStartBarSpace / scaleFactor
+        const store = this._chart.getChartStore()
+        const prevBarSpace = store.getBarSpace().bar
+        if (prevBarSpace > 0) {
+          // Convert absolute barSpace change to a zoom scale that store.zoom() expects
+          const zoomScale = ((newBarSpace / prevBarSpace) - 1) * SCALE_MULTIPLIER
+          store.zoom(zoomScale, { x: event.x, y: event.y }, 'xAxis')
         }
       }
     } else {
