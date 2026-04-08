@@ -5255,7 +5255,7 @@ var rayLine = {
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-function isLightColor$3(hex) {
+function isLightColor$2(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -5265,8 +5265,8 @@ function isLightColor$3(hex) {
     return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 // Control point constants (match rect overlay)
-var CP_COLOR$2 = '#1592E6';
-var CP_RADIUS$2 = 5;
+var CP_COLOR$1 = '#1592E6';
+var CP_RADIUS$1 = 5;
 var CP_CIRCLE_BORDER$1 = 1.5;
 // Arrow head constants
 var ARROW_LENGTH = 14;
@@ -5458,15 +5458,15 @@ var segment = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
-                    attrs: { x: midX, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                     styles: {
                         style: 'stroke_fill',
                         color: cpBg,
-                        borderColor: CP_COLOR$2,
+                        borderColor: CP_COLOR$1,
                         borderSize: CP_CIRCLE_BORDER$1
                     },
                     pointIndex: 0,
@@ -5477,15 +5477,15 @@ var segment = {
         // ─── 6. Control points at endpoints (when selected/hovered) ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 0,
@@ -5494,11 +5494,11 @@ var segment = {
             figures.push({
                 key: 'seg_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 1,
@@ -6520,7 +6520,7 @@ function renderVPFRFigures(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function isLightColor$2(hex) {
+function isLightColor$1(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -6652,7 +6652,7 @@ var vpfr = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_e = hoverInfo.overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id && hoverInfo.figureType !== 'none';
         var tickTextColor = String(chartStore.getStyles().yAxis.tickText.color);
-        var isDarkTheme = isLightColor$2(tickTextColor);
+        var isDarkTheme = isLightColor$1(tickTextColor);
         // X positions from coordinates (time-based)
         var leftX = Math.min(coordinates[0].x, coordinates[1].x);
         var rightX = Math.max(coordinates[0].x, coordinates[1].x);
@@ -6993,9 +6993,9 @@ var vpfr = {
  * CP fill color is detected from chart theme (dark → black, light → white)
  */
 // CP border color (always blue)
-var CP_COLOR$1 = '#1592E6';
+var CP_COLOR = '#1592E6';
 // Corner control points (circles)
-var CP_RADIUS$1 = 5;
+var CP_RADIUS = 5;
 var CP_CIRCLE_BORDER = 1.5;
 // Midpoint control points (rounded squares)
 var CP_MID_SIZE = 12;
@@ -7009,7 +7009,7 @@ var CP_MID_BORDER_RADIUS = 3;
  * Control points: 4 corners (circles) + 4 edge midpoints (squares)
  * All drag logic handled via performEventPressedMove with figureKey
  */
-function isLightColor$1(hex) {
+function isLightColor(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -7169,13 +7169,13 @@ var rect$1 = {
             var midY = (top + bottom) / 2;
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor$1(tickTextColor) ? '#131722' : '#ffffff';
-            var cpColor_1 = CP_COLOR$1;
+            var cpBg_1 = isLightColor(tickTextColor) ? '#131722' : '#ffffff';
+            var cpColor_1 = CP_COLOR;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
                 key: key,
                 type: 'circle',
-                attrs: { x: x, y: y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
+                attrs: { x: x, y: y, r: CP_RADIUS + CP_CIRCLE_BORDER },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg_1,
@@ -7267,512 +7267,6 @@ var rect$1 = {
 };
 
 /**
- * Long Position overlay — constants
- */
-// ═══════════════════════════════════════
-// Control Point styling
-// ═══════════════════════════════════════
-var CP_COLOR = '#1592E6';
-var CP_RADIUS = 5;
-var CP_BORDER = 1.5;
-// ═══════════════════════════════════════
-// Default colors
-// ═══════════════════════════════════════
-var DEFAULT_LINE_COLOR = '#787B86';
-var DEFAULT_PROFIT_FILL = 'rgba(8, 153, 129, 0.2)';
-var DEFAULT_STOP_FILL = 'rgba(242, 54, 69, 0.2)';
-var DEFAULT_TEXT_COLOR = '#FFFFFF';
-// ═══════════════════════════════════════
-// Label pill styling
-// ═══════════════════════════════════════
-var LABEL_BG_COLOR = '#585858';
-var LABEL_BORDER_COLOR = '#667B8B';
-var LABEL_BORDER_WIDTH = 1;
-var LABEL_BORDER_RADIUS = 3;
-var LABEL_PADDING_H = 6;
-var LABEL_PADDING_V = 3;
-var LABEL_FONT_FAMILY = 'Helvetica Neue';
-// ═══════════════════════════════════════
-// Y-axis label styling
-// ═══════════════════════════════════════
-var YAXIS_LABEL_BG = '#585858';
-var YAXIS_LABEL_TEXT_COLOR = '#FFFFFF';
-// ═══════════════════════════════════════
-// Defaults
-// ═══════════════════════════════════════
-var LONG_POSITION_DEFAULTS = {
-    lineColor: DEFAULT_LINE_COLOR,
-    lineWidth: 1,
-    lineOpacity: 100,
-    profitFillColor: DEFAULT_PROFIT_FILL,
-    stopFillColor: DEFAULT_STOP_FILL,
-    textFontSize: 12,
-    textColor: DEFAULT_TEXT_COLOR,
-    showPriceLabels: true,
-    compactStats: false,
-    alwaysShow: false,
-    accountSize: 1000,
-    lotSize: 1,
-    riskValue: 25.00,
-    riskType: 'percent',
-    entryPrice: 0,
-    profitTicks: 0,
-    profitPrice: 0,
-    stopTicks: 0,
-    stopPrice: 0,
-    pricePrecision: 2,
-    tickSize: 0.01
-};
-
-/**
- * Long Position overlay — calculations and label formatting
- */
-/**
- * Compute all trade stats from entry, target, and stop prices.
- */
-function calculatePositionStats(entryPrice, targetPrice, stopPrice, tickSize, barCount, settings) {
-    var tpPriceDiff = Math.abs(targetPrice - entryPrice);
-    var slPriceDiff = Math.abs(entryPrice - stopPrice);
-    var tpPercent = entryPrice !== 0 ? (tpPriceDiff / entryPrice) * 100 : 0;
-    var slPercent = entryPrice !== 0 ? (slPriceDiff / entryPrice) * 100 : 0;
-    var safeTick = tickSize > 0 ? tickSize : 0.01;
-    var tpTicks = Math.round(tpPriceDiff / safeTick);
-    var slTicks = Math.round(slPriceDiff / safeTick);
-    var riskRewardRatio = slPriceDiff !== 0 ? tpPriceDiff / slPriceDiff : 0;
-    var riskAmount = settings.riskType === 'percent'
-        ? settings.accountSize * (settings.riskValue / 100)
-        : settings.riskValue;
-    return {
-        tpPriceDiff: tpPriceDiff,
-        tpPercent: tpPercent,
-        tpTicks: tpTicks,
-        slPriceDiff: slPriceDiff,
-        slPercent: slPercent,
-        slTicks: slTicks,
-        riskRewardRatio: riskRewardRatio,
-        barCount: barCount,
-        riskAmount: riskAmount
-    };
-}
-/**
- * Format the profit (top) label text.
- * Full: "Muc hieu: 1234.5 (12.34%) | 5 Mm: 123"
- * Compact: "1234.5 (12.34%)"
- */
-function formatProfitLabel(stats, precision, compact) {
-    var priceDiff = stats.tpPriceDiff.toFixed(precision);
-    var pct = stats.tpPercent.toFixed(2);
-    if (compact) {
-        return "".concat(priceDiff, " (").concat(pct, "%)");
-    }
-    return "Muc hieu: ".concat(priceDiff, " (").concat(pct, "%) | ").concat(stats.barCount, " Mm: ").concat(stats.tpTicks);
-}
-/**
- * Format the risk/reward (middle) label text.
- * Full: "Muc tieu & Thuc: 0 — 1234 | Ti le loi nhuan: 2.50"
- * Compact: "R:R 2.50"
- */
-function formatRiskRewardLabel(stats, compact) {
-    var rr = stats.riskRewardRatio.toFixed(2);
-    if (compact) {
-        return "R:R ".concat(rr);
-    }
-    var riskStr = stats.riskAmount.toFixed(0);
-    return "Muc tieu & Thuc: 0 \u2014 ".concat(riskStr, " | Ti le loi nhuan: ").concat(rr);
-}
-/**
- * Format the stop (bottom) label text.
- * Full: "Dung: 1234.5 (12.34%) | 5 Mm: 123"
- * Compact: "1234.5 (12.34%)"
- */
-function formatStopLabel(stats, precision, compact) {
-    var priceDiff = stats.slPriceDiff.toFixed(precision);
-    var pct = stats.slPercent.toFixed(2);
-    if (compact) {
-        return "".concat(priceDiff, " (").concat(pct, "%)");
-    }
-    return "Dung: ".concat(priceDiff, " (").concat(pct, "%) | ").concat(stats.barCount, " Mm: ").concat(stats.slTicks);
-}
-
-/**
- * Long Position overlay — TradingView-style risk/reward measurement tool
- *
- * Points: P0 = Entry, P1 = Target (TP), P2 = Stop (SL), P3 = Width
- *   - P0: entry price + left edge (1st click)
- *   - P1: target price, X locked to P0 (2nd click, above entry)
- *   - P2: stop price, X locked to P0 (3rd click, below entry)
- *   - P3: right edge width, Y locked to entry (4th click)
- *
- * Rendering: Two axis-aligned rectangles (TP zone teal + SL zone red)
- * Control points: 3 visible (P0=entry, P1=target, P3=width); P2 hidden
- */
-// Default preview offset in pixels before all points placed
-var DEFAULT_ZONE_OFFSET = 100;
-// ═══════════════════════════════════════
-// Internal helpers
-// ═══════════════════════════════════════
-function isLightColor(hex) {
-    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
-    if (match == null)
-        return false;
-    var r = parseInt(match[1], 16);
-    var g = parseInt(match[2], 16);
-    var b = parseInt(match[3], 16);
-    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-}
-function getSettings(extendData) {
-    return __assign(__assign({}, LONG_POSITION_DEFAULTS), extendData);
-}
-function applyOpacity(color, opacity) {
-    if (opacity >= 100)
-        return color;
-    var alpha = Math.max(0, Math.min(100, opacity)) / 100;
-    var rgbaMatch = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/.exec(color);
-    if (rgbaMatch != null) {
-        return "rgba(".concat(rgbaMatch[1], ", ").concat(rgbaMatch[2], ", ").concat(rgbaMatch[3], ", ").concat(alpha, ")");
-    }
-    var hexMatch = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(color);
-    if (hexMatch != null) {
-        var r = parseInt(hexMatch[1], 16);
-        var g = parseInt(hexMatch[2], 16);
-        var b = parseInt(hexMatch[3], 16);
-        return "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(alpha, ")");
-    }
-    return color;
-}
-// ═══════════════════════════════════════
-// OVERLAY TEMPLATE
-// ═══════════════════════════════════════
-var longPosition = {
-    name: 'longPosition',
-    totalStep: 5,
-    needDefaultPointFigure: false,
-    needDefaultXAxisFigure: false,
-    needDefaultYAxisFigure: false,
-    createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h;
-        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
-        if (coordinates.length < 1)
-            return [];
-        var ext = getSettings(overlay.extendData);
-        var points = overlay.points;
-        var figures = [];
-        // ─── Resolve coordinates ───────────────────
-        // P0 = Entry (left edge, entry price)
-        var p0 = coordinates[0];
-        var p0x = p0.x;
-        var p0y = p0.y;
-        // P1 = Target (above entry, X = P0.x)
-        var hasP1 = coordinates.length >= 2;
-        var p1x = hasP1 ? coordinates[1].x : p0x;
-        var p1y = hasP1 ? coordinates[1].y : p0y - DEFAULT_ZONE_OFFSET;
-        // P2 = Stop (below entry, X = P0.x)
-        var hasP2 = coordinates.length >= 3;
-        var p2y = hasP2 ? coordinates[2].y : p0y + DEFAULT_ZONE_OFFSET;
-        // P3 = Width (right edge, Y = P0.y)
-        var hasP3 = coordinates.length >= 4;
-        var p3x = hasP3 ? coordinates[3].x : p0x + 200;
-        var p3y = hasP3 ? coordinates[3].y : p0y;
-        // ─── Zone boundaries (axis-aligned rectangles) ──
-        var leftX = Math.min(p0x, p3x);
-        var rightX = Math.max(p0x, p3x);
-        var zoneWidth = Math.max(rightX - leftX, 30);
-        var entryY = p0y;
-        var targetY = p1y;
-        var stopY = p2y;
-        var lineColor = applyOpacity(ext.lineColor, ext.lineOpacity);
-        var lineStyle = {
-            style: 'solid',
-            color: lineColor,
-            size: ext.lineWidth
-        };
-        // ─── 1. TP Zone (teal rectangle above entry) ───
-        var tpHeight = entryY - targetY;
-        if (tpHeight > 0) {
-            figures.push({
-                key: 'lp_tp_fill',
-                type: 'rect',
-                attrs: { x: leftX, y: targetY, width: zoneWidth, height: tpHeight },
-                styles: { style: 'fill', color: ext.profitFillColor },
-                ignoreEvent: true
-            });
-        }
-        // ─── 2. SL Zone (red rectangle below entry) ────
-        var slHeight = stopY - entryY;
-        if (slHeight > 0) {
-            figures.push({
-                key: 'lp_sl_fill',
-                type: 'rect',
-                attrs: { x: leftX, y: entryY, width: zoneWidth, height: slHeight },
-                styles: { style: 'fill', color: ext.stopFillColor },
-                ignoreEvent: true
-            });
-        }
-        // ─── 3. Transparent hitbox (full rectangle) ────
-        var totalTop = Math.min(targetY, entryY);
-        var totalBottom = Math.max(stopY, entryY);
-        figures.push({
-            key: 'lp_hitbox',
-            type: 'rect',
-            attrs: { x: leftX, y: totalTop, width: zoneWidth, height: totalBottom - totalTop },
-            styles: { style: 'fill', color: 'transparent', borderSize: 0 },
-            ignoreEvent: false
-        });
-        // ─── 4. Boundary lines (rectangle outline + entry divider) ──
-        // Top edge (target level)
-        figures.push({
-            key: 'lp_line_top',
-            type: 'line',
-            attrs: { coordinates: [{ x: leftX, y: targetY }, { x: leftX + zoneWidth, y: targetY }] },
-            styles: lineStyle,
-            ignoreEvent: true
-        });
-        // Bottom edge (stop level)
-        figures.push({
-            key: 'lp_line_bottom',
-            type: 'line',
-            attrs: { coordinates: [{ x: leftX, y: stopY }, { x: leftX + zoneWidth, y: stopY }] },
-            styles: lineStyle,
-            ignoreEvent: true
-        });
-        // Left edge
-        figures.push({
-            key: 'lp_line_left',
-            type: 'line',
-            attrs: { coordinates: [{ x: leftX, y: targetY }, { x: leftX, y: stopY }] },
-            styles: lineStyle,
-            ignoreEvent: true
-        });
-        // Right edge
-        figures.push({
-            key: 'lp_line_right',
-            type: 'line',
-            attrs: { coordinates: [{ x: leftX + zoneWidth, y: targetY }, { x: leftX + zoneWidth, y: stopY }] },
-            styles: lineStyle,
-            ignoreEvent: true
-        });
-        // Entry divider (horizontal at entry price)
-        figures.push({
-            key: 'lp_entry_line',
-            type: 'line',
-            attrs: { coordinates: [{ x: leftX, y: entryY }, { x: leftX + zoneWidth, y: entryY }] },
-            styles: lineStyle,
-            ignoreEvent: true
-        });
-        // ─── 5. Measurement labels ─────────────────────
-        var chartStore = chart.getChartStore();
-        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
-        var hoverInfo = chartStore.getHoverOverlayInfo();
-        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
-        var isDrawing = overlay.currentStep > 0 && overlay.currentStep !== 5;
-        var showLabels = isSelected || isHovered || ext.alwaysShow || isDrawing;
-        if (showLabels && points.length >= 3) {
-            var entryPrice = isNumber(points[0].value) ? points[0].value : 0;
-            var targetPrice = isNumber(points[1].value) ? points[1].value : 0;
-            var stopPrice = isNumber(points[2].value) ? points[2].value : 0;
-            var precision = (_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : ext.pricePrecision;
-            var tickSize = ext.tickSize > 0 ? ext.tickSize : Math.pow(10, -precision);
-            var p0Idx = (_f = points[0].dataIndex) !== null && _f !== void 0 ? _f : 0;
-            var p3Idx = (_h = (_g = points[3]) === null || _g === void 0 ? void 0 : _g.dataIndex) !== null && _h !== void 0 ? _h : p0Idx;
-            var barCount = Math.abs(p3Idx - p0Idx);
-            var stats = calculatePositionStats(entryPrice, targetPrice, stopPrice, tickSize, barCount, ext);
-            var compact = ext.compactStats;
-            var fontSize_1 = ext.textFontSize;
-            var textColor_1 = ext.textColor;
-            var createLabel = function (key, x, y, labelText) {
-                var textW = calcTextWidth(labelText, fontSize_1, 500, LABEL_FONT_FAMILY);
-                var pillW = textW + LABEL_PADDING_H * 2;
-                var pillH = fontSize_1 + LABEL_PADDING_V * 2;
-                return [
-                    {
-                        key: key + '_bg',
-                        type: 'rect',
-                        attrs: { x: x, y: y - pillH / 2, width: pillW, height: pillH },
-                        styles: {
-                            style: 'stroke_fill',
-                            color: LABEL_BG_COLOR,
-                            borderColor: LABEL_BORDER_COLOR,
-                            borderSize: LABEL_BORDER_WIDTH,
-                            borderRadius: LABEL_BORDER_RADIUS
-                        },
-                        ignoreEvent: true
-                    },
-                    {
-                        key: key + '_text',
-                        type: 'text',
-                        attrs: { x: x + LABEL_PADDING_H, y: y, text: labelText, baseline: 'middle' },
-                        styles: {
-                            style: 'fill',
-                            color: textColor_1,
-                            size: fontSize_1,
-                            family: LABEL_FONT_FAMILY,
-                            weight: 500,
-                            backgroundColor: 'transparent'
-                        },
-                        ignoreEvent: true
-                    }
-                ];
-            };
-            var labelX = leftX + 4;
-            // Profit label (in TP zone)
-            if (tpHeight > 0) {
-                var profitLabelY = targetY + tpHeight * 0.5;
-                figures.push.apply(figures, __spreadArray([], __read(createLabel('lp_label_profit', labelX, profitLabelY, formatProfitLabel(stats, precision, compact))), false));
-            }
-            // R:R label (at entry line)
-            figures.push.apply(figures, __spreadArray([], __read(createLabel('lp_label_rr', labelX, entryY, formatRiskRewardLabel(stats, compact))), false));
-            // Stop label (in SL zone)
-            if (slHeight > 0) {
-                var stopLabelY = entryY + slHeight * 0.5;
-                figures.push.apply(figures, __spreadArray([], __read(createLabel('lp_label_stop', labelX, stopLabelY, formatStopLabel(stats, precision, compact))), false));
-            }
-        }
-        // ─── 6. Control points (3 visible) ─────────────
-        if ((isSelected || isHovered) && coordinates.length >= 4) {
-            var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff';
-            var cornerCP = function (key, x, y, pIdx) { return ({
-                key: key,
-                type: 'circle',
-                attrs: { x: x, y: y, r: CP_RADIUS + CP_BORDER },
-                styles: {
-                    style: 'stroke_fill',
-                    color: cpBg_1,
-                    borderColor: CP_COLOR,
-                    borderSize: CP_BORDER
-                },
-                pointIndex: pIdx,
-                cursor: 'pointer'
-            }); };
-            // CP0 at P0 (entry, left edge)
-            figures.push(cornerCP('lp_cp0', p0x, p0y, 0));
-            // CP1 at P1 (target, left edge)
-            figures.push(cornerCP('lp_cp1', p1x, p1y, 1));
-            // CP2 at P3 (width, right edge) — P2 is hidden
-            figures.push(cornerCP('lp_cp3', p3x, p3y, 3));
-        }
-        return figures;
-    },
-    // ═══════════════════════════════════════
-    // Drawing constraints (during 4-click placement)
-    // ═══════════════════════════════════════
-    performEventMoveForDrawing: function (_a) {
-        var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
-        if (currentStep === 2 && points.length >= 1) {
-            // Placing P1 (Target): lock X to P0, constrain above entry
-            performPoint.timestamp = points[0].timestamp;
-            performPoint.dataIndex = points[0].dataIndex;
-            if (performPoint.value !== undefined && points[0].value !== undefined &&
-                performPoint.value < points[0].value) {
-                performPoint.value = points[0].value;
-            }
-        }
-        else if (currentStep === 3 && points.length >= 2) {
-            // Placing P2 (Stop): lock X to P0, constrain below entry
-            performPoint.timestamp = points[0].timestamp;
-            performPoint.dataIndex = points[0].dataIndex;
-            if (performPoint.value !== undefined && points[0].value !== undefined &&
-                performPoint.value > points[0].value) {
-                performPoint.value = points[0].value;
-            }
-        }
-        else if (currentStep === 4 && points.length >= 3) {
-            // Placing P3 (Width): lock Y to entry price
-            performPoint.value = points[0].value;
-        }
-    },
-    // ═══════════════════════════════════════
-    // Drag constraints (after placement)
-    // ═══════════════════════════════════════
-    performEventPressedMove: function (_a) {
-        var _b, _c, _d, _e;
-        var points = _a.points, performPointIndex = _a.performPointIndex, performPoint = _a.performPoint;
-        if (points.length < 4)
-            return;
-        switch (performPointIndex) {
-            case 0:
-                // P0 (Entry): free move. P1/P2 follow X, P3 Y follows entry.
-                points[1].timestamp = points[0].timestamp;
-                points[1].dataIndex = points[0].dataIndex;
-                points[2].timestamp = points[0].timestamp;
-                points[2].dataIndex = points[0].dataIndex;
-                points[3].value = performPoint.value;
-                break;
-            case 1:
-                // P1 (Target): vertical only, X follows P0, must stay above entry
-                points[1].timestamp = points[0].timestamp;
-                points[1].dataIndex = points[0].dataIndex;
-                if (((_b = performPoint.value) !== null && _b !== void 0 ? _b : 0) < ((_c = points[0].value) !== null && _c !== void 0 ? _c : 0)) {
-                    points[1].value = points[0].value;
-                }
-                break;
-            case 2:
-                // P2 (Stop): vertical only, X follows P0, must stay below entry
-                points[2].timestamp = points[0].timestamp;
-                points[2].dataIndex = points[0].dataIndex;
-                if (((_d = performPoint.value) !== null && _d !== void 0 ? _d : 0) > ((_e = points[0].value) !== null && _e !== void 0 ? _e : 0)) {
-                    points[2].value = points[0].value;
-                }
-                break;
-            case 3:
-                // P3 (Width): horizontal only, Y stays at entry price
-                points[3].value = points[0].value;
-                break;
-        }
-    },
-    // ═══════════════════════════════════════
-    // Y-axis price labels
-    // ═══════════════════════════════════════
-    createYAxisFigures: function (_a) {
-        var _b, _c;
-        var chart = _a.chart, overlay = _a.overlay, yAxis = _a.yAxis;
-        if (yAxis == null)
-            return [];
-        var ext = getSettings(overlay.extendData);
-        if (!ext.showPriceLabels)
-            return [];
-        var points = overlay.points;
-        if (points.length < 3)
-            return [];
-        var precision = (_c = (_b = chart.getSymbol()) === null || _b === void 0 ? void 0 : _b.pricePrecision) !== null && _c !== void 0 ? _c : 2;
-        var decimalFold = chart.getDecimalFold();
-        var thousandsSeparator = chart.getThousandsSeparator();
-        var figures = [];
-        var formatPrice = function (val) {
-            return decimalFold.format(thousandsSeparator.format(val.toFixed(precision)));
-        };
-        var createYLabel = function (key, value, bgColor) {
-            if (!isNumber(value))
-                return;
-            var pixelY = yAxis.convertToPixel(value);
-            figures.push({
-                key: key,
-                type: 'text',
-                attrs: { x: 0, y: pixelY, text: formatPrice(value), align: 'left', baseline: 'middle' },
-                styles: {
-                    style: 'fill',
-                    color: YAXIS_LABEL_TEXT_COLOR,
-                    size: 11,
-                    family: LABEL_FONT_FAMILY,
-                    weight: 500,
-                    paddingLeft: 4,
-                    paddingTop: 2,
-                    paddingRight: 4,
-                    paddingBottom: 2,
-                    backgroundColor: bgColor,
-                    borderRadius: 2
-                },
-                ignoreEvent: true
-            });
-        };
-        createYLabel('lp_yaxis_entry', points[0].value, YAXIS_LABEL_BG);
-        createYLabel('lp_yaxis_target', points[1].value, 'rgba(8, 153, 129, 0.8)');
-        createYLabel('lp_yaxis_stop', points[2].value, 'rgba(242, 54, 69, 0.8)');
-        return figures;
-    }
-};
-
-/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -7790,7 +7284,7 @@ var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag, vpfr, rect$1, longPosition
+    simpleAnnotation, simpleTag, vpfr, rect$1
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
