@@ -439,12 +439,12 @@ const segment: OverlayTemplate<Partial<SegmentExtendData>> = {
       let offsetPx = 0
       let baseline: CanvasTextBaseline = 'middle'
       if (vAlign === 'top') {
-        // Text above line: offset = half lineWidth + gap + full fontSize (since rotation makes baseline unreliable)
-        offsetPx = lineWidth / 2 + gap + fontSize
+        // Text above line (canvas Y is inverted: negative = up)
+        offsetPx = -(lineWidth / 2 + gap + fontSize)
         baseline = 'bottom'
       } else if (vAlign === 'bottom') {
         // Text below line
-        offsetPx = -(lineWidth / 2 + gap + fontSize)
+        offsetPx = lineWidth / 2 + gap + fontSize
         baseline = 'top'
       }
       // Perpendicular direction (pointing "above" the line)
