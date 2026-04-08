@@ -352,6 +352,8 @@ export interface Styles {
   overlay: OverlayStyle
 }
 
+const FONT_FAMILY = 'SF-Pro-Display, SF-Pro-Text, -apple-system, BlinkMacSystemFont, sans-serif'
+
 const Color = {
   RED: '#F92855',
   GREEN: '#2DC08E',
@@ -458,7 +460,7 @@ function getDefaultCandleStyle (): CandleStyle {
           borderSize: 0,
           borderDashedValue: [2, 2],
           color: Color.WHITE,
-          family: 'Helvetica Neue',
+          family: FONT_FAMILY,
           weight: 'normal',
           borderRadius: 2
         },
@@ -490,7 +492,7 @@ function getDefaultCandleStyle (): CandleStyle {
       title: {
         show: true,
         size: 14,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         color: Color.GREY,
         marginLeft: 8,
@@ -501,7 +503,7 @@ function getDefaultCandleStyle (): CandleStyle {
       },
       legend: {
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         color: Color.GREY,
         marginLeft: 8,
@@ -568,7 +570,7 @@ function getDefaultIndicatorStyle (): IndicatorStyle {
         style: 'fill',
         color: Color.WHITE,
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         borderStyle: 'solid',
         borderColor: 'transparent',
@@ -593,7 +595,7 @@ function getDefaultIndicatorStyle (): IndicatorStyle {
         showName: true,
         showParams: true,
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         color: Color.GREY,
         marginLeft: 8,
@@ -603,7 +605,7 @@ function getDefaultIndicatorStyle (): IndicatorStyle {
       },
       legend: {
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         color: Color.GREY,
         marginLeft: 8,
@@ -630,7 +632,7 @@ function getDefaultAxisStyle (): AxisStyle {
       show: true,
       color: Color.GREY,
       size: 12,
-      family: 'Helvetica Neue',
+      family: FONT_FAMILY,
       weight: 'normal',
       marginStart: 4,
       marginEnd: 6
@@ -661,7 +663,7 @@ function getDefaultCrosshairStyle (): CrosshairStyle {
         style: 'fill',
         color: Color.WHITE,
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         borderStyle: 'solid',
         borderDashedValue: [2, 2],
@@ -690,7 +692,7 @@ function getDefaultCrosshairStyle (): CrosshairStyle {
         style: 'fill',
         color: Color.WHITE,
         size: 12,
-        family: 'Helvetica Neue',
+        family: FONT_FAMILY,
         weight: 'normal',
         borderStyle: 'solid',
         borderDashedValue: [2, 2],
@@ -715,7 +717,7 @@ function getDefaultOverlayStyle (): OverlayStyle {
       style: 'fill',
       color: Color.WHITE,
       size: 12,
-      family: 'Helvetica Neue',
+      family: FONT_FAMILY,
       weight: 'normal',
       borderStyle: 'solid',
       borderDashedValue: [2, 2],

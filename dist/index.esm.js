@@ -959,6 +959,7 @@ function hexToRgb(hex, alpha) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var FONT_FAMILY = 'SF-Pro-Display, SF-Pro-Text, -apple-system, BlinkMacSystemFont, sans-serif';
 var Color = {
     RED: '#F92855',
     GREEN: '#2DC08E',
@@ -1063,7 +1064,7 @@ function getDefaultCandleStyle() {
                     borderSize: 0,
                     borderDashedValue: [2, 2],
                     color: Color.WHITE,
-                    family: 'Helvetica Neue',
+                    family: FONT_FAMILY,
                     weight: 'normal',
                     borderRadius: 2
                 },
@@ -1095,7 +1096,7 @@ function getDefaultCandleStyle() {
             title: {
                 show: true,
                 size: 14,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 color: Color.GREY,
                 marginLeft: 8,
@@ -1106,7 +1107,7 @@ function getDefaultCandleStyle() {
             },
             legend: {
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 color: Color.GREY,
                 marginLeft: 8,
@@ -1172,7 +1173,7 @@ function getDefaultIndicatorStyle() {
                 style: 'fill',
                 color: Color.WHITE,
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 borderStyle: 'solid',
                 borderColor: 'transparent',
@@ -1197,7 +1198,7 @@ function getDefaultIndicatorStyle() {
                 showName: true,
                 showParams: true,
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 color: Color.GREY,
                 marginLeft: 8,
@@ -1207,7 +1208,7 @@ function getDefaultIndicatorStyle() {
             },
             legend: {
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 color: Color.GREY,
                 marginLeft: 8,
@@ -1233,7 +1234,7 @@ function getDefaultAxisStyle() {
             show: true,
             color: Color.GREY,
             size: 12,
-            family: 'Helvetica Neue',
+            family: FONT_FAMILY,
             weight: 'normal',
             marginStart: 4,
             marginEnd: 6
@@ -1263,7 +1264,7 @@ function getDefaultCrosshairStyle() {
                 style: 'fill',
                 color: Color.WHITE,
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 borderStyle: 'solid',
                 borderDashedValue: [2, 2],
@@ -1292,7 +1293,7 @@ function getDefaultCrosshairStyle() {
                 style: 'fill',
                 color: Color.WHITE,
                 size: 12,
-                family: 'Helvetica Neue',
+                family: FONT_FAMILY,
                 weight: 'normal',
                 borderStyle: 'solid',
                 borderDashedValue: [2, 2],
@@ -1316,7 +1317,7 @@ function getDefaultOverlayStyle() {
             style: 'fill',
             color: Color.WHITE,
             size: 12,
-            family: 'Helvetica Neue',
+            family: FONT_FAMILY,
             weight: 'normal',
             borderStyle: 'solid',
             borderDashedValue: [2, 2],
@@ -5580,13 +5581,13 @@ var segment = {
             var offsetPx = 0;
             var baseline = 'middle';
             if (vAlign === 'top') {
-                // Text above line: offset = half lineWidth + gap + full fontSize (since rotation makes baseline unreliable)
-                offsetPx = lineWidth / 2 + gap + fontSize;
+                // Text above line (canvas Y is inverted: negative = up)
+                offsetPx = -(lineWidth / 2 + gap + fontSize);
                 baseline = 'bottom';
             }
             else if (vAlign === 'bottom') {
                 // Text below line
-                offsetPx = -(lineWidth / 2 + gap + fontSize);
+                offsetPx = lineWidth / 2 + gap + fontSize;
                 baseline = 'top';
             }
             // Perpendicular direction (pointing "above" the line)
