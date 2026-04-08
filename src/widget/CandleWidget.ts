@@ -37,6 +37,7 @@ export default class CandleWidget extends IndicatorWidget {
   constructor (rootContainer: HTMLElement, pane: AxisPane<YAxis>) {
     super(rootContainer, pane)
     this.addChild(this._candleBarView)
+    this.addChild(this._candleLastPriceLineView)
     this.addChild(this._crosshairFeatureView)
   }
 

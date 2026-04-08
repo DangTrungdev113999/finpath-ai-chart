@@ -347,7 +347,7 @@ declare function calcTextWidth(text: string, size?: number, weight?: string | nu
  * limitations under the License.
  */
 export type ActionCallback = (data?: unknown) => void;
-export type ActionType = "onZoom" | "onScroll" | "onVisibleRangeChange" | "onCandleTooltipFeatureClick" | "onIndicatorTooltipFeatureClick" | "onCrosshairFeatureClick" | "onCrosshairChange" | "onCandleBarClick" | "onPaneDrag" | "onIndicatorShapeClick" | "onIndicatorShapeDoubleClick";
+export type ActionType = "onZoom" | "onScroll" | "onVisibleRangeChange" | "onCandleTooltipFeatureClick" | "onIndicatorTooltipFeatureClick" | "onCrosshairFeatureClick" | "onCrosshairChange" | "onCandleBarClick" | "onPaneDrag" | "onIndicatorShapeClick" | "onIndicatorShapeDoubleClick" | "onExtendTextClick";
 /**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

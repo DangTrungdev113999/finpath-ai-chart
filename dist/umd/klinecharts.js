@@ -11969,7 +11969,12 @@ var CandleHighLowPriceView = /** @class */ (function (_super) {
 var CandleLastPriceView = /** @class */ (function (_super) {
     __extends(CandleLastPriceView, _super);
     function CandleLastPriceView() {
-        return _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super.apply(this, __spreadArray([], __read(arguments), false)) || this;
+        _this._boundExtendTextClickEvent = function (index) { return function () {
+            _this.getWidget().getPane().getChart().getChartStore().executeAction('onExtendTextClick', { index: index });
+            return false;
+        }; };
+        return _this;
     }
     CandleLastPriceView.prototype.drawImp = function (ctx) {
         var _a, _b, _c, _d, _e;
@@ -12024,17 +12029,20 @@ var CandleLastPriceView = /** @class */ (function (_super) {
                             var itemWidth = item.paddingLeft + calcTextWidth(text, item.size, item.weight, item.family) + item.paddingRight;
                             var itemHeight = item.paddingTop + item.size + item.paddingBottom;
                             leftFigures_1.push({
-                                name: 'text',
-                                attrs: {
-                                    x: 0,
-                                    y: priceY_1,
-                                    width: itemWidth,
-                                    height: itemHeight,
-                                    text: text,
-                                    align: 'right',
-                                    baseline: 'middle'
+                                figure: {
+                                    name: 'text',
+                                    attrs: {
+                                        x: 0,
+                                        y: priceY_1,
+                                        width: itemWidth,
+                                        height: itemHeight,
+                                        text: text,
+                                        align: 'right',
+                                        baseline: 'middle'
+                                    },
+                                    styles: __assign(__assign({}, item), { backgroundColor: (_a = item.backgroundColor) !== null && _a !== void 0 ? _a : color_1 })
                                 },
-                                styles: __assign(__assign({}, item), { backgroundColor: (_a = item.backgroundColor) !== null && _a !== void 0 ? _a : color_1 })
+                                extendIndex: index
                             });
                         }
                     }
@@ -12042,13 +12050,16 @@ var CandleLastPriceView = /** @class */ (function (_super) {
                 if (leftFigures_1.length > 0) {
                     var gap = 2;
                     var rightX = bounding.width;
-                    // Draw right-to-left from the right edge
                     for (var i = leftFigures_1.length - 1; i >= 0; i--) {
-                        var fig = leftFigures_1[i];
+                        var _f = leftFigures_1[i], fig = _f.figure, extendIndex = _f.extendIndex;
                         rightX -= gap;
                         fig.attrs.x = rightX;
                         fig.attrs.align = 'right';
-                        (_d = this.createFigure(fig)) === null || _d === void 0 ? void 0 : _d.draw(ctx);
+                        var handler = {
+                            mouseClickEvent: this._boundExtendTextClickEvent(extendIndex),
+                            mouseMoveEvent: function () { return true; }
+                        };
+                        (_d = this.createFigure(fig, handler)) === null || _d === void 0 ? void 0 : _d.draw(ctx);
                         rightX -= ((_e = fig.attrs.width) !== null && _e !== void 0 ? _e : 0);
                     }
                 }
@@ -12691,6 +12702,7 @@ var CandleWidget = /** @class */ (function (_super) {
         _this._candleLastPriceLineView = new CandleLastPriceView(_this);
         _this._crosshairFeatureView = new CrosshairFeatureView(_this);
         _this.addChild(_this._candleBarView);
+        _this.addChild(_this._candleLastPriceLineView);
         _this.addChild(_this._crosshairFeatureView);
         return _this;
     }
