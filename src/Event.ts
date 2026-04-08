@@ -25,7 +25,6 @@ import type YAxis from './component/YAxis'
 import type XAxis from './component/XAxis'
 
 import type Chart from './Chart'
-
 import type Pane from './pane/Pane'
 import type DrawPane from './pane/DrawPane'
 import { PaneIdConstants } from './pane/types'
@@ -82,11 +81,9 @@ export default class Event implements EventHandler {
 
   private _prevYAxisRange: Nullable<AxisRange> = null
 
+  private _xAxisStartScaleCoordinate: Nullable<Coordinate> = null
   private _xAxisStartScaleDistance = 0
-
-  private _xAxisStartBarSpace = 0
-  private _xAxisTargetBarSpace = 0
-  private _xAxisRafId = 0
+  private _xAxisScale = 1
 
   private _yAxisStartScaleDistance = 0
 
@@ -245,11 +242,6 @@ export default class Event implements EventHandler {
     if (this._mouseDownWidget !== null && this._mouseDownWidget.getName() === WidgetNameConstants.SEPARATOR) {
       return this._mouseDownWidget.dispatchEvent('pressedMouseMoveEvent', e)
     }
-    // X-axis drag: bypass hit testing — continue processing even if cursor moves outside x-axis zone
-    if (this._mouseDownWidget !== null && this._mouseDownWidget.getName() === WidgetNameConstants.X_AXIS) {
-      const event = this._makeWidgetEvent(e, this._mouseDownWidget)
-      return this._processXAxisScrollingEvent(this._mouseDownWidget as Widget<DrawPane<XAxis>>, event)
-    }
     const { pane, widget } = this._findWidgetByEvent(e)
     if (
       widget !== null &&
@@ -305,10 +297,9 @@ export default class Event implements EventHandler {
     this._mouseDownWidget = null
     this._startScrollCoordinate = null
     this._prevYAxisRange = null
-
+    this._xAxisStartScaleCoordinate = null
     this._xAxisStartScaleDistance = 0
-    this._xAxisStartBarSpace = 0
-    if (this._xAxisRafId !== 0) { cancelAnimationFrame(this._xAxisRafId); this._xAxisRafId = 0 }
+    this._xAxisScale = 1
     this._yAxisStartScaleDistance = 0
     return consumed
   }
@@ -525,10 +516,9 @@ export default class Event implements EventHandler {
       }
       this._startScrollCoordinate = null
       this._prevYAxisRange = null
-
+      this._xAxisStartScaleCoordinate = null
       this._xAxisStartScaleDistance = 0
-      this._xAxisStartBarSpace = 0
-      if (this._xAxisRafId !== 0) { cancelAnimationFrame(this._xAxisRafId); this._xAxisRafId = 0 }
+      this._xAxisScale = 1
       this._yAxisStartScaleDistance = 0
     }
     return false
@@ -622,8 +612,8 @@ export default class Event implements EventHandler {
     if (consumed) {
       this._chart.updatePane(UpdateLevel.Overlay)
     }
+    this._xAxisStartScaleCoordinate = { x: event.x, y: event.y }
     this._xAxisStartScaleDistance = event.pageX
-    this._xAxisStartBarSpace = this._chart.getChartStore().getBarSpace().bar
     return consumed
   }
 
@@ -632,18 +622,11 @@ export default class Event implements EventHandler {
     if (!consumed) {
       const xAxis = widget.getPane().getAxisComponent()
       if (xAxis.scrollZoomEnabled && this._xAxisStartScaleDistance !== 0) {
-        // Logarithmic zoom: each pixel of drag multiplies/divides bar space by SCALE_BASE
-        // drag right (dx > 0) → zoom out, drag left (dx < 0) → zoom in
-        const dx = event.pageX - this._xAxisStartScaleDistance
-        const SCALE_BASE = 1.006
-        const scaleFactor = Math.pow(SCALE_BASE, dx)
-        this._xAxisTargetBarSpace = this._xAxisStartBarSpace / scaleFactor
-        // RAF coalesce: one setBarSpace per frame regardless of mousemove frequency
-        if (this._xAxisRafId === 0) {
-          this._xAxisRafId = requestAnimationFrame(() => {
-            this._chart.getChartStore().setBarSpace(this._xAxisTargetBarSpace)
-            this._xAxisRafId = 0
-          })
+        const scale = this._xAxisStartScaleDistance / event.pageX
+        if (Number.isFinite(scale)) {
+          const zoomScale = (scale - this._xAxisScale) * 10
+          this._xAxisScale = scale
+          this._chart.getChartStore().zoom(zoomScale, this._xAxisStartScaleCoordinate, 'xAxis')
         }
       }
     } else {
