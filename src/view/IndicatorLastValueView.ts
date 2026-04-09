@@ -136,7 +136,7 @@ export default class IndicatorLastValueView extends View<YAxis> {
         const sectorPE = extData?.sectorPE
         const sectorPB = extData?.sectorPB
         const indicatorStylesObj = indicator.styles as Record<string, unknown> | undefined
-        const showSectorLine = indicatorStylesObj?.showSectorLine !== false
+        const showSectorLine = indicatorStylesObj?.showSectorLine === true
         const sectorLineColor = (indicatorStylesObj?.sectorLineColor as string | undefined) ?? '#26A69A'
 
         const sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined

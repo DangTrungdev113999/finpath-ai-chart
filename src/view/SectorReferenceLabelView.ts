@@ -33,7 +33,7 @@ export default class SectorReferenceLabelView extends View<YAxis> {
       const extData = indicator.extendData as Record<string, unknown> | undefined
       if (!isValid(extData)) return
 
-      const showSectorLine = (indicator.styles as Record<string, unknown> | undefined)?.showSectorLine !== false
+      const showSectorLine = (indicator.styles as Record<string, unknown> | undefined)?.showSectorLine === true
       if (!showSectorLine) return
 
       const sectorLineColor = ((indicator.styles as Record<string, unknown> | undefined)?.sectorLineColor as string | undefined) ?? '#26A69A'

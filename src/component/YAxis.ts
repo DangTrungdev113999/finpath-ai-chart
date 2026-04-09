@@ -135,7 +135,8 @@ export default abstract class YAxisImp extends AxisImp implements YAxis {
           }
         }
       }
-      indicators.forEach(({ result, figures, extendData }) => {
+      indicators.forEach((ind) => {
+        const { result, figures, extendData } = ind
         const data = result[dataIndex] ?? {}
         figures.forEach(figure => {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
@@ -145,8 +146,9 @@ export default abstract class YAxisImp extends AxisImp implements YAxis {
             max = Math.max(max, value)
           }
         })
-        // Include sector reference value matching this indicator's field
-        if (isValid(extendData)) {
+        // Include sector reference value in min/max only when showSectorLine is enabled
+        const showSectorLine = (ind.styles as Record<string, unknown> | undefined)?.showSectorLine === true
+        if (showSectorLine && isValid(extendData)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
           const labelField = (extendData as any)._labelField
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
