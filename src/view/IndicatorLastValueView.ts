@@ -15,12 +15,18 @@
 import { isNumber, isValid } from '../common/utils/typeChecks'
 
 import { eachFigures, type IndicatorFigure, type IndicatorFigureStyle } from '../component/Indicator'
+import type { EventHandler } from '../common/EventHandler'
 
 import View from './View'
 
 import type { YAxis } from '../component/YAxis'
 
 export default class IndicatorLastValueView extends View<YAxis> {
+  private readonly _boundSectorLabelClickEvent = (sectorName: string) => () => {
+    this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName })
+    return false
+  }
+
   override drawImp (ctx: CanvasRenderingContext2D): void {
     const widget = this.getWidget()
     const pane = widget.getPane()
@@ -124,6 +130,64 @@ export default class IndicatorLastValueView extends View<YAxis> {
               color: '#FFFFFF'
             }
           })?.draw(ctx)
+        }
+
+        // Sector reference VALUE label on Y-axis (just the number, like PE last value)
+        const sectorPE = extData?.sectorPE
+        const sectorPB = extData?.sectorPB
+        const indicatorStylesObj = indicator.styles as Record<string, unknown> | undefined
+        const showSectorLine = indicatorStylesObj?.showSectorLine !== false
+        const sectorLineColor = (indicatorStylesObj?.sectorLineColor as string | undefined) ?? '#26A69A'
+
+        const sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined
+        if (showSectorLine && isNumber(sectorValue)) {
+          let sectorY = yAxis.convertToNicePixel(sectorValue)
+          let sectorText = yAxis.displayValueToText(
+            yAxis.realValueToDisplayValue(
+              yAxis.valueToRealValue(sectorValue, { range: yAxisRange }),
+              { range: yAxisRange }
+            ),
+            indicator.precision
+          )
+          sectorText = decimalFold.format(thousandsSeparator.format(sectorText))
+          const sectorNameStr = (extData?.sectorName as string | undefined) ?? ''
+
+          // Avoid overlap with last value label: find the indicator's last value Y
+          const lastResult = indicator.result[dataIndex] ?? {}
+          const labelFieldForCollision = indicator.name === 'PE' ? 'pe' : indicator.name === 'PB' ? 'pb' : ''
+
+          const lastVal = (lastResult as Record<string, unknown>)[labelFieldForCollision]
+          if (isNumber(lastVal)) {
+            const lastValY = yAxis.convertToNicePixel(lastVal)
+            const labelHeight = lastValueMarkTextStyles.paddingTop + lastValueMarkTextStyles.size + lastValueMarkTextStyles.paddingBottom
+            // If labels overlap (within labelHeight distance), offset sector label
+            if (Math.abs(sectorY - lastValY) < labelHeight) {
+              sectorY = sectorY > lastValY ? lastValY + labelHeight : lastValY - labelHeight
+            }
+          }
+
+          let sx = 0
+          let sTextAlign: CanvasTextAlign = 'left'
+          if (yAxis.isFromZero()) {
+            sx = 0
+            sTextAlign = 'left'
+          } else {
+            sx = bounding.width
+            sTextAlign = 'right'
+          }
+          const sectorHandler: EventHandler = {
+            mouseClickEvent: this._boundSectorLabelClickEvent(sectorNameStr),
+            mouseMoveEvent: () => true
+          }
+          this.createFigure({
+            name: 'text',
+            attrs: { x: sx, y: sectorY, text: sectorText, align: sTextAlign, baseline: 'middle' },
+            styles: {
+              ...lastValueMarkTextStyles,
+              backgroundColor: sectorLineColor,
+              color: '#FFFFFF'
+            }
+          }, sectorHandler)?.draw(ctx)
         }
 
         // Dynamic label: reads indicator.result at the last visible candle index.

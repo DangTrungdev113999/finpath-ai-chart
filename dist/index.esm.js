@@ -11650,6 +11650,100 @@ var OverlayView = /** @class */ (function (_super) {
 }(View));
 
 /**
+ * SectorReferenceLabelView
+ * Renders clickable sector name label on indicator pane (chart area, not Y-axis).
+ * Positioned at right edge of chart area, same Y as sector reference line.
+ */
+var SectorReferenceLabelView = /** @class */ (function (_super) {
+    __extends(SectorReferenceLabelView, _super);
+    function SectorReferenceLabelView() {
+        var _this = _super.apply(this, __spreadArray([], __read(arguments), false)) || this;
+        _this._boundSectorClickEvent = function (sectorName) { return function () {
+            _this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName: sectorName });
+            return false;
+        }; };
+        return _this;
+    }
+    SectorReferenceLabelView.prototype.drawImp = function (ctx) {
+        var _this = this;
+        var widget = this.getWidget();
+        var pane = widget.getPane();
+        var bounding = widget.getBounding();
+        var chartStore = pane.getChart().getChartStore();
+        var paneId = pane.getId();
+        var indicators = chartStore.getIndicatorsByPaneId(paneId);
+        var yAxis = pane.getAxisComponent();
+        indicators.forEach(function (indicator) {
+            var _a, _b, _c, _d;
+            if (!indicator.visible)
+                return;
+            var extData = indicator.extendData;
+            if (!isValid(extData))
+                return;
+            var showSectorLine = ((_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.showSectorLine) !== false;
+            if (!showSectorLine)
+                return;
+            var sectorLineColor = (_c = (_b = indicator.styles) === null || _b === void 0 ? void 0 : _b.sectorLineColor) !== null && _c !== void 0 ? _c : '#26A69A';
+            var sectorName = extData.sectorName;
+            if (typeof sectorName !== 'string' || sectorName.length === 0)
+                return;
+            var sectorValue = indicator.name === 'PE'
+                ? extData.sectorPE
+                : indicator.name === 'PB'
+                    ? extData.sectorPB
+                    : undefined;
+            if (!isNumber(sectorValue))
+                return;
+            var y = yAxis.convertToNicePixel(sectorValue);
+            if (!Number.isFinite(y) || y < -10 || y > bounding.height + 10)
+                return;
+            var fontSize = 11;
+            var fontFamily = 'SF-Pro-Display, SF-Pro-Text, -apple-system, BlinkMacSystemFont, sans-serif';
+            var fontWeight = 500;
+            var paddingH = 5;
+            var paddingV = 3;
+            var textWidth = calcTextWidth(sectorName, fontSize, fontWeight, fontFamily);
+            var labelWidth = textWidth + paddingH * 2;
+            var labelHeight = fontSize + paddingV * 2;
+            var handler = {
+                mouseClickEvent: _this._boundSectorClickEvent(sectorName),
+                mouseMoveEvent: function () { return true; }
+            };
+            (_d = _this.createFigure({
+                name: 'text',
+                attrs: {
+                    x: bounding.width,
+                    y: y,
+                    width: labelWidth,
+                    height: labelHeight,
+                    text: sectorName,
+                    align: 'right',
+                    baseline: 'middle'
+                },
+                styles: {
+                    style: 'fill',
+                    color: '#FFFFFF',
+                    size: fontSize,
+                    family: fontFamily,
+                    weight: fontWeight,
+                    paddingLeft: paddingH,
+                    paddingTop: paddingV,
+                    paddingRight: paddingH,
+                    paddingBottom: paddingV,
+                    borderColor: 'transparent',
+                    borderStyle: 'solid',
+                    borderSize: 0,
+                    borderRadius: 2,
+                    borderDashedValue: [2],
+                    backgroundColor: sectorLineColor
+                }
+            }, handler)) === null || _d === void 0 ? void 0 : _d.draw(ctx);
+        });
+    };
+    return SectorReferenceLabelView;
+}(View));
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11668,9 +11762,11 @@ var IndicatorWidget = /** @class */ (function (_super) {
         var _this = _super.call(this, rootContainer, pane) || this;
         _this._gridView = new GridView(_this);
         _this._indicatorView = new IndicatorView(_this);
+        _this._sectorReferenceLabelView = new SectorReferenceLabelView(_this);
         _this._crosshairLineView = new CrosshairLineView(_this);
         _this._tooltipView = _this.createTooltipView();
         _this._overlayView = new OverlayView(_this);
+        _this.addChild(_this._sectorReferenceLabelView);
         _this.addChild(_this._tooltipView);
         _this.addChild(_this._overlayView);
         return _this;
@@ -11683,6 +11779,7 @@ var IndicatorWidget = /** @class */ (function (_super) {
             this.updateMainContent(ctx);
             this._indicatorView.draw(ctx);
             this._gridView.draw(ctx);
+            this._sectorReferenceLabelView.draw(ctx);
         }
     };
     IndicatorWidget.prototype.createTooltipView = function () {
@@ -13025,7 +13122,12 @@ var CandleLastPriceLabelView = /** @class */ (function (_super) {
 var IndicatorLastValueView = /** @class */ (function (_super) {
     __extends(IndicatorLastValueView, _super);
     function IndicatorLastValueView() {
-        return _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super.apply(this, __spreadArray([], __read(arguments), false)) || this;
+        _this._boundSectorLabelClickEvent = function (sectorName) { return function () {
+            _this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName: sectorName });
+            return false;
+        }; };
+        return _this;
     }
     IndicatorLastValueView.prototype.drawImp = function (ctx) {
         var _this = this;
@@ -13045,7 +13147,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
         indicators.forEach(function (indicator) {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             // Standard last-value labels (for indicators with figures)
             if (lastValueMarkStyles.show) {
                 var result = indicator.result;
@@ -13114,17 +13216,61 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: pocColor, color: '#FFFFFF' })
                     })) === null || _c === void 0 ? void 0 : _c.draw(ctx);
                 }
+                // Sector reference VALUE label on Y-axis (just the number, like PE last value)
+                var sectorPE = extData === null || extData === void 0 ? void 0 : extData.sectorPE;
+                var sectorPB = extData === null || extData === void 0 ? void 0 : extData.sectorPB;
+                var indicatorStylesObj = indicator.styles;
+                var showSectorLine = (indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.showSectorLine) !== false;
+                var sectorLineColor = (_d = indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.sectorLineColor) !== null && _d !== void 0 ? _d : '#26A69A';
+                var sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined;
+                if (showSectorLine && isNumber(sectorValue)) {
+                    var sectorY = yAxis.convertToNicePixel(sectorValue);
+                    var sectorText = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(sectorValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
+                    sectorText = decimalFold.format(thousandsSeparator.format(sectorText));
+                    var sectorNameStr = (_e = extData === null || extData === void 0 ? void 0 : extData.sectorName) !== null && _e !== void 0 ? _e : '';
+                    // Avoid overlap with last value label: find the indicator's last value Y
+                    var lastResult = (_f = indicator.result[dataIndex]) !== null && _f !== void 0 ? _f : {};
+                    var labelFieldForCollision = indicator.name === 'PE' ? 'pe' : indicator.name === 'PB' ? 'pb' : '';
+                    var lastVal = lastResult[labelFieldForCollision];
+                    if (isNumber(lastVal)) {
+                        var lastValY = yAxis.convertToNicePixel(lastVal);
+                        var labelHeight = lastValueMarkTextStyles.paddingTop + lastValueMarkTextStyles.size + lastValueMarkTextStyles.paddingBottom;
+                        // If labels overlap (within labelHeight distance), offset sector label
+                        if (Math.abs(sectorY - lastValY) < labelHeight) {
+                            sectorY = sectorY > lastValY ? lastValY + labelHeight : lastValY - labelHeight;
+                        }
+                    }
+                    var sx = 0;
+                    var sTextAlign = 'left';
+                    if (yAxis.isFromZero()) {
+                        sx = 0;
+                        sTextAlign = 'left';
+                    }
+                    else {
+                        sx = bounding.width;
+                        sTextAlign = 'right';
+                    }
+                    var sectorHandler = {
+                        mouseClickEvent: _this._boundSectorLabelClickEvent(sectorNameStr),
+                        mouseMoveEvent: function () { return true; }
+                    };
+                    (_g = _this.createFigure({
+                        name: 'text',
+                        attrs: { x: sx, y: sectorY, text: sectorText, align: sTextAlign, baseline: 'middle' },
+                        styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: sectorLineColor, color: '#FFFFFF' })
+                    }, sectorHandler)) === null || _g === void 0 ? void 0 : _g.draw(ctx);
+                }
                 // Dynamic label: reads indicator.result at the last visible candle index.
                 // Set extendData._labelField = "pe" (or "pb") to enable.
                 var labelField = extData === null || extData === void 0 ? void 0 : extData._labelField;
                 if (typeof labelField === 'string' && labelField.length > 0) {
                     var visibleRange = chartStore.getVisibleRange();
                     var lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1);
-                    var resultData = ((_d = indicator.result[lastVisibleIdx]) !== null && _d !== void 0 ? _d : {});
+                    var resultData = ((_h = indicator.result[lastVisibleIdx]) !== null && _h !== void 0 ? _h : {});
                     var labelValue = resultData[labelField];
                     if (isNumber(labelValue)) {
                         var stylesLines = indicator.styles.lines;
-                        var labelColor = (_g = (_e = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _e !== void 0 ? _e : (_f = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _f === void 0 ? void 0 : _f.color) !== null && _g !== void 0 ? _g : '#1E88FF';
+                        var labelColor = (_l = (_j = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _j !== void 0 ? _j : (_k = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _k === void 0 ? void 0 : _k.color) !== null && _l !== void 0 ? _l : '#1E88FF';
                         var y = yAxis.convertToNicePixel(labelValue);
                         var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(labelValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
                         text = decimalFold.format(thousandsSeparator.format(text));
@@ -13138,11 +13284,11 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                             x = bounding.width;
                             textAlign = 'right';
                         }
-                        (_h = _this.createFigure({
+                        (_m = _this.createFigure({
                             name: 'text',
                             attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
                             styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: labelColor, color: '#FFFFFF' })
-                        })) === null || _h === void 0 ? void 0 : _h.draw(ctx);
+                        })) === null || _m === void 0 ? void 0 : _m.draw(ctx);
                     }
                 }
             }
@@ -13344,6 +13490,7 @@ var YAxisWidget = /** @class */ (function (_super) {
         _this._overlayYAxisView = new OverlayYAxisView(_this);
         _this._crosshairHorizontalLabelView = new CrosshairHorizontalLabelView(_this);
         _this.setCursor('ns-resize');
+        _this.addChild(_this._indicatorLastValueView);
         _this.addChild(_this._overlayYAxisView);
         return _this;
     }
@@ -13536,7 +13683,7 @@ var YAxisImp = /** @class */ (function (_super) {
             }
             indicators.forEach(function (_a) {
                 var _b;
-                var result = _a.result, figures = _a.figures;
+                var result = _a.result, figures = _a.figures, extendData = _a.extendData;
                 var data = (_b = result[dataIndex]) !== null && _b !== void 0 ? _b : {};
                 figures.forEach(function (figure) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
@@ -13546,6 +13693,17 @@ var YAxisImp = /** @class */ (function (_super) {
                         max = Math.max(max, value);
                     }
                 });
+                // Include sector reference value matching this indicator's field
+                if (isValid(extendData)) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
+                    var labelField = extendData._labelField;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
+                    var sectorVal = labelField === 'pe' ? extendData.sectorPE : labelField === 'pb' ? extendData.sectorPB : undefined;
+                    if (isNumber(sectorVal)) {
+                        min = Math.min(min, sectorVal);
+                        max = Math.max(max, sectorVal);
+                    }
+                }
             });
         });
         if (min !== Number.MAX_SAFE_INTEGER && max !== Number.MIN_SAFE_INTEGER) {

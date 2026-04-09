@@ -35,6 +35,7 @@ export default class YAxisWidget extends DrawWidget<DrawPane<YAxis>> {
   constructor (rootContainer: HTMLElement, pane: DrawPane<YAxis>) {
     super(rootContainer, pane)
     this.setCursor('ns-resize')
+    this.addChild(this._indicatorLastValueView)
     this.addChild(this._overlayYAxisView)
   }
 
