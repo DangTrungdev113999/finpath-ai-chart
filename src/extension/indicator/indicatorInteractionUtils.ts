@@ -151,8 +151,14 @@ export function applyIndicatorInteraction (
   indexOffset = 0
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
-  const extData = indicator.extendData as Record<string, unknown> | null
-  if (extData == null) return
+  let extData = indicator.extendData as Record<string, unknown> | null
+  if (extData == null) {
+    // Initialize extendData if not set (MA, EMA, SMA don't have it by default)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
+    indicator.extendData = {}
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
+    extData = indicator.extendData as Record<string, unknown>
+  }
 
   // Compute hit segments
   const segs: HitSegment[] = []
