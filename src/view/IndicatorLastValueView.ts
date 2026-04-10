@@ -236,65 +236,69 @@ export default class IndicatorLastValueView extends View<YAxis> {
           }, sectorHandler)?.draw(ctx)
         }
 
-        // Dynamic label: reads indicator.result at the last visible candle index.
-        // Set extendData._labelField = "pe" (or "pb") to enable.
+        // Dynamic label (PE/PB via _labelField) + pixel-Y label (VOL_SIMPLE via _lastValuePixelY)
+        // Both rendered as HTML overlay at pane level to avoid Y-axis canvas clipping.
         const labelField = extData?._labelField
+        const pixelY = extData?._lastValuePixelY
+        const pixelText = extData?._lastValueText
+
+        // Determine label data: _labelField (PE/PB) or _lastValuePixelY (VOL_SIMPLE)
+        // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+        let htmlLabelY: number | undefined
+        // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+        let htmlLabelText: string | undefined
+        // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+        let htmlLabelStyles: Record<string, string | number | undefined> | undefined
+
         if (typeof labelField === 'string' && labelField.length > 0) {
+          // PE/PB dynamic label: fill (real-time) or stroke_fill (scrolled)
           const visibleRange = chartStore.getVisibleRange()
-          const lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1)
-          const resultData = (indicator.result[lastVisibleIdx] ?? {}) as Record<string, unknown>
+          const isLastBarVisible = dataIndex >= visibleRange.from && dataIndex < visibleRange.realTo
+          const displayIdx = isLastBarVisible ? dataIndex : Math.min(visibleRange.realTo - 1, dataList.length - 1)
+          const resultData = (indicator.result[displayIdx] ?? {}) as Record<string, unknown>
           const labelValue = resultData[labelField]
           if (isNumber(labelValue)) {
-            const stylesLines = (indicator.styles as Record<string, unknown>).lines as Array<{ color?: string }> | undefined
-            const labelColor = (extData?.pocColor as string | undefined) ??
-              stylesLines?.[0]?.color ?? '#1E88FF'
-            const y = yAxis.convertToNicePixel(labelValue)
-            let text = yAxis.displayValueToText(
+            htmlLabelY = yAxis.convertToNicePixel(labelValue)
+            const labelText = yAxis.displayValueToText(
               yAxis.realValueToDisplayValue(
                 yAxis.valueToRealValue(labelValue, { range: yAxisRange }),
                 { range: yAxisRange }
               ),
               indicator.precision
             )
-            text = decimalFold.format(thousandsSeparator.format(text))
-            let x = 0
-            let textAlign: CanvasTextAlign = 'left'
-            if (yAxis.isFromZero()) {
-              x = 0
-              textAlign = 'left'
+            htmlLabelText = decimalFold.format(thousandsSeparator.format(labelText))
+
+            const stylesLines = (indicator.styles as Record<string, unknown>).lines as Array<{ color?: string }> | undefined
+            const labelColor = stylesLines?.[0]?.color ?? '#1E88FF'
+            const scrolledBg = ((indicator.styles as Record<string, unknown>)._scrolledLabelBgColor as string | undefined) ?? '#17171A'
+
+            if (isLastBarVisible) {
+              // REAL-TIME: fill + indicator color bg + white text
+              htmlLabelStyles = { backgroundColor: labelColor, color: '#FFFFFF', borderSize: 0 }
             } else {
-              x = bounding.width
-              textAlign = 'right'
+              // SCROLLED: stroke_fill + theme bg + indicator color border/text
+              htmlLabelStyles = { backgroundColor: scrolledBg, color: labelColor, borderColor: labelColor, borderSize: 1 }
             }
-            this.createFigure({
-              name: 'text',
-              attrs: { x, y, text, align: textAlign, baseline: 'middle' },
-              styles: {
-                ...lastValueMarkTextStyles,
-                backgroundColor: labelColor,
-                color: '#FFFFFF'
-              }
-            })?.draw(ctx)
           }
+        } else if (isNumber(pixelY) && typeof pixelText === 'string') {
+          // VOL_SIMPLE pixel-Y label
+          htmlLabelY = pixelY
+          htmlLabelText = pixelText
+          htmlLabelStyles = (extData?._lastValueLabelStyles ?? {}) as Record<string, string | number | undefined>
         }
 
-        // HTML overlay label for indicators with custom coordinate systems (e.g. VOL_SIMPLE).
-        // Rendered as HTML div at pane level to avoid Y-axis canvas clipping (canvas is ~38px,
-        // label can be ~60px+). The div overflows left into the chart area naturally.
-        const pixelY = extData?._lastValuePixelY
-        const pixelText = extData?._lastValueText
-        if (isNumber(pixelY) && typeof pixelText === 'string') {
+        // Render HTML overlay if data available
+        if (htmlLabelY != null && htmlLabelText != null && htmlLabelStyles != null) {
           hasHtmlLabel = true
-          const styles = (extData?._lastValueLabelStyles ?? {}) as Record<string, string | number | undefined>
           const { container, span } = this._getOrCreateHtmlLabel()
           container.style.display = 'block'
-          container.style.top = `${pixelY}px`
+          container.style.top = `${htmlLabelY}px`
           container.style.transform = 'translateY(-50%)'
-          span.textContent = pixelText
-          span.style.background = String(styles.backgroundColor ?? 'transparent')
-          span.style.color = String(styles.color ?? '#FFFFFF')
-          span.style.border = `${String(styles.borderSize ?? 0)}px solid ${String(styles.borderColor ?? 'transparent')}`
-          span.style.borderRadius = `${String(styles.borderRadius ?? 2)}px`
+          span.textContent = htmlLabelText
+          span.style.background = String(htmlLabelStyles.backgroundColor ?? 'transparent')
+          span.style.color = String(htmlLabelStyles.color ?? '#FFFFFF')
+          span.style.border = `${String(htmlLabelStyles.borderSize ?? 0)}px solid ${String(htmlLabelStyles.borderColor ?? 'transparent')}`
+          span.style.borderRadius = `${String(htmlLabelStyles.borderRadius ?? 2)}px`
         }
       }
     })

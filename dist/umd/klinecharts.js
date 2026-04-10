@@ -14650,7 +14650,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var thousandsSeparator = chartStore.getThousandsSeparator();
         var hasHtmlLabel = false;
         indicators.forEach(function (indicator) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
             // Per-indicator lastValueMark override takes precedence over global
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- indicator.styles may lack lastValueMark at runtime
             var indicatorLVM = (_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.lastValueMark;
@@ -14774,54 +14774,64 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: sectorLineColor, color: '#FFFFFF' })
                     }, sectorHandler)) === null || _j === void 0 ? void 0 : _j.draw(ctx);
                 }
-                // Dynamic label: reads indicator.result at the last visible candle index.
-                // Set extendData._labelField = "pe" (or "pb") to enable.
+                // Dynamic label (PE/PB via _labelField) + pixel-Y label (VOL_SIMPLE via _lastValuePixelY)
+                // Both rendered as HTML overlay at pane level to avoid Y-axis canvas clipping.
                 var labelField = extData === null || extData === void 0 ? void 0 : extData._labelField;
-                if (typeof labelField === 'string' && labelField.length > 0) {
-                    var visibleRange = chartStore.getVisibleRange();
-                    var lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1);
-                    var resultData = ((_k = indicator.result[lastVisibleIdx]) !== null && _k !== void 0 ? _k : {});
-                    var labelValue = resultData[labelField];
-                    if (isNumber(labelValue)) {
-                        var stylesLines = indicator.styles.lines;
-                        var labelColor = (_o = (_l = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _l !== void 0 ? _l : (_m = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _m === void 0 ? void 0 : _m.color) !== null && _o !== void 0 ? _o : '#1E88FF';
-                        var y = yAxis.convertToNicePixel(labelValue);
-                        var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(labelValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
-                        text = decimalFold.format(thousandsSeparator.format(text));
-                        var x = 0;
-                        var textAlign = 'left';
-                        if (yAxis.isFromZero()) {
-                            x = 0;
-                            textAlign = 'left';
-                        }
-                        else {
-                            x = bounding.width;
-                            textAlign = 'right';
-                        }
-                        (_p = _this.createFigure({
-                            name: 'text',
-                            attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
-                            styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: labelColor, color: '#FFFFFF' })
-                        })) === null || _p === void 0 ? void 0 : _p.draw(ctx);
-                    }
-                }
-                // HTML overlay label for indicators with custom coordinate systems (e.g. VOL_SIMPLE).
-                // Rendered as HTML div at pane level to avoid Y-axis canvas clipping (canvas is ~38px,
-                // label can be ~60px+). The div overflows left into the chart area naturally.
                 var pixelY = extData === null || extData === void 0 ? void 0 : extData._lastValuePixelY;
                 var pixelText = extData === null || extData === void 0 ? void 0 : extData._lastValueText;
-                if (isNumber(pixelY) && typeof pixelText === 'string') {
+                // Determine label data: _labelField (PE/PB) or _lastValuePixelY (VOL_SIMPLE)
+                // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+                var htmlLabelY 
+                // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+                = void 0;
+                // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+                var htmlLabelText 
+                // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+                = void 0;
+                // eslint-disable-next-line @typescript-eslint/init-declarations -- set conditionally below
+                var htmlLabelStyles = void 0;
+                if (typeof labelField === 'string' && labelField.length > 0) {
+                    // PE/PB dynamic label: fill (real-time) or stroke_fill (scrolled)
+                    var visibleRange = chartStore.getVisibleRange();
+                    var isLastBarVisible = dataIndex >= visibleRange.from && dataIndex < visibleRange.realTo;
+                    var displayIdx = isLastBarVisible ? dataIndex : Math.min(visibleRange.realTo - 1, dataList.length - 1);
+                    var resultData = ((_k = indicator.result[displayIdx]) !== null && _k !== void 0 ? _k : {});
+                    var labelValue = resultData[labelField];
+                    if (isNumber(labelValue)) {
+                        htmlLabelY = yAxis.convertToNicePixel(labelValue);
+                        var labelText = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(labelValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
+                        htmlLabelText = decimalFold.format(thousandsSeparator.format(labelText));
+                        var stylesLines = indicator.styles.lines;
+                        var labelColor = (_m = (_l = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _l === void 0 ? void 0 : _l.color) !== null && _m !== void 0 ? _m : '#1E88FF';
+                        var scrolledBg = (_o = indicator.styles._scrolledLabelBgColor) !== null && _o !== void 0 ? _o : '#17171A';
+                        if (isLastBarVisible) {
+                            // REAL-TIME: fill + indicator color bg + white text
+                            htmlLabelStyles = { backgroundColor: labelColor, color: '#FFFFFF', borderSize: 0 };
+                        }
+                        else {
+                            // SCROLLED: stroke_fill + theme bg + indicator color border/text
+                            htmlLabelStyles = { backgroundColor: scrolledBg, color: labelColor, borderColor: labelColor, borderSize: 1 };
+                        }
+                    }
+                }
+                else if (isNumber(pixelY) && typeof pixelText === 'string') {
+                    // VOL_SIMPLE pixel-Y label
+                    htmlLabelY = pixelY;
+                    htmlLabelText = pixelText;
+                    htmlLabelStyles = ((_p = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _p !== void 0 ? _p : {});
+                }
+                // Render HTML overlay if data available
+                if (htmlLabelY != null && htmlLabelText != null && htmlLabelStyles != null) {
                     hasHtmlLabel = true;
-                    var styles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
-                    var _w = _this._getOrCreateHtmlLabel(), container = _w.container, span = _w.span;
+                    var _v = _this._getOrCreateHtmlLabel(), container = _v.container, span = _v.span;
                     container.style.display = 'block';
-                    container.style.top = "".concat(pixelY, "px");
+                    container.style.top = "".concat(htmlLabelY, "px");
                     container.style.transform = 'translateY(-50%)';
-                    span.textContent = pixelText;
-                    span.style.background = String((_r = styles.backgroundColor) !== null && _r !== void 0 ? _r : 'transparent');
-                    span.style.color = String((_s = styles.color) !== null && _s !== void 0 ? _s : '#FFFFFF');
-                    span.style.border = "".concat(String((_t = styles.borderSize) !== null && _t !== void 0 ? _t : 0), "px solid ").concat(String((_u = styles.borderColor) !== null && _u !== void 0 ? _u : 'transparent'));
-                    span.style.borderRadius = "".concat(String((_v = styles.borderRadius) !== null && _v !== void 0 ? _v : 2), "px");
+                    span.textContent = htmlLabelText;
+                    span.style.background = String((_q = htmlLabelStyles.backgroundColor) !== null && _q !== void 0 ? _q : 'transparent');
+                    span.style.color = String((_r = htmlLabelStyles.color) !== null && _r !== void 0 ? _r : '#FFFFFF');
+                    span.style.border = "".concat(String((_s = htmlLabelStyles.borderSize) !== null && _s !== void 0 ? _s : 0), "px solid ").concat(String((_t = htmlLabelStyles.borderColor) !== null && _t !== void 0 ? _t : 'transparent'));
+                    span.style.borderRadius = "".concat(String((_u = htmlLabelStyles.borderRadius) !== null && _u !== void 0 ? _u : 2), "px");
                 }
             }
         });
