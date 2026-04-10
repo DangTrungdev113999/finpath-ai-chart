@@ -214,9 +214,15 @@ export interface Indicator<D = unknown, C = unknown, E = unknown> {
   createTooltipDataSource: Nullable<IndicatorCreateTooltipDataSourceCallback<D>>
 
   /**
-   * Custom draw
+   * Custom draw (runs BEFORE default figures)
    */
   draw: Nullable<IndicatorDrawCallback<D, C, E>>
+
+  /**
+   * Custom draw that runs AFTER default figures are rendered.
+   * Use for decorations (dots, markers) that must appear on top of the line.
+   */
+  postDraw: Nullable<IndicatorDrawCallback<D, C, E>>
 
   /**
    * Calculation result
@@ -345,6 +351,7 @@ export default class IndicatorImp<D = unknown, C = unknown, E = unknown> impleme
   regenerateFigures: Nullable<IndicatorRegenerateFiguresCallback<D, C>> = null
   createTooltipDataSource: Nullable<IndicatorCreateTooltipDataSourceCallback<D>> = null
   draw: Nullable<IndicatorDrawCallback<D, C, E>> = null
+  postDraw: Nullable<IndicatorDrawCallback<D, C, E>> = null
 
   result: D[] = []
 

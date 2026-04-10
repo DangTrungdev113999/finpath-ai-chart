@@ -58,11 +58,14 @@ export default class Event implements EventHandler {
 
   private _mouseDownWidget: Nullable<Widget> = null
 
+  /** Currently hovered indicator ID (for hover enter/leave transition tracking) */
+  private _hoveredIndicatorId: Nullable<string> = null
+
   /**
    * Check if a coordinate is within any indicator's _hitArea on a pane.
    * Returns the indicator info if hit, null otherwise.
    */
-  private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string } | null {
+  private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string; indicator: unknown } | null {
     if (pane === null) return null
     const chartStore = this._chart.getChartStore()
     const indicators = chartStore.getIndicatorsByPaneId(pane.getId())
@@ -72,11 +75,52 @@ export default class Event implements EventHandler {
       const hitArea = extData?._hitArea as { left: number; top: number; right: number; bottom: number } | undefined
       if (hitArea != null && isNumber(hitArea.left)) {
         if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
-          return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId() }
+          return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator }
         }
       }
     }
     return null
+  }
+
+  /**
+   * Update indicator hover state. Only fires on enter/leave transitions.
+   * Directly mutates extendData._hovered and triggers a lightweight pane redraw.
+   */
+  private _updateIndicatorHover (pane: Nullable<Pane>, hoverInfo: ReturnType<Event['_findIndicatorAtPoint']>): void {
+    if (hoverInfo !== null) {
+      if (this._hoveredIndicatorId !== hoverInfo.indicatorId) {
+        // Clear previous hover
+        this._clearIndicatorHover()
+        // Set new hover
+        const indObj = hoverInfo.indicator as { extendData?: Record<string, unknown> } | undefined
+        const ext = indObj?.extendData
+        if (ext != null) {
+          ext._hovered = true
+        }
+        this._hoveredIndicatorId = hoverInfo.indicatorId
+        if (pane !== null) {
+          this._chart.updatePane(UpdateLevel.Main, pane.getId())
+        }
+      }
+    } else if (this._hoveredIndicatorId !== null) {
+      this._clearIndicatorHover()
+      // Redraw all panes to clear dots (hovered indicator could be in any pane)
+      this._chart.updatePane(UpdateLevel.Main)
+    }
+  }
+
+  /** Clear _hovered flag on the currently hovered indicator */
+  private _clearIndicatorHover (): void {
+    if (this._hoveredIndicatorId === null) return
+    const chartStore = this._chart.getChartStore()
+    const indicators = chartStore.getIndicatorsByFilter({ id: this._hoveredIndicatorId })
+    for (const ind of indicators) {
+      const ext = ind.extendData as Record<string, unknown> | undefined
+      if (ext != null) {
+        ext._hovered = false
+      }
+    }
+    this._hoveredIndicatorId = null
   }
 
   private _prevYAxisRange: Nullable<AxisRange> = null
@@ -218,10 +262,14 @@ export default class Event implements EventHandler {
               crosshair = undefined
             }
             widget.setCursor('pointer')
-          } else if (this._findIndicatorAtPoint(pane, event.x, event.y) !== null) {
-            widget.setCursor('pointer')
           } else {
-            widget.setCursor('crosshair')
+            const hoverInfo = this._findIndicatorAtPoint(pane, event.x, event.y)
+            if (hoverInfo !== null) {
+              widget.setCursor('pointer')
+            } else {
+              widget.setCursor('crosshair')
+            }
+            this._updateIndicatorHover(pane, hoverInfo)
           }
           this._chart.getChartStore().setCrosshair(crosshair)
           return consumed

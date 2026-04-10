@@ -237,6 +237,12 @@ export default class IndicatorView extends CandleBarView {
             }
           })
         }
+        // postDraw: runs AFTER figures (lines) — for decorations on top of the line
+        if (indicator.postDraw !== null) {
+          ctx.save()
+          indicator.postDraw({ ctx, chart, indicator, bounding, xAxis, yAxis })
+          ctx.restore()
+        }
       }
     })
     ctx.restore()
