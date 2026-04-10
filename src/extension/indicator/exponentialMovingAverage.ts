@@ -13,7 +13,7 @@
  */
 
 import type { IndicatorTemplate } from '../../component/Indicator'
-import { applyIndicatorInteraction } from './indicatorInteractionUtils'
+import { applyIndicatorInteraction, getControlPointBgColor } from './indicatorInteractionUtils'
 
 interface Ema {
   ema1?: number
@@ -44,7 +44,7 @@ const exponentialMovingAverage: IndicatorTemplate<Ema, number> = {
     const { from, to } = visibleRange
     if (from >= to) return false
     const keys = indicator.figures.map(f => f.key)
-    applyIndicatorInteraction(ctx, indicator, result as unknown as Array<Record<string, unknown>>, from, to, xAxis, yAxis, keys)
+    applyIndicatorInteraction(ctx, indicator, result as unknown as Array<Record<string, unknown>>, from, to, xAxis, yAxis, keys, 0, getControlPointBgColor(chart))
     return false
   },
 

@@ -14,7 +14,7 @@
 
 import type { KLineData } from '../../common/Data'
 import type { IndicatorTemplate } from '../../component/Indicator'
-import { collectLineSegments, drawSparseControlPoints, type HitSegment } from './indicatorInteractionUtils'
+import { collectLineSegments, drawSparseControlPoints, getControlPointBgColor, type HitSegment } from './indicatorInteractionUtils'
 
 // ═══════════════════════════════════════════════════════════════
 // Data interface: raw values stored per bar (before offset)
@@ -369,9 +369,10 @@ const ichimokuCloud: IndicatorTemplate<IchimokuData, number, IchimokuExtendData>
       ]
       extData._hitSegments = segs
       if (extData._selected === true) {
-        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['tenkan', 'kijun'])
-        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['senkouA', 'senkouB'], offset)
-        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['chikou'], -offset)
+        const cpBg = getControlPointBgColor(chart)
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['tenkan', 'kijun'], 0, cpBg)
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['senkouA', 'senkouB'], offset, cpBg)
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['chikou'], -offset, cpBg)
       }
     }
 

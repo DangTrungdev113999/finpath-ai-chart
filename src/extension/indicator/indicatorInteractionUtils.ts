@@ -25,7 +25,23 @@
 const CP_RADIUS = 3.5
 const CP_BORDER = 1.5
 const CP_COLOR = '#1592E6'
-const CP_BG = '#131722'
+
+// ═══════════════════════════════════════════════════════════════
+// Theme-aware background color for control points
+// ═══════════════════════════════════════════════════════════════
+
+function isLightColor (hex: string): boolean {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
+  if (m === null) return false
+  return (parseInt(m[1], 16) * 299 + parseInt(m[2], 16) * 587 + parseInt(m[3], 16) * 114) / 1000 > 128
+}
+
+interface ChartLike { getStyles: () => { yAxis: { tickText: { color: string } } } }
+
+export function getControlPointBgColor (chart: ChartLike): string {
+  const tickTextColor = String(chart.getStyles().yAxis.tickText.color)
+  return isLightColor(tickTextColor) ? '#131722' : '#ffffff'
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Hit segment type
@@ -85,12 +101,17 @@ export function drawSparseControlPoints (
   xAxis: AxisConverter,
   yAxis: AxisConverter,
   keys: string[],
-  indexOffset = 0
+  indexOffset = 0,
+  bgColor = '#131722'
 ): void {
+  // Visible pixel bounds (with margin for points near edges)
+  const visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS * 2
+  const visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS * 2
+
   const points: Array<{ x: number; y: number }> = []
 
   for (const key of keys) {
-    // Collect continuous segments of valid indices for this key
+    // Scan FULL data range to find fixed segment boundaries
     let segment: number[] = []
 
     const flushSegment = (): void => {
@@ -111,7 +132,7 @@ export function drawSparseControlPoints (
       segment = []
     }
 
-    for (let i = from; i < to && i < result.length; i++) {
+    for (let i = 0; i < result.length; i++) {
       const val = result[i][key]
       if (typeof val === 'number' && !isNaN(val)) {
         segment.push(i)
@@ -122,9 +143,10 @@ export function drawSparseControlPoints (
     flushSegment()
   }
 
-  // Draw each control point
+  // Draw only points within visible pixel range
   for (const p of points) {
-    ctx.fillStyle = CP_BG
+    if (p.x < visLeft || p.x > visRight) continue
+    ctx.fillStyle = bgColor
     ctx.beginPath()
     ctx.arc(p.x, p.y, CP_RADIUS, 0, Math.PI * 2)
     ctx.fill()
@@ -148,7 +170,8 @@ export function applyIndicatorInteraction (
   xAxis: AxisConverter,
   yAxis: AxisConverter,
   keys: string[],
-  indexOffset = 0
+  indexOffset = 0,
+  bgColor = '#131722'
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
   let extData = indicator.extendData as Record<string, unknown> | null
@@ -169,6 +192,6 @@ export function applyIndicatorInteraction (
 
   // Draw control points when selected
   if (extData._selected === true) {
-    drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, indexOffset)
+    drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, indexOffset, bgColor)
   }
 }

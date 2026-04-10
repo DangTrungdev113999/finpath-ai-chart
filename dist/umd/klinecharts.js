@@ -1768,6 +1768,184 @@ var bias = {
  * limitations under the License.
  */
 /**
+ * Shared interaction utilities for indicators:
+ * - Hit segment collection (for Event.ts hover/click detection)
+ * - Sparse control point rendering (when selected)
+ */
+// ═══════════════════════════════════════════════════════════════
+// Control point constants (matches trendline style but smaller)
+// ═══════════════════════════════════════════════════════════════
+var CP_RADIUS$3 = 3.5;
+var CP_BORDER$1 = 1.5;
+var CP_COLOR$3 = '#1592E6';
+// ═══════════════════════════════════════════════════════════════
+// Theme-aware background color for control points
+// ═══════════════════════════════════════════════════════════════
+function isLightColor$4(hex) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (m === null)
+        return false;
+    return (parseInt(m[1], 16) * 299 + parseInt(m[2], 16) * 587 + parseInt(m[3], 16) * 114) / 1000 > 128;
+}
+function getControlPointBgColor(chart) {
+    var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
+    return isLightColor$4(tickTextColor) ? '#131722' : '#ffffff';
+}
+function collectLineSegments(result, from, to, xAxis, yAxis, key, indexOffset) {
+    if (indexOffset === void 0) { indexOffset = 0; }
+    var segments = [];
+    var prevX = 0;
+    var prevY = 0;
+    var started = false;
+    for (var i = from; i < to && i < result.length; i++) {
+        var val = result[i][key];
+        if (typeof val !== 'number' || isNaN(val)) {
+            started = false;
+            continue;
+        }
+        var x = xAxis.convertToPixel(i + indexOffset);
+        var y = yAxis.convertToPixel(val);
+        if (started) {
+            segments.push({ x1: prevX, y1: prevY, x2: x, y2: y });
+        }
+        prevX = x;
+        prevY = y;
+        started = true;
+    }
+    return segments;
+}
+// ═══════════════════════════════════════════════════════════════
+// Draw sparse control points: start, middle, end of each line
+// ═══════════════════════════════════════════════════════════════
+function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, indexOffset, bgColor) {
+    var e_1, _a, e_2, _b;
+    if (indexOffset === void 0) { indexOffset = 0; }
+    if (bgColor === void 0) { bgColor = '#131722'; }
+    // Visible pixel bounds (with margin for points near edges)
+    var visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS$3 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS$3 * 2;
+    var points = [];
+    var _loop_1 = function (key) {
+        // Scan FULL data range to find fixed segment boundaries
+        var segment = [];
+        var flushSegment = function () {
+            if (segment.length === 0)
+                return;
+            var first = segment[0];
+            var last = segment[segment.length - 1];
+            var firstVal = result[first][key];
+            points.push({ x: xAxis.convertToPixel(first + indexOffset), y: yAxis.convertToPixel(firstVal) });
+            if (last !== first) {
+                var lastVal = result[last][key];
+                points.push({ x: xAxis.convertToPixel(last + indexOffset), y: yAxis.convertToPixel(lastVal) });
+            }
+            if (segment.length >= 5) {
+                var mid = segment[Math.floor(segment.length / 2)];
+                var midVal = result[mid][key];
+                points.push({ x: xAxis.convertToPixel(mid + indexOffset), y: yAxis.convertToPixel(midVal) });
+            }
+            segment = [];
+        };
+        for (var i = 0; i < result.length; i++) {
+            var val = result[i][key];
+            if (typeof val === 'number' && !isNaN(val)) {
+                segment.push(i);
+            }
+            else {
+                flushSegment();
+            }
+        }
+        flushSegment();
+    };
+    try {
+        for (var keys_1 = __values(keys), keys_1_1 = keys_1.next(); !keys_1_1.done; keys_1_1 = keys_1.next()) {
+            var key = keys_1_1.value;
+            _loop_1(key);
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (keys_1_1 && !keys_1_1.done && (_a = keys_1.return)) _a.call(keys_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    try {
+        // Draw only points within visible pixel range
+        for (var points_1 = __values(points), points_1_1 = points_1.next(); !points_1_1.done; points_1_1 = points_1.next()) {
+            var p = points_1_1.value;
+            if (p.x < visLeft || p.x > visRight)
+                continue;
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = CP_COLOR$3;
+            ctx.lineWidth = CP_BORDER$1;
+            ctx.stroke();
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (points_1_1 && !points_1_1.done && (_b = points_1.return)) _b.call(points_1);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+}
+// ═══════════════════════════════════════════════════════════════
+// Convenience: store hit segments + draw control points
+// ═══════════════════════════════════════════════════════════════
+function applyIndicatorInteraction(ctx, 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic indicator type
+indicator, result, from, to, xAxis, yAxis, keys, indexOffset, bgColor) {
+    var e_3, _a;
+    if (bgColor === void 0) { bgColor = '#131722'; }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
+    var extData = indicator.extendData;
+    if (extData == null) {
+        // Initialize extendData if not set (MA, EMA, SMA don't have it by default)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
+        indicator.extendData = {};
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
+        extData = indicator.extendData;
+    }
+    // Compute hit segments
+    var segs = [];
+    try {
+        for (var keys_2 = __values(keys), keys_2_1 = keys_2.next(); !keys_2_1.done; keys_2_1 = keys_2.next()) {
+            var key = keys_2_1.value;
+            segs.push.apply(segs, __spreadArray([], __read(collectLineSegments(result, from, to, xAxis, yAxis, key, indexOffset)), false));
+        }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (keys_2_1 && !keys_2_1.done && (_a = keys_2.return)) _a.call(keys_2);
+        }
+        finally { if (e_3) throw e_3.error; }
+    }
+    extData._hitSegments = segs;
+    // Draw control points when selected
+    if (extData._selected === true) {
+        drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, indexOffset, bgColor);
+    }
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
  * 计算布林指标中的标准差
  * @param dataList
  * @param ma
@@ -1934,6 +2112,8 @@ var bollingerBands = {
             }
             ctx.restore();
         }
+        // Interaction: hit segments + control points
+        applyIndicatorInteraction(ctx, indicator, result, from, to, xAxis, yAxis, ['up', 'mid', 'dn'], 0, getControlPointBgColor(chart));
         // Return true when we drew lines manually (suppresses KlineChart native pipeline).
         // Return false when all lines are visible (lets KlineChart draw them at native quality).
         return !allLinesVisible;
@@ -2497,6 +2677,19 @@ var exponentialMovingAverage = {
         { key: 'ema3', title: 'EMA20: ', type: 'line' }
     ],
     regenerateFigures: function (params) { return params.map(function (p, i) { return ({ key: "ema".concat(i + 1), title: "EMA".concat(p, ": "), type: 'line' }); }); },
+    postDraw: function (_a) {
+        var ctx = _a.ctx, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis, chart = _a.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from, to = visibleRange.to;
+        if (from >= to)
+            return false;
+        var keys = indicator.figures.map(function (f) { return f.key; });
+        applyIndicatorInteraction(ctx, indicator, result, from, to, xAxis, yAxis, keys, 0, getControlPointBgColor(chart));
+        return false;
+    },
     calc: function (dataList, indicator) {
         var params = indicator.calcParams, figures = indicator.figures;
         var closeSum = 0;
@@ -2769,6 +2962,19 @@ var ichimokuCloud = {
         // Chikou: offset = -(displacement - 1) bars backward
         drawLine$1(ctx, chikouPoints, -offset, chikouColor, chikouWidth, xAxis, yAxis);
         ctx.restore();
+        // Interaction: hit segments + control points
+        var extData = indicator.extendData;
+        if (extData != null) {
+            var resultRec = result;
+            var segs = __spreadArray(__spreadArray(__spreadArray(__spreadArray(__spreadArray([], __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'tenkan')), false), __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'kijun')), false), __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'senkouA', offset)), false), __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'senkouB', offset)), false), __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'chikou', -offset)), false);
+            extData._hitSegments = segs;
+            if (extData._selected === true) {
+                var cpBg = getControlPointBgColor(chart);
+                drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['tenkan', 'kijun'], 0, cpBg);
+                drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['senkouA', 'senkouB'], offset, cpBg);
+                drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['chikou'], -offset, cpBg);
+            }
+        }
         // Return true: we drew everything, suppress native figures pipeline
         return true;
     }
@@ -2852,6 +3058,19 @@ var movingAverage = {
         { key: 'ma4', title: 'MA60: ', type: 'line' }
     ],
     regenerateFigures: function (params) { return params.map(function (p, i) { return ({ key: "ma".concat(i + 1), title: "MA".concat(p, ": "), type: 'line' }); }); },
+    postDraw: function (_a) {
+        var ctx = _a.ctx, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis, chart = _a.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from, to = visibleRange.to;
+        if (from >= to)
+            return false;
+        var keys = indicator.figures.map(function (f) { return f.key; });
+        applyIndicatorInteraction(ctx, indicator, result, from, to, xAxis, yAxis, keys, 0, getControlPointBgColor(chart));
+        return false;
+    },
     calc: function (dataList, indicator) {
         var params = indicator.calcParams, figures = indicator.figures;
         var closeSums = [];
@@ -3273,6 +3492,19 @@ var simpleMovingAverage = {
         { key: 'sma', title: 'SMA: ', type: 'line' }
     ],
     shouldOhlc: true,
+    postDraw: function (_a) {
+        var ctx = _a.ctx, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis, chart = _a.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from, to = visibleRange.to;
+        if (from >= to)
+            return false;
+        var keys = indicator.figures.map(function (f) { return f.key; });
+        applyIndicatorInteraction(ctx, indicator, result, from, to, xAxis, yAxis, keys, 0, getControlPointBgColor(chart));
+        return false;
+    },
     calc: function (dataList, indicator) {
         var params = indicator.calcParams;
         var closeSum = 0;
@@ -3702,6 +3934,118 @@ function drawSignalMarkers(ctx, result, from, to, xAxis, yAxis, ext) {
         }
     }
 }
+function collectStepLineSegments(result, from, to, xAxis, yAxis, key) {
+    var segments = [];
+    var prevX = 0;
+    var prevY = 0;
+    var started = false;
+    for (var i = from; i < to && i < result.length; i++) {
+        var val = result[i][key];
+        if (val == null) {
+            started = false;
+            continue;
+        }
+        var x = xAxis.convertToPixel(i);
+        var y = yAxis.convertToPixel(val);
+        if (!started) {
+            started = true;
+        }
+        else {
+            // Horizontal segment: prevX,prevY → x,prevY
+            segments.push({ x1: prevX, y1: prevY, x2: x, y2: prevY });
+            // Vertical segment: x,prevY → x,y
+            if (Math.abs(y - prevY) > 1) {
+                segments.push({ x1: x, y1: prevY, x2: x, y2: y });
+            }
+        }
+        prevX = x;
+        prevY = y;
+    }
+    return segments;
+}
+// ═══════════════════════════════════════════════════════════════
+// Control points: small circles at step-line vertices when selected
+// Style: similar to trendline but smaller
+// ═══════════════════════════════════════════════════════════════
+var CP_RADIUS$2 = 3.5;
+var CP_BORDER = 1.5;
+var CP_COLOR$2 = '#1592E6';
+function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
+    var e_1, _a;
+    // Visible pixel bounds (with margin for points near edges)
+    var visLeft = xAxis.convertToPixel(from) - CP_RADIUS$2 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS$2 * 2;
+    // Collect sparse control points: start, middle, end of each continuous segment.
+    // Scan FULL data range so points stay fixed when scrolling.
+    var points = [];
+    // Helper: extract sparse points from a continuous segment of bar indices
+    var addSegmentPoints = function (indices, key) {
+        if (indices.length === 0)
+            return;
+        var first = indices[0];
+        var last = indices[indices.length - 1];
+        // Start point
+        var firstVal = result[first][key];
+        points.push({ x: xAxis.convertToPixel(first), y: yAxis.convertToPixel(firstVal) });
+        // End point (if different from start)
+        if (last !== first) {
+            var lastVal = result[last][key];
+            points.push({ x: xAxis.convertToPixel(last), y: yAxis.convertToPixel(lastVal) });
+        }
+        // Middle point (if segment is long enough)
+        if (indices.length >= 5) {
+            var mid = indices[Math.floor(indices.length / 2)];
+            var midVal = result[mid][key];
+            points.push({ x: xAxis.convertToPixel(mid), y: yAxis.convertToPixel(midVal) });
+        }
+    };
+    // Scan up segments (full data range)
+    var upSegment = [];
+    for (var i = 0; i < result.length; i++) {
+        if (result[i].up != null) {
+            upSegment.push(i);
+        }
+        else {
+            addSegmentPoints(upSegment, 'up');
+            upSegment = [];
+        }
+    }
+    addSegmentPoints(upSegment, 'up');
+    // Scan dn segments (full data range)
+    var dnSegment = [];
+    for (var i = 0; i < result.length; i++) {
+        if (result[i].dn != null) {
+            dnSegment.push(i);
+        }
+        else {
+            addSegmentPoints(dnSegment, 'dn');
+            dnSegment = [];
+        }
+    }
+    addSegmentPoints(dnSegment, 'dn');
+    try {
+        // Draw only points within visible pixel range
+        for (var points_1 = __values(points), points_1_1 = points_1.next(); !points_1_1.done; points_1_1 = points_1.next()) {
+            var p = points_1_1.value;
+            if (p.x < visLeft || p.x > visRight)
+                continue;
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, CP_RADIUS$2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = CP_COLOR$2;
+            ctx.lineWidth = CP_BORDER;
+            ctx.stroke();
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (points_1_1 && !points_1_1.done && (_a = points_1.return)) _a.call(points_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+}
 // ═══════════════════════════════════════════════════════════════
 // SuperTrend IndicatorTemplate
 // ═══════════════════════════════════════════════════════════════
@@ -3892,6 +4236,26 @@ var superTrend = {
         // 3. Signal markers (highest z)
         if (ext.showSignals !== false) {
             drawSignalMarkers(ctx, result, from, to, xAxis, yAxis, ext);
+        }
+        // 4. Compute hit segments for Event.ts hover/click detection
+        var extData = indicator.extendData;
+        if (extData != null) {
+            var segs = [];
+            if (ext.showUpTrend !== false) {
+                segs.push.apply(segs, __spreadArray([], __read(collectStepLineSegments(result, from, to, xAxis, yAxis, 'up')), false));
+            }
+            if (ext.showDownTrend !== false) {
+                segs.push.apply(segs, __spreadArray([], __read(collectStepLineSegments(result, from, to, xAxis, yAxis, 'dn')), false));
+            }
+            extData._hitSegments = segs;
+        }
+        // 5. Draw control points when selected
+        if ((extData === null || extData === void 0 ? void 0 : extData._selected) === true) {
+            var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
+            var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(tickTextColor);
+            var isLight = m !== null && (parseInt(m[1], 16) * 299 + parseInt(m[2], 16) * 587 + parseInt(m[3], 16) * 114) / 1000 > 128;
+            var bgColor = isLight ? '#131722' : '#ffffff';
+            drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor);
         }
         ctx.restore();
         return true;
@@ -16946,6 +17310,32 @@ var EventHandlerImp = /** @class */ (function () {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Squared distance from point (px, py) to line segment (x1,y1)→(x2,y2).
+ * Uses squared distance to avoid sqrt for performance.
+ */
+function pointToSegmentDistanceSq(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) {
+        // Degenerate segment (point)
+        var ex_1 = px - x1;
+        var ey_1 = py - y1;
+        return ex_1 * ex_1 + ey_1 * ey_1;
+    }
+    // Project point onto segment, clamped to [0,1]
+    var t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    if (t < 0)
+        t = 0;
+    else if (t > 1)
+        t = 1;
+    var nearX = x1 + t * dx;
+    var nearY = y1 + t * dy;
+    var ex = px - nearX;
+    var ey = py - nearY;
+    return ex * ex + ey * ey;
+}
 var Event = /** @class */ (function () {
     function Event(container, chart) {
         var _this = this;
@@ -17007,11 +17397,14 @@ var Event = /** @class */ (function () {
         container.addEventListener('keydown', this._boundKeyBoardDownEvent);
     }
     /**
-     * Check if a coordinate is within any indicator's _hitArea on a pane.
+     * Check if a coordinate is within any indicator's hit region on a pane.
+     * Supports two hit-test modes:
+     *   1. _hitArea (AABB rectangle) — used by VPFR
+     *   2. _hitSegments (line segments with distance tolerance) — used by SuperTrend
      * Returns the indicator info if hit, null otherwise.
      */
     Event.prototype._findIndicatorAtPoint = function (pane, x, y) {
-        var e_1, _a;
+        var e_1, _a, e_2, _b;
         if (pane === null)
             return null;
         var chartStore = this._chart.getChartStore();
@@ -17022,7 +17415,30 @@ var Event = /** @class */ (function () {
                 if (!indicator.visible)
                     continue;
                 var extData = indicator.extendData;
-                var hitArea = extData === null || extData === void 0 ? void 0 : extData._hitArea;
+                if (extData == null)
+                    continue;
+                // Mode 1: Line-segment distance hit testing (_hitSegments)
+                var hitSegments = extData._hitSegments;
+                if (hitSegments != null && hitSegments.length > 0) {
+                    var HIT_TOLERANCE = 6;
+                    try {
+                        for (var hitSegments_1 = (e_2 = void 0, __values(hitSegments)), hitSegments_1_1 = hitSegments_1.next(); !hitSegments_1_1.done; hitSegments_1_1 = hitSegments_1.next()) {
+                            var seg = hitSegments_1_1.value;
+                            if (pointToSegmentDistanceSq(x, y, seg.x1, seg.y1, seg.x2, seg.y2) <= HIT_TOLERANCE * HIT_TOLERANCE) {
+                                return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator };
+                            }
+                        }
+                    }
+                    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                    finally {
+                        try {
+                            if (hitSegments_1_1 && !hitSegments_1_1.done && (_b = hitSegments_1.return)) _b.call(hitSegments_1);
+                        }
+                        finally { if (e_2) throw e_2.error; }
+                    }
+                }
+                // Mode 2: AABB rectangle hit testing (_hitArea)
+                var hitArea = extData._hitArea;
                 if (hitArea != null && isNumber(hitArea.left)) {
                     if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
                         return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator };
@@ -17038,6 +17454,42 @@ var Event = /** @class */ (function () {
             finally { if (e_1) throw e_1.error; }
         }
         return null;
+    };
+    /**
+     * Set _selected on a clicked indicator, clear _selected on all others.
+     * If no indicator is hit, clear all _selected flags.
+     */
+    Event.prototype._updateIndicatorSelected = function (_pane, clickedInfo) {
+        var e_3, _a;
+        var chartStore = this._chart.getChartStore();
+        // Clear all _selected flags across all indicators
+        var allIndicators = chartStore.getIndicatorsByFilter({});
+        try {
+            for (var allIndicators_1 = __values(allIndicators), allIndicators_1_1 = allIndicators_1.next(); !allIndicators_1_1.done; allIndicators_1_1 = allIndicators_1.next()) {
+                var ind = allIndicators_1_1.value;
+                var ext = ind.extendData;
+                if (ext != null && ext._selected === true) {
+                    ext._selected = false;
+                }
+            }
+        }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        finally {
+            try {
+                if (allIndicators_1_1 && !allIndicators_1_1.done && (_a = allIndicators_1.return)) _a.call(allIndicators_1);
+            }
+            finally { if (e_3) throw e_3.error; }
+        }
+        // Set _selected on clicked indicator
+        if (clickedInfo !== null) {
+            var indObj = clickedInfo.indicator;
+            var ext = indObj === null || indObj === void 0 ? void 0 : indObj.extendData;
+            if (ext != null) {
+                ext._selected = true;
+            }
+        }
+        // Redraw to reflect selection change
+        this._chart.updatePane(0 /* UpdateLevel.Main */);
     };
     /**
      * Update indicator hover state. Only fires on enter/leave transitions.
@@ -17068,7 +17520,7 @@ var Event = /** @class */ (function () {
     };
     /** Clear _hovered flag on the currently hovered indicator */
     Event.prototype._clearIndicatorHover = function () {
-        var e_2, _a;
+        var e_4, _a;
         if (this._hoveredIndicatorId === null)
             return;
         var chartStore = this._chart.getChartStore();
@@ -17082,12 +17534,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
                 if (indicators_2_1 && !indicators_2_1.done && (_a = indicators_2.return)) _a.call(indicators_2);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_4) throw e_4.error; }
         }
         this._hoveredIndicatorId = null;
     };
@@ -17269,6 +17721,8 @@ var Event = /** @class */ (function () {
             var consumed = widget.dispatchEvent('mouseClickEvent', event_5);
             if (!consumed && widget.getName() === WidgetNameConstants.MAIN) {
                 var indicatorInfo = this._findIndicatorAtPoint(pane, event_5.x, event_5.y);
+                // Update selected state (set on clicked, clear on all others)
+                this._updateIndicatorSelected(pane, indicatorInfo);
                 if (indicatorInfo !== null) {
                     this._chart.getChartStore().executeAction('onIndicatorShapeClick', indicatorInfo);
                     return true;
@@ -17641,7 +18095,7 @@ var Event = /** @class */ (function () {
         return consumed;
     };
     Event.prototype._findWidgetByEvent = function (event) {
-        var e_3, _a, e_4, _b;
+        var e_5, _a, e_6, _b;
         var x = event.x, y = event.y;
         var separatorPanes = this._chart.getSeparatorPanes();
         var separatorSize = this._chart.getStyles().separator.size;
@@ -17657,12 +18111,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
                 if (separatorPanes_1_1 && !separatorPanes_1_1.done && (_a = separatorPanes_1.return)) _a.call(separatorPanes_1);
             }
-            finally { if (e_3) throw e_3.error; }
+            finally { if (e_5) throw e_5.error; }
         }
         var drawPanes = this._chart.getDrawPanes();
         var pane = null;
@@ -17677,12 +18131,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+        catch (e_6_1) { e_6 = { error: e_6_1 }; }
         finally {
             try {
                 if (drawPanes_1_1 && !drawPanes_1_1.done && (_b = drawPanes_1.return)) _b.call(drawPanes_1);
             }
-            finally { if (e_4) throw e_4.error; }
+            finally { if (e_6) throw e_6.error; }
         }
         var widget = null;
         if (pane !== null) {

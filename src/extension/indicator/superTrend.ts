@@ -436,8 +436,12 @@ function drawControlPoints (
   yAxis: { convertToPixel: (v: number) => number },
   bgColor: string
 ): void {
+  // Visible pixel bounds (with margin for points near edges)
+  const visLeft = xAxis.convertToPixel(from) - CP_RADIUS * 2
+  const visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS * 2
+
   // Collect sparse control points: start, middle, end of each continuous segment.
-  // This gives ~2-3 points per segment, similar to trendline control points.
+  // Scan FULL data range so points stay fixed when scrolling.
   const points: Array<{ x: number; y: number }> = []
 
   // Helper: extract sparse points from a continuous segment of bar indices
@@ -461,9 +465,9 @@ function drawControlPoints (
     }
   }
 
-  // Scan up segments
+  // Scan up segments (full data range)
   let upSegment: number[] = []
-  for (let i = from; i < to && i < result.length; i++) {
+  for (let i = 0; i < result.length; i++) {
     if (result[i].up != null) {
       upSegment.push(i)
     } else {
@@ -473,9 +477,9 @@ function drawControlPoints (
   }
   addSegmentPoints(upSegment, 'up')
 
-  // Scan dn segments
+  // Scan dn segments (full data range)
   let dnSegment: number[] = []
-  for (let i = from; i < to && i < result.length; i++) {
+  for (let i = 0; i < result.length; i++) {
     if (result[i].dn != null) {
       dnSegment.push(i)
     } else {
@@ -485,14 +489,13 @@ function drawControlPoints (
   }
   addSegmentPoints(dnSegment, 'dn')
 
-  // Draw each control point
+  // Draw only points within visible pixel range
   for (const p of points) {
-    // Fill with background color
+    if (p.x < visLeft || p.x > visRight) continue
     ctx.fillStyle = bgColor
     ctx.beginPath()
     ctx.arc(p.x, p.y, CP_RADIUS, 0, Math.PI * 2)
     ctx.fill()
-    // Border
     ctx.strokeStyle = CP_COLOR
     ctx.lineWidth = CP_BORDER
     ctx.stroke()
@@ -725,7 +728,10 @@ const superTrend: IndicatorTemplate<SuperTrendData, number, SuperTrendExtendData
 
     // 5. Draw control points when selected
     if (extData?._selected === true) {
-      const bgColor = '#131722' // dark theme background
+      const tickTextColor = String(chart.getStyles().yAxis.tickText.color)
+      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(tickTextColor)
+      const isLight = m !== null && (parseInt(m[1], 16) * 299 + parseInt(m[2], 16) * 587 + parseInt(m[3], 16) * 114) / 1000 > 128
+      const bgColor = isLight ? '#131722' : '#ffffff'
       drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor)
     }
 
