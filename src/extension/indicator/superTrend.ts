@@ -436,56 +436,54 @@ function drawControlPoints (
   yAxis: { convertToPixel: (v: number) => number },
   bgColor: string
 ): void {
-  // Collect ONLY vertex positions where the step-line changes value or starts/ends.
-  // A vertex = first bar of a segment, last bar before a break, or where value changes.
+  // Collect sparse control points: start, middle, end of each continuous segment.
+  // This gives ~2-3 points per segment, similar to trendline control points.
   const points: Array<{ x: number; y: number }> = []
 
-  // eslint-disable-next-line @typescript-eslint/init-declarations -- intentionally undefined until first value
-  let prevUpVal: number | undefined
-  // eslint-disable-next-line @typescript-eslint/init-declarations -- intentionally undefined until first value
-  let prevDnVal: number | undefined
-  let prevUpStarted = false
-  let prevDnStarted = false
-
-  for (let i = from; i < to && i < result.length; i++) {
-    const item = result[i]
-
-    // Up trend vertices
-    if (item.up != null) {
-      if (!prevUpStarted || item.up !== prevUpVal) {
-        // Value changed or segment started — this is a vertex
-        points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(item.up) })
-      }
-      prevUpVal = item.up
-      prevUpStarted = true
-    } else {
-      if (prevUpStarted && i > from) {
-        // Segment ended at previous bar — add the last point
-        const prev = result[i - 1]
-        if (prev.up != null) {
-          points.push({ x: xAxis.convertToPixel(i - 1), y: yAxis.convertToPixel(prev.up) })
-        }
-      }
-      prevUpStarted = false
+  // Helper: extract sparse points from a continuous segment of bar indices
+  const addSegmentPoints = (indices: number[], key: 'up' | 'dn'): void => {
+    if (indices.length === 0) return
+    const first = indices[0]
+    const last = indices[indices.length - 1]
+    // Start point
+    const firstVal = result[first][key]!
+    points.push({ x: xAxis.convertToPixel(first), y: yAxis.convertToPixel(firstVal) })
+    // End point (if different from start)
+    if (last !== first) {
+      const lastVal = result[last][key]!
+      points.push({ x: xAxis.convertToPixel(last), y: yAxis.convertToPixel(lastVal) })
     }
-
-    // Down trend vertices
-    if (item.dn != null) {
-      if (!prevDnStarted || item.dn !== prevDnVal) {
-        points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(item.dn) })
-      }
-      prevDnVal = item.dn
-      prevDnStarted = true
-    } else {
-      if (prevDnStarted && i > from) {
-        const prev = result[i - 1]
-        if (prev.dn != null) {
-          points.push({ x: xAxis.convertToPixel(i - 1), y: yAxis.convertToPixel(prev.dn) })
-        }
-      }
-      prevDnStarted = false
+    // Middle point (if segment is long enough)
+    if (indices.length >= 5) {
+      const mid = indices[Math.floor(indices.length / 2)]
+      const midVal = result[mid][key]!
+      points.push({ x: xAxis.convertToPixel(mid), y: yAxis.convertToPixel(midVal) })
     }
   }
+
+  // Scan up segments
+  let upSegment: number[] = []
+  for (let i = from; i < to && i < result.length; i++) {
+    if (result[i].up != null) {
+      upSegment.push(i)
+    } else {
+      addSegmentPoints(upSegment, 'up')
+      upSegment = []
+    }
+  }
+  addSegmentPoints(upSegment, 'up')
+
+  // Scan dn segments
+  let dnSegment: number[] = []
+  for (let i = from; i < to && i < result.length; i++) {
+    if (result[i].dn != null) {
+      dnSegment.push(i)
+    } else {
+      addSegmentPoints(dnSegment, 'dn')
+      dnSegment = []
+    }
+  }
+  addSegmentPoints(dnSegment, 'dn')
 
   // Draw each control point
   for (const p of points) {
