@@ -14,6 +14,7 @@
 
 import type { KLineData } from '../../common/Data'
 import type { IndicatorTemplate } from '../../component/Indicator'
+import { collectLineSegments, drawSparseControlPoints, type HitSegment } from './indicatorInteractionUtils'
 
 // ═══════════════════════════════════════════════════════════════
 // Data interface: raw values stored per bar (before offset)
@@ -354,6 +355,25 @@ const ichimokuCloud: IndicatorTemplate<IchimokuData, number, IchimokuExtendData>
     drawLine(ctx, chikouPoints, -offset, chikouColor, chikouWidth, xAxis, yAxis)
 
     ctx.restore()
+
+    // Interaction: hit segments + control points
+    const extData = indicator.extendData as Record<string, unknown> | null
+    if (extData != null) {
+      const resultRec = result as unknown as Array<Record<string, unknown>>
+      const segs: HitSegment[] = [
+        ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'tenkan'),
+        ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'kijun'),
+        ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'senkouA', offset),
+        ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'senkouB', offset),
+        ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'chikou', -offset)
+      ]
+      extData._hitSegments = segs
+      if (extData._selected === true) {
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['tenkan', 'kijun'])
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['senkouA', 'senkouB'], offset)
+        drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['chikou'], -offset)
+      }
+    }
 
     // Return true: we drew everything, suppress native figures pipeline
     return true

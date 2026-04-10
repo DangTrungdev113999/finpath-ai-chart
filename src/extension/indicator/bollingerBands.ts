@@ -14,6 +14,7 @@
 
 import type { KLineData } from '../../common/Data'
 import type { IndicatorTemplate } from '../../component/Indicator'
+import { applyIndicatorInteraction } from './indicatorInteractionUtils'
 
 interface Boll {
   up?: number
@@ -215,6 +216,9 @@ const bollingerBands: IndicatorTemplate<Boll, number> = {
       }
       ctx.restore()
     }
+
+    // Interaction: hit segments + control points
+    applyIndicatorInteraction(ctx, indicator, result as unknown as Array<Record<string, unknown>>, from, to, xAxis, yAxis, ['up', 'mid', 'dn'])
 
     // Return true when we drew lines manually (suppresses KlineChart native pipeline).
     // Return false when all lines are visible (lets KlineChart draw them at native quality).

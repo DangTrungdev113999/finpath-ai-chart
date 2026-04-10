@@ -13,6 +13,7 @@
  */
 
 import type { IndicatorTemplate } from '../../component/Indicator'
+import { applyIndicatorInteraction } from './indicatorInteractionUtils'
 
 interface Ma {
   ma1?: number
@@ -38,6 +39,17 @@ const movingAverage: IndicatorTemplate<Ma, number> = {
     { key: 'ma4', title: 'MA60: ', type: 'line' }
   ],
   regenerateFigures: (params) => params.map((p, i) => ({ key: `ma${i + 1}`, title: `MA${p}: `, type: 'line' })),
+  postDraw: ({ ctx, indicator, xAxis, yAxis, chart }) => {
+    const result = indicator.result
+    if (result.length === 0) return false
+    const visibleRange = chart.getVisibleRange()
+    const { from, to } = visibleRange
+    if (from >= to) return false
+    const keys = indicator.figures.map(f => f.key)
+    applyIndicatorInteraction(ctx, indicator, result as unknown as Array<Record<string, unknown>>, from, to, xAxis, yAxis, keys)
+    return false
+  },
+
   calc: (dataList, indicator) => {
     const { calcParams: params, figures } = indicator
     const closeSums: number[] = []
