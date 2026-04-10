@@ -31,6 +31,31 @@ import { PaneIdConstants } from './pane/types'
 import type Widget from './widget/Widget'
 import { WidgetNameConstants, REAL_SEPARATOR_HEIGHT } from './widget/types'
 
+/**
+ * Squared distance from point (px, py) to line segment (x1,y1)→(x2,y2).
+ * Uses squared distance to avoid sqrt for performance.
+ */
+function pointToSegmentDistanceSq (px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) {
+    // Degenerate segment (point)
+    const ex = px - x1
+    const ey = py - y1
+    return ex * ex + ey * ey
+  }
+  // Project point onto segment, clamped to [0,1]
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq
+  if (t < 0) t = 0
+  else if (t > 1) t = 1
+  const nearX = x1 + t * dx
+  const nearY = y1 + t * dy
+  const ex = px - nearX
+  const ey = py - nearY
+  return ex * ex + ey * ey
+}
+
 interface EventTriggerWidgetInfo {
   pane: Nullable<Pane>
   widget: Nullable<Widget>
@@ -62,7 +87,10 @@ export default class Event implements EventHandler {
   private _hoveredIndicatorId: Nullable<string> = null
 
   /**
-   * Check if a coordinate is within any indicator's _hitArea on a pane.
+   * Check if a coordinate is within any indicator's hit region on a pane.
+   * Supports two hit-test modes:
+   *   1. _hitArea (AABB rectangle) — used by VPFR
+   *   2. _hitSegments (line segments with distance tolerance) — used by SuperTrend
    * Returns the indicator info if hit, null otherwise.
    */
   private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string; indicator: unknown } | null {
@@ -72,7 +100,21 @@ export default class Event implements EventHandler {
     for (const indicator of indicators) {
       if (!indicator.visible) continue
       const extData = indicator.extendData as Record<string, unknown> | undefined
-      const hitArea = extData?._hitArea as { left: number; top: number; right: number; bottom: number } | undefined
+      if (extData == null) continue
+
+      // Mode 1: Line-segment distance hit testing (_hitSegments)
+      const hitSegments = extData._hitSegments as Array<{ x1: number; y1: number; x2: number; y2: number }> | undefined
+      if (hitSegments != null && hitSegments.length > 0) {
+        const HIT_TOLERANCE = 6
+        for (const seg of hitSegments) {
+          if (pointToSegmentDistanceSq(x, y, seg.x1, seg.y1, seg.x2, seg.y2) <= HIT_TOLERANCE * HIT_TOLERANCE) {
+            return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator }
+          }
+        }
+      }
+
+      // Mode 2: AABB rectangle hit testing (_hitArea)
+      const hitArea = extData._hitArea as { left: number; top: number; right: number; bottom: number } | undefined
       if (hitArea != null && isNumber(hitArea.left)) {
         if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
           return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator }
@@ -80,6 +122,32 @@ export default class Event implements EventHandler {
       }
     }
     return null
+  }
+
+  /**
+   * Set _selected on a clicked indicator, clear _selected on all others.
+   * If no indicator is hit, clear all _selected flags.
+   */
+  private _updateIndicatorSelected (_pane: Nullable<Pane>, clickedInfo: ReturnType<Event['_findIndicatorAtPoint']>): void {
+    const chartStore = this._chart.getChartStore()
+    // Clear all _selected flags across all indicators
+    const allIndicators = chartStore.getIndicatorsByFilter({})
+    for (const ind of allIndicators) {
+      const ext = ind.extendData as Record<string, unknown> | undefined
+      if (ext != null && ext._selected === true) {
+        ext._selected = false
+      }
+    }
+    // Set _selected on clicked indicator
+    if (clickedInfo !== null) {
+      const indObj = clickedInfo.indicator as { extendData?: Record<string, unknown> } | undefined
+      const ext = indObj?.extendData
+      if (ext != null) {
+        ext._selected = true
+      }
+    }
+    // Redraw to reflect selection change
+    this._chart.updatePane(UpdateLevel.Main)
   }
 
   /**
@@ -359,6 +427,8 @@ export default class Event implements EventHandler {
       const consumed = widget.dispatchEvent('mouseClickEvent', event)
       if (!consumed && widget.getName() === WidgetNameConstants.MAIN) {
         const indicatorInfo = this._findIndicatorAtPoint(pane, event.x, event.y)
+        // Update selected state (set on clicked, clear on all others)
+        this._updateIndicatorSelected(pane, indicatorInfo)
         if (indicatorInfo !== null) {
           this._chart.getChartStore().executeAction('onIndicatorShapeClick', indicatorInfo)
           return true

@@ -374,6 +374,93 @@ function drawSignalMarkers (
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Hit segments: collect step-line segments for Event.ts hit testing
+// ═══════════════════════════════════════════════════════════════
+
+interface HitSegment {
+  x1: number; y1: number; x2: number; y2: number
+}
+
+function collectStepLineSegments (
+  result: SuperTrendData[],
+  from: number,
+  to: number,
+  xAxis: { convertToPixel: (v: number) => number },
+  yAxis: { convertToPixel: (v: number) => number },
+  key: 'up' | 'dn'
+): HitSegment[] {
+  const segments: HitSegment[] = []
+  let prevX = 0
+  let prevY = 0
+  let started = false
+
+  for (let i = from; i < to && i < result.length; i++) {
+    const val = result[i][key]
+    if (val == null) {
+      started = false
+      continue
+    }
+    const x = xAxis.convertToPixel(i)
+    const y = yAxis.convertToPixel(val)
+    if (!started) {
+      started = true
+    } else {
+      // Horizontal segment: prevX,prevY → x,prevY
+      segments.push({ x1: prevX, y1: prevY, x2: x, y2: prevY })
+      // Vertical segment: x,prevY → x,y
+      if (Math.abs(y - prevY) > 1) {
+        segments.push({ x1: x, y1: prevY, x2: x, y2: y })
+      }
+    }
+    prevX = x
+    prevY = y
+  }
+  return segments
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Control points: small circles at step-line vertices when selected
+// Style: similar to trendline but smaller
+// ═══════════════════════════════════════════════════════════════
+
+const CP_RADIUS = 3.5
+const CP_BORDER = 1.5
+const CP_COLOR = '#1592E6'
+
+function drawControlPoints (
+  ctx: CanvasRenderingContext2D,
+  result: SuperTrendData[],
+  from: number,
+  to: number,
+  xAxis: { convertToPixel: (v: number) => number },
+  yAxis: { convertToPixel: (v: number) => number },
+  bgColor: string
+): void {
+  // Collect vertex positions from both up and down trend lines
+  const points: Array<{ x: number; y: number }> = []
+
+  for (let i = from; i < to && i < result.length; i++) {
+    const item = result[i]
+    const val = item.up ?? item.dn
+    if (val == null) continue
+    points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(val) })
+  }
+
+  // Draw each control point
+  for (const p of points) {
+    // Fill with background color
+    ctx.fillStyle = bgColor
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, CP_RADIUS, 0, Math.PI * 2)
+    ctx.fill()
+    // Border
+    ctx.strokeStyle = CP_COLOR
+    ctx.lineWidth = CP_BORDER
+    ctx.stroke()
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SuperTrend IndicatorTemplate
 // ═══════════════════════════════════════════════════════════════
 
@@ -582,6 +669,25 @@ const superTrend: IndicatorTemplate<SuperTrendData, number, SuperTrendExtendData
     // 3. Signal markers (highest z)
     if (ext.showSignals !== false) {
       drawSignalMarkers(ctx, result, from, to, xAxis, yAxis, ext)
+    }
+
+    // 4. Compute hit segments for Event.ts hover/click detection
+    const extData = indicator.extendData as Record<string, unknown> | null
+    if (extData != null) {
+      const segs: HitSegment[] = []
+      if (ext.showUpTrend !== false) {
+        segs.push(...collectStepLineSegments(result, from, to, xAxis, yAxis, 'up'))
+      }
+      if (ext.showDownTrend !== false) {
+        segs.push(...collectStepLineSegments(result, from, to, xAxis, yAxis, 'dn'))
+      }
+      extData._hitSegments = segs
+    }
+
+    // 5. Draw control points when selected
+    if (extData?._selected === true) {
+      const bgColor = '#131722' // dark theme background
+      drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor)
     }
 
     ctx.restore()
