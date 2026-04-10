@@ -86,11 +86,12 @@ export function drawFPVPFR (
   // closest to the front (behind candles but on top of later draws).
   // Draw order: POC line first -> histogram bars -> POC label last
 
-  // === 1. POC Line ===
+  // === 1. POC Line (solid, not dashed) ===
   if (settings.showLines) {
     const pocY = yAxis.convertToPixel(profile.rows[profile.pocIndex].mid)
     ctx.strokeStyle = settings.pocColor
     ctx.lineWidth = settings.pocLineWidth
+    ctx.setLineDash([]) // Solid line — clear any inherited dash pattern
     ctx.beginPath()
     ctx.moveTo(fromX, pocY)
     ctx.lineTo(bounding.width, pocY) // Extends right to chart edge
@@ -141,7 +142,12 @@ export function drawFPVPFR (
   }
 
   // === 3. POC Label ===
+  // Must use source-over compositing because zLevel=-1 uses destination-over,
+  // which would draw white text BEHIND the blue pill (invisible).
   if (settings.showPOCLabel && settings.showPaneLabels) {
+    const prevCompositing = ctx.globalCompositeOperation
+    ctx.globalCompositeOperation = 'source-over'
+
     const pocPrice = profile.rows[profile.pocIndex].mid
     const pocY = yAxis.convertToPixel(pocPrice)
     const labelX = xAxis.convertToPixel(profile.toIndex + 15)
@@ -188,5 +194,7 @@ export function drawFPVPFR (
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(labelText, pillX + pillWidth / 2, pillY + pillHeight / 2)
+
+    ctx.globalCompositeOperation = prevCompositing
   }
 }
