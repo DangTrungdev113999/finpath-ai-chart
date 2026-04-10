@@ -253,13 +253,14 @@ export default class IndicatorLastValueView extends View<YAxis> {
         const pixelText = extData?._lastValueText
         if (isNumber(pixelY) && typeof pixelText === 'string') {
           const pixelLabelStyles = (extData?._lastValueLabelStyles ?? {}) as Record<string, unknown>
+          const offsetRight = isNumber(extData?._lastValueOffsetRight) ? extData._lastValueOffsetRight : 0
           let px = 0
           let pTextAlign: CanvasTextAlign = 'left'
           if (yAxis.isFromZero()) {
-            px = 0
+            px = offsetRight
             pTextAlign = 'left'
           } else {
-            px = bounding.width
+            px = bounding.width - offsetRight
             pTextAlign = 'right'
           }
           this.createFigure({
