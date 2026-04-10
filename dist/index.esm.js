@@ -1776,7 +1776,7 @@ var CP_COLOR$3 = '#1592E6';
 // ═══════════════════════════════════════════════════════════════
 // Theme-aware background color for control points
 // ═══════════════════════════════════════════════════════════════
-function isLightColor$4(hex) {
+function isLightColor$5(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -1784,7 +1784,7 @@ function isLightColor$4(hex) {
 }
 function getControlPointBgColor(chart) {
     var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
-    return isLightColor$4(tickTextColor) ? '#131722' : '#ffffff';
+    return isLightColor$5(tickTextColor) ? '#131722' : '#ffffff';
 }
 function collectLineSegments(result, from, to, xAxis, yAxis, key, indexOffset) {
     if (indexOffset === void 0) { indexOffset = 0; }
@@ -6546,7 +6546,7 @@ var rayLine = {
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-function isLightColor$3(hex) {
+function isLightColor$4(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -6749,7 +6749,7 @@ var segment = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$4(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
@@ -6768,7 +6768,7 @@ var segment = {
         // ─── 6. Control points at endpoints (when selected/hovered) ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$4(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
@@ -7811,7 +7811,7 @@ function renderVPFRFigures(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function isLightColor$2(hex) {
+function isLightColor$3(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -7943,7 +7943,7 @@ var vpfr = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_e = hoverInfo.overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id && hoverInfo.figureType !== 'none';
         var tickTextColor = String(chartStore.getStyles().yAxis.tickText.color);
-        var isDarkTheme = isLightColor$2(tickTextColor);
+        var isDarkTheme = isLightColor$3(tickTextColor);
         // X positions from coordinates (time-based)
         var leftX = Math.min(coordinates[0].x, coordinates[1].x);
         var rightX = Math.max(coordinates[0].x, coordinates[1].x);
@@ -8300,7 +8300,7 @@ var CP_MID_BORDER_RADIUS = 3;
  * Control points: 4 corners (circles) + 4 edge midpoints (squares)
  * All drag logic handled via performEventPressedMove with figureKey
  */
-function isLightColor$1(hex) {
+function isLightColor$2(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -8460,7 +8460,7 @@ var rect$1 = {
             var midY = (top + bottom) / 2;
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor$1(tickTextColor) ? '#131722' : '#ffffff';
+            var cpBg_1 = isLightColor$2(tickTextColor) ? '#131722' : '#ffffff';
             var cpColor_1 = CP_COLOR;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
@@ -8573,7 +8573,7 @@ var MIN_RADIUS_PX = 5;
  * Control points: center (move) + edge (resize)
  * Drag logic: center CP translates entire circle, edge CP resizes
  */
-function isLightColor(hex) {
+function isLightColor$1(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -8677,7 +8677,7 @@ var circle$1 = {
         if (isSelected || isHovered) {
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor(tickTextColor) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$1(tickTextColor) ? '#131722' : '#ffffff';
             // CP at center (drag to translate entire circle)
             figures.push({
                 key: 'circle_cp_center',
@@ -8726,6 +8726,633 @@ var circle$1 = {
 };
 
 /**
+ * Long Position overlay constants
+ * Re-exports shared CP constants from rect + LP-specific defaults
+ */
+// Re-export shared control point constants
+var LONG_POSITION_DEFAULTS = {
+    accountSize: 1000,
+    lotSize: 1,
+    risk: 25,
+    riskDisplayMode: 'percents',
+    tickMultiplier: 100,
+    lineColor: '#787B86',
+    lineWidth: 4,
+    lineStyle: 'solid',
+    stopBackground: 'rgba(242, 54, 69, 0.2)',
+    profitBackground: 'rgba(8, 153, 129, 0.2)',
+    textColor: '#ffffff',
+    fontSize: 12,
+    showPriceLabels: true,
+    compact: false,
+    alwaysShowStats: false,
+    drawBorder: false,
+    borderColor: '#667b8b',
+    fillLabelBackground: true,
+    labelBackgroundColor: '#585858',
+    fillBackground: true,
+    stopBackgroundTransparency: 80,
+    profitBackgroundTransparency: 80,
+    pricePrecision: 2
+};
+// Label layout
+var LABEL_PADDING_H = 8;
+var LABEL_PADDING_V = 6;
+var LABEL_BORDER_RADIUS = 3;
+
+/**
+ * Long Position utility functions — calculations and label formatting
+ */
+function calculateStats(entryPrice, targetPrice, stopPrice, ext) {
+    var tpDiff = targetPrice - entryPrice;
+    var slDiff = entryPrice - stopPrice;
+    var tpPct = entryPrice !== 0 ? (tpDiff / entryPrice) * 100 : 0;
+    var slPct = entryPrice !== 0 ? (slDiff / entryPrice) * 100 : 0;
+    var rrRatio = slDiff !== 0 ? Math.abs(tpDiff / slDiff) : 0;
+    var tpTicks = Math.round(tpDiff * ext.tickMultiplier);
+    var slTicks = Math.round(slDiff * ext.tickMultiplier);
+    var riskAmount = ext.riskDisplayMode === 'percents'
+        ? ext.accountSize * (ext.risk / 100)
+        : ext.risk;
+    var qty = slDiff !== 0 ? Math.floor(riskAmount / slDiff) : 0;
+    var amountTarget = tpDiff * qty;
+    var amountStop = slDiff * qty;
+    return { tpDiff: tpDiff, slDiff: slDiff, tpPct: tpPct, slPct: slPct, rrRatio: rrRatio, tpTicks: tpTicks, slTicks: slTicks, qty: qty, amountTarget: amountTarget, amountStop: amountStop };
+}
+// ═══════════════════════════════════════
+// Label text formatting
+// ═══════════════════════════════════════
+function fmtNum(value, precision) {
+    return formatPrecision(value, precision);
+}
+function fmtPct(value) {
+    return value.toFixed(2);
+}
+function fmtRatio(value) {
+    return value.toFixed(2);
+}
+function formatTpLabel(stats, compact, precision) {
+    if (compact) {
+        return "".concat(fmtNum(stats.tpDiff, precision), " (").concat(fmtPct(stats.tpPct), "%) ").concat(fmtNum(stats.amountTarget, precision));
+    }
+    return "M\u1EE5c ti\u00EAu: ".concat(fmtNum(stats.tpDiff, precision), " (").concat(fmtPct(stats.tpPct), "%) ").concat(stats.tpTicks, ", S\u1ED1 ti\u1EC1n: ").concat(fmtNum(stats.amountTarget, precision));
+}
+function formatEntryLabel(stats, compact, precision) {
+    if (compact) {
+        return "".concat(fmtNum(stats.amountTarget, precision), " - ").concat(stats.qty);
+    }
+    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.amountTarget, precision), ", S.Lg: ").concat(stats.qty, ", T\u1EF7 l\u1EC7 R\u1EE7i ro/L\u1EE3i nhu\u1EADn: ").concat(fmtRatio(stats.rrRatio));
+}
+function formatSlLabel(stats, compact, precision) {
+    if (compact) {
+        return "".concat(fmtNum(stats.slDiff, precision), " (").concat(fmtPct(stats.slPct), "%) ").concat(fmtNum(stats.amountStop, precision));
+    }
+    return "D\u1EEBng: ".concat(fmtNum(stats.slDiff, precision), " (").concat(fmtPct(stats.slPct), "%) ").concat(stats.slTicks, ", S\u1ED1 ti\u1EC1n: ").concat(fmtNum(stats.amountStop, precision));
+}
+
+/**
+ * Long Position overlay — TradingView-style risk/reward measurement tool
+ *
+ * Data points: 4 (P1 entry, P2 TP, P3 SL, P4 width)
+ * Control points: P1 circle (free), P2/P3 square (vertical), P4 square (horizontal)
+ * Single-click creation (totalStep=2), web layer injects P2/P3/P4 via onDrawEnd
+ */
+// ═══════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════
+function isLightColor(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+/**
+ * Extract solid color from an rgba() string for Y-axis pills.
+ * e.g. 'rgba(8, 153, 129, 0.2)' -> 'rgb(8, 153, 129)'
+ */
+function rgbaToSolid(rgba) {
+    var match = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(rgba);
+    if (match != null) {
+        return "rgb(".concat(match[1], ", ").concat(match[2], ", ").concat(match[3], ")");
+    }
+    return rgba;
+}
+function getExt(extendData) {
+    if (extendData == null)
+        return __assign({}, LONG_POSITION_DEFAULTS);
+    return __assign(__assign({}, LONG_POSITION_DEFAULTS), extendData);
+}
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var longPosition = {
+    name: 'longPosition',
+    totalStep: 2,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j;
+        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
+        var ext = getExt(overlay.extendData);
+        // ── Missing points: show minimal preview ──
+        if (coordinates.length < 1)
+            return [];
+        if (coordinates.length < 4) {
+            // Preview: entry line only at first click
+            var c1_1 = coordinates[0];
+            return [{
+                    key: 'lp_entry_line',
+                    type: 'line',
+                    attrs: {
+                        coordinates: [
+                            { x: c1_1.x, y: c1_1.y },
+                            { x: c1_1.x + 200, y: c1_1.y }
+                        ]
+                    },
+                    styles: {
+                        style: 'solid',
+                        color: ext.lineColor,
+                        size: ext.lineWidth
+                    },
+                    ignoreEvent: true
+                }];
+        }
+        // ── Full rendering with 4 points ──
+        var _k = __read(coordinates, 4), c1 = _k[0], c2 = _k[1], c3 = _k[2], c4 = _k[3];
+        var leftX = Math.min(c1.x, c4.x);
+        var rightX = Math.max(c1.x, c4.x);
+        var entryY = c1.y;
+        var targetY = c2.y; // above entry = smaller Y
+        var stopY = c3.y; // below entry = larger Y
+        var zoneWidth = Math.max(rightX - leftX, 50);
+        var figures = [];
+        // ── 1. TP zone fill ──
+        if (ext.fillBackground) {
+            figures.push({
+                key: 'lp_tp_zone',
+                type: 'rect',
+                attrs: {
+                    x: leftX,
+                    y: Math.min(targetY, entryY),
+                    width: zoneWidth,
+                    height: Math.abs(entryY - targetY)
+                },
+                styles: {
+                    style: 'fill',
+                    color: ext.profitBackground
+                },
+                ignoreEvent: true
+            });
+        }
+        // ── 2. SL zone fill ──
+        if (ext.fillBackground) {
+            figures.push({
+                key: 'lp_sl_zone',
+                type: 'rect',
+                attrs: {
+                    x: leftX,
+                    y: Math.min(entryY, stopY),
+                    width: zoneWidth,
+                    height: Math.abs(stopY - entryY)
+                },
+                styles: {
+                    style: 'fill',
+                    color: ext.stopBackground
+                },
+                ignoreEvent: true
+            });
+        }
+        // ── 3. TP border ──
+        if (ext.drawBorder) {
+            figures.push({
+                key: 'lp_tp_border',
+                type: 'rect',
+                attrs: {
+                    x: leftX,
+                    y: Math.min(targetY, entryY),
+                    width: zoneWidth,
+                    height: Math.abs(entryY - targetY)
+                },
+                styles: {
+                    style: 'stroke',
+                    borderColor: ext.borderColor,
+                    borderSize: 1
+                },
+                ignoreEvent: true
+            });
+        }
+        // ── 4. SL border ──
+        if (ext.drawBorder) {
+            figures.push({
+                key: 'lp_sl_border',
+                type: 'rect',
+                attrs: {
+                    x: leftX,
+                    y: Math.min(entryY, stopY),
+                    width: zoneWidth,
+                    height: Math.abs(stopY - entryY)
+                },
+                styles: {
+                    style: 'stroke',
+                    borderColor: ext.borderColor,
+                    borderSize: 1
+                },
+                ignoreEvent: true
+            });
+        }
+        // ── 5. Entry line ──
+        figures.push({
+            key: 'lp_entry_line',
+            type: 'line',
+            attrs: {
+                coordinates: [
+                    { x: leftX, y: entryY },
+                    { x: leftX + zoneWidth, y: entryY }
+                ]
+            },
+            styles: {
+                style: 'solid',
+                color: ext.lineColor,
+                size: ext.lineWidth
+            },
+            ignoreEvent: true
+        });
+        // ── 6. Hitbox (transparent, catches events) ──
+        var hitTop = Math.min(targetY, entryY, stopY);
+        var hitBottom = Math.max(targetY, entryY, stopY);
+        figures.push({
+            key: 'lp_hitbox',
+            type: 'rect',
+            attrs: {
+                x: leftX,
+                y: hitTop,
+                width: zoneWidth,
+                height: Math.max(hitBottom - hitTop, 1)
+            },
+            styles: {
+                style: 'fill',
+                color: 'transparent'
+            },
+            ignoreEvent: false
+        });
+        // ── Selection state detection ──
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isHoveredOrSelected = isSelected || isHovered;
+        // ── 7-12. Labels ──
+        var showLabels = ext.alwaysShowStats || isHoveredOrSelected;
+        if (showLabels) {
+            var entryPrice = (_e = (_d = overlay.points[0]) === null || _d === void 0 ? void 0 : _d.value) !== null && _e !== void 0 ? _e : 0;
+            var targetPrice = (_g = (_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.value) !== null && _g !== void 0 ? _g : 0;
+            var stopPrice = (_j = (_h = overlay.points[2]) === null || _h === void 0 ? void 0 : _h.value) !== null && _j !== void 0 ? _j : 0;
+            var precision = ext.pricePrecision;
+            var stats = calculateStats(entryPrice, targetPrice, stopPrice, ext);
+            var fontSize = ext.fontSize;
+            var labelMinHeight = fontSize + 2 * LABEL_PADDING_V;
+            var tpZoneHeight = Math.abs(entryY - targetY);
+            var slZoneHeight = Math.abs(stopY - entryY);
+            var showTpLabel = tpZoneHeight >= labelMinHeight;
+            var showSlLabel = slZoneHeight >= labelMinHeight;
+            var labelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent';
+            var labelTextColor = ext.textColor;
+            // TP label (centered inside green zone)
+            if (showTpLabel) {
+                var tpText = formatTpLabel(stats, ext.compact, precision);
+                var tpTextWidth = calcTextWidth(tpText, fontSize);
+                var tpLabelW = tpTextWidth + 2 * LABEL_PADDING_H;
+                var tpLabelH = fontSize + 2 * LABEL_PADDING_V;
+                var tpCenterX = leftX + zoneWidth / 2;
+                var tpCenterY = Math.min(targetY, entryY) + tpZoneHeight / 2;
+                figures.push({
+                    key: 'lp_tp_label_bg',
+                    type: 'rect',
+                    attrs: {
+                        x: tpCenterX - tpLabelW / 2,
+                        y: tpCenterY - tpLabelH / 2,
+                        width: tpLabelW,
+                        height: tpLabelH
+                    },
+                    styles: {
+                        style: 'fill',
+                        color: labelBg,
+                        borderRadius: LABEL_BORDER_RADIUS
+                    },
+                    ignoreEvent: true
+                });
+                figures.push({
+                    key: 'lp_tp_label_text',
+                    type: 'text',
+                    attrs: {
+                        x: tpCenterX,
+                        y: tpCenterY,
+                        text: tpText,
+                        align: 'center',
+                        baseline: 'middle'
+                    },
+                    styles: {
+                        color: labelTextColor,
+                        size: fontSize,
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+            // Entry label (centered on entry line)
+            {
+                var entryText = formatEntryLabel(stats, ext.compact, precision);
+                var entryTextWidth = calcTextWidth(entryText, fontSize);
+                var entryLabelW = entryTextWidth + 2 * LABEL_PADDING_H;
+                var entryLabelH = fontSize + 2 * LABEL_PADDING_V;
+                var entryCenterX = leftX + zoneWidth / 2;
+                figures.push({
+                    key: 'lp_entry_label_bg',
+                    type: 'rect',
+                    attrs: {
+                        x: entryCenterX - entryLabelW / 2,
+                        y: entryY - entryLabelH / 2,
+                        width: entryLabelW,
+                        height: entryLabelH
+                    },
+                    styles: {
+                        style: 'fill',
+                        color: labelBg,
+                        borderRadius: LABEL_BORDER_RADIUS
+                    },
+                    ignoreEvent: true
+                });
+                figures.push({
+                    key: 'lp_entry_label_text',
+                    type: 'text',
+                    attrs: {
+                        x: entryCenterX,
+                        y: entryY,
+                        text: entryText,
+                        align: 'center',
+                        baseline: 'middle'
+                    },
+                    styles: {
+                        color: labelTextColor,
+                        size: fontSize,
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+            // SL label (centered inside red zone)
+            if (showSlLabel) {
+                var slText = formatSlLabel(stats, ext.compact, precision);
+                var slTextWidth = calcTextWidth(slText, fontSize);
+                var slLabelW = slTextWidth + 2 * LABEL_PADDING_H;
+                var slLabelH = fontSize + 2 * LABEL_PADDING_V;
+                var slCenterX = leftX + zoneWidth / 2;
+                var slCenterY = Math.min(entryY, stopY) + slZoneHeight / 2;
+                figures.push({
+                    key: 'lp_sl_label_bg',
+                    type: 'rect',
+                    attrs: {
+                        x: slCenterX - slLabelW / 2,
+                        y: slCenterY - slLabelH / 2,
+                        width: slLabelW,
+                        height: slLabelH
+                    },
+                    styles: {
+                        style: 'fill',
+                        color: labelBg,
+                        borderRadius: LABEL_BORDER_RADIUS
+                    },
+                    ignoreEvent: true
+                });
+                figures.push({
+                    key: 'lp_sl_label_text',
+                    type: 'text',
+                    attrs: {
+                        x: slCenterX,
+                        y: slCenterY,
+                        text: slText,
+                        align: 'center',
+                        baseline: 'middle'
+                    },
+                    styles: {
+                        color: labelTextColor,
+                        size: fontSize,
+                        backgroundColor: 'transparent'
+                    },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ── 13-16. Control points (only when selected or hovered) ──
+        if (isHoveredOrSelected) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff';
+            // P1: Entry circle (free movement)
+            figures.push({
+                key: 'lp_cp_entry',
+                type: 'circle',
+                attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_CIRCLE_BORDER
+                },
+                pointIndex: 0,
+                cursor: 'move'
+            });
+            // P2: TP square (vertical only)
+            figures.push({
+                key: 'lp_cp_tp',
+                type: 'rect',
+                attrs: {
+                    x: leftX - CP_MID_SIZE / 2,
+                    y: targetY - CP_MID_SIZE / 2,
+                    width: CP_MID_SIZE,
+                    height: CP_MID_SIZE
+                },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_MID_BORDER,
+                    borderRadius: CP_MID_BORDER_RADIUS
+                },
+                pointIndex: 1,
+                cursor: 'ns-resize'
+            });
+            // P3: SL square (vertical only)
+            figures.push({
+                key: 'lp_cp_sl',
+                type: 'rect',
+                attrs: {
+                    x: leftX - CP_MID_SIZE / 2,
+                    y: stopY - CP_MID_SIZE / 2,
+                    width: CP_MID_SIZE,
+                    height: CP_MID_SIZE
+                },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_MID_BORDER,
+                    borderRadius: CP_MID_BORDER_RADIUS
+                },
+                pointIndex: 2,
+                cursor: 'ns-resize'
+            });
+            // P4: Width square (horizontal only)
+            figures.push({
+                key: 'lp_cp_width',
+                type: 'rect',
+                attrs: {
+                    x: rightX - CP_MID_SIZE / 2,
+                    y: entryY - CP_MID_SIZE / 2,
+                    width: CP_MID_SIZE,
+                    height: CP_MID_SIZE
+                },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_MID_BORDER,
+                    borderRadius: CP_MID_BORDER_RADIUS
+                },
+                pointIndex: 3,
+                cursor: 'ew-resize'
+            });
+        }
+        return figures;
+    },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        var ext = getExt(overlay.extendData);
+        if (!ext.showPriceLabels)
+            return [];
+        if (coordinates.length < 3)
+            return [];
+        var isFromZero = (_b = yAxis === null || yAxis === void 0 ? void 0 : yAxis.isFromZero()) !== null && _b !== void 0 ? _b : false;
+        var textAlign = isFromZero ? 'left' : 'right';
+        var x = isFromZero ? 0 : bounding.width;
+        var precision = ext.pricePrecision;
+        var figures = [];
+        var entryPrice = (_c = overlay.points[0]) === null || _c === void 0 ? void 0 : _c.value;
+        var targetPrice = (_d = overlay.points[1]) === null || _d === void 0 ? void 0 : _d.value;
+        var stopPrice = (_e = overlay.points[2]) === null || _e === void 0 ? void 0 : _e.value;
+        // Entry pill (gray)
+        if (entryPrice != null) {
+            var entryText = formatPrecision(entryPrice, precision);
+            figures.push({
+                type: 'text',
+                attrs: { x: x, y: coordinates[0].y, text: entryText, align: textAlign, baseline: 'middle' },
+                styles: {
+                    color: '#ffffff',
+                    backgroundColor: ext.lineColor,
+                    paddingLeft: 4,
+                    paddingRight: 4,
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderRadius: 2
+                },
+                ignoreEvent: true
+            });
+        }
+        // TP pill (teal)
+        if (targetPrice != null) {
+            var tpText = formatPrecision(targetPrice, precision);
+            var tpBg = rgbaToSolid(ext.profitBackground);
+            figures.push({
+                type: 'text',
+                attrs: { x: x, y: coordinates[1].y, text: tpText, align: textAlign, baseline: 'middle' },
+                styles: {
+                    color: '#ffffff',
+                    backgroundColor: tpBg,
+                    paddingLeft: 4,
+                    paddingRight: 4,
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderRadius: 2
+                },
+                ignoreEvent: true
+            });
+        }
+        // SL pill (red)
+        if (stopPrice != null) {
+            var slText = formatPrecision(stopPrice, precision);
+            var slBg = rgbaToSolid(ext.stopBackground);
+            figures.push({
+                type: 'text',
+                attrs: { x: x, y: coordinates[2].y, text: slText, align: textAlign, baseline: 'middle' },
+                styles: {
+                    color: '#ffffff',
+                    backgroundColor: slBg,
+                    paddingLeft: 4,
+                    paddingRight: 4,
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderRadius: 2
+                },
+                ignoreEvent: true
+            });
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+        var points = _a.points, performPointIndex = _a.performPointIndex, performPoint = _a.performPoint, prevPoints = _a.prevPoints;
+        switch (performPointIndex) {
+            case 0: {
+                // P1 (Entry): free H+V — P2/P3 follow X, P4.Y = entry
+                if (points.length > 1) {
+                    points[1].timestamp = points[0].timestamp;
+                    points[1].dataIndex = points[0].dataIndex;
+                }
+                if (points.length > 2) {
+                    points[2].timestamp = points[0].timestamp;
+                    points[2].dataIndex = points[0].dataIndex;
+                }
+                if (points.length > 3) {
+                    points[3].value = performPoint.value;
+                    points[3].timestamp = (_b = prevPoints[3]) === null || _b === void 0 ? void 0 : _b.timestamp;
+                    points[3].dataIndex = (_c = prevPoints[3]) === null || _c === void 0 ? void 0 : _c.dataIndex;
+                }
+                break;
+            }
+            case 1: {
+                // P2 (TP): vertical only, clamped above entry
+                points[1].timestamp = (_d = points[0]) === null || _d === void 0 ? void 0 : _d.timestamp;
+                points[1].dataIndex = (_e = points[0]) === null || _e === void 0 ? void 0 : _e.dataIndex;
+                // For long position, TP must be >= entry price (higher value = above)
+                if (((_f = performPoint.value) !== null && _f !== void 0 ? _f : 0) < ((_h = (_g = points[0]) === null || _g === void 0 ? void 0 : _g.value) !== null && _h !== void 0 ? _h : 0)) {
+                    points[1].value = points[0].value;
+                }
+                break;
+            }
+            case 2: {
+                // P3 (SL): vertical only, clamped below entry
+                points[2].timestamp = (_j = points[0]) === null || _j === void 0 ? void 0 : _j.timestamp;
+                points[2].dataIndex = (_k = points[0]) === null || _k === void 0 ? void 0 : _k.dataIndex;
+                // For long position, SL must be <= entry price (lower value = below)
+                if (((_l = performPoint.value) !== null && _l !== void 0 ? _l : 0) > ((_o = (_m = points[0]) === null || _m === void 0 ? void 0 : _m.value) !== null && _o !== void 0 ? _o : 0)) {
+                    points[2].value = points[0].value;
+                }
+                break;
+            }
+            case 3: {
+                // P4 (Width): horizontal only — Y locked to entry price
+                points[3].value = points[0].value;
+                break;
+            }
+        }
+    }
+};
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -8743,7 +9370,7 @@ var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1
+    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
