@@ -14930,33 +14930,149 @@ var OverlayYAxisView = /** @class */ (function (_super) {
 var CrosshairHorizontalLabelView = /** @class */ (function (_super) {
     __extends(CrosshairHorizontalLabelView, _super);
     function CrosshairHorizontalLabelView() {
-        return _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super.apply(this, __spreadArray([], __read(arguments), false)) || this;
+        // HTML overlay elements for Y-axis labels (avoids canvas clipping)
+        _this._htmlLabelEl = null;
+        _this._htmlInnerEl = null;
+        _this._htmlPriceSpan = null;
+        _this._htmlPercentSpan = null;
+        return _this;
     }
+    CrosshairHorizontalLabelView.prototype._getOrCreateHtmlLabel = function () {
+        if (this._htmlLabelEl === null) {
+            var paneContainer = this.getWidget().getPane().getContainer();
+            this._htmlLabelEl = createDom('div', {
+                position: 'absolute',
+                right: '5px',
+                pointerEvents: 'none',
+                zIndex: '3',
+                display: 'none',
+                whiteSpace: 'nowrap'
+            });
+            this._htmlInnerEl = createDom('div', {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end'
+            });
+            this._htmlPriceSpan = createDom('span', {});
+            this._htmlPercentSpan = createDom('span', { display: 'none' });
+            this._htmlInnerEl.appendChild(this._htmlPriceSpan);
+            this._htmlInnerEl.appendChild(this._htmlPercentSpan);
+            this._htmlLabelEl.appendChild(this._htmlInnerEl);
+            paneContainer.appendChild(this._htmlLabelEl);
+        }
+        return {
+            container: this._htmlLabelEl,
+            inner: this._htmlInnerEl,
+            price: this._htmlPriceSpan,
+            percent: this._htmlPercentSpan
+        };
+    };
+    CrosshairHorizontalLabelView.prototype._hideHtmlLabel = function () {
+        if (this._htmlLabelEl !== null) {
+            this._htmlLabelEl.style.display = 'none';
+        }
+    };
     CrosshairHorizontalLabelView.prototype.drawImp = function (ctx) {
         var _a;
         var widget = this.getWidget();
         var pane = widget.getPane();
-        var chartStore = widget.getPane().getChart().getChartStore();
+        var chartStore = pane.getChart().getChartStore();
         var crosshair = chartStore.getCrosshair();
-        if (isString(crosshair.paneId) && this.compare(crosshair, pane.getId())) {
-            var styles = chartStore.getStyles().crosshair;
-            if (styles.show) {
-                var directionStyles = this.getDirectionStyles(styles);
-                var textStyles = directionStyles.text;
-                var axis = pane.getAxisComponent();
-                var isIndicatorPane = 'isInCandle' in axis && !axis.isInCandle();
-                var shouldShowLabel = textStyles.show || isIndicatorPane;
-                if (directionStyles.show && shouldShowLabel) {
-                    var bounding = widget.getBounding();
-                    var text = this.getText(crosshair, chartStore, axis);
-                    ctx.font = createFont(textStyles.size, textStyles.weight, textStyles.family);
-                    (_a = this.createFigure({
-                        name: 'text',
-                        attrs: this.getTextAttrs(text, ctx.measureText(text).width, crosshair, bounding, axis, textStyles),
-                        styles: textStyles
-                    })) === null || _a === void 0 ? void 0 : _a.draw(ctx);
+        var axis = pane.getAxisComponent();
+        var isYAxis = 'isInCandle' in axis;
+        // Check if crosshair is active in this pane
+        if (!isString(crosshair.paneId) || !this.compare(crosshair, pane.getId())) {
+            if (isYAxis) {
+                this._hideHtmlLabel();
+            }
+            return;
+        }
+        var styles = chartStore.getStyles().crosshair;
+        if (!styles.show) {
+            if (isYAxis) {
+                this._hideHtmlLabel();
+            }
+            return;
+        }
+        var directionStyles = this.getDirectionStyles(styles);
+        var textStyles = directionStyles.text;
+        if (!directionStyles.show || !textStyles.show) {
+            if (isYAxis) {
+                this._hideHtmlLabel();
+            }
+            return;
+        }
+        if (isYAxis) {
+            // Y-axis: HTML overlay (avoids canvas clipping on narrow Y-axis)
+            this._renderHtmlLabel(crosshair, chartStore, axis, textStyles);
+        }
+        else {
+            // X-axis: canvas rendering (existing behavior, canvas is wide enough)
+            var bounding = widget.getBounding();
+            var text = this.getText(crosshair, chartStore, axis);
+            ctx.font = createFont(textStyles.size, textStyles.weight, textStyles.family);
+            (_a = this.createFigure({
+                name: 'text',
+                attrs: this.getTextAttrs(text, ctx.measureText(text).width, crosshair, bounding, axis, textStyles),
+                styles: textStyles
+            })) === null || _a === void 0 ? void 0 : _a.draw(ctx);
+        }
+    };
+    CrosshairHorizontalLabelView.prototype._renderHtmlLabel = function (crosshair, chartStore, yAxis, textStyles) {
+        var _a = this._getOrCreateHtmlLabel(), container = _a.container, inner = _a.inner, price = _a.price, percent = _a.percent;
+        container.style.display = 'block';
+        container.style.top = "".concat(crosshair.y, "px");
+        container.style.transform = 'translateY(-50%)';
+        // Style inner container from crosshair text styles
+        var bgColor = typeof textStyles.backgroundColor === 'string' ? textStyles.backgroundColor : 'transparent';
+        inner.style.padding = "".concat(textStyles.paddingTop, "px ").concat(textStyles.paddingRight, "px ").concat(textStyles.paddingBottom, "px ").concat(textStyles.paddingLeft, "px");
+        inner.style.backgroundColor = bgColor;
+        var br = textStyles.borderRadius;
+        inner.style.borderRadius = typeof br === 'number' ? "".concat(br, "px") : (br).map(function (v) { return "".concat(v, "px"); }).join(' ');
+        if (textStyles.borderSize > 0) {
+            inner.style.border = "".concat(textStyles.borderSize, "px solid ").concat(textStyles.borderColor);
+        }
+        else {
+            inner.style.border = 'none';
+        }
+        // Price text
+        var text = this.getText(crosshair, chartStore, yAxis);
+        price.textContent = text;
+        price.style.color = String(textStyles.color);
+        price.style.fontSize = "".concat(textStyles.size, "px");
+        price.style.fontWeight = String(textStyles.weight);
+        price.style.fontFamily = String(textStyles.family);
+        price.style.lineHeight = "".concat(textStyles.size + 4, "px");
+        // Show percent change for candle pane only
+        if (yAxis.isInCandle()) {
+            var dataList = chartStore.getDataList();
+            if (dataList.length > 0) {
+                var lastClose = dataList[dataList.length - 1].close;
+                var crosshairPrice = yAxis.convertFromPixel(crosshair.y);
+                if (lastClose > 0 && Number.isFinite(crosshairPrice)) {
+                    var pctChange = ((crosshairPrice - lastClose) / lastClose) * 100;
+                    var sign = pctChange >= 0 ? '+' : '';
+                    percent.textContent = "".concat(sign).concat(pctChange.toFixed(2), "%");
+                    var candleStyles = chartStore.getStyles().candle;
+                    percent.style.color = pctChange >= 0
+                        ? candleStyles.priceMark.last.upColor
+                        : candleStyles.priceMark.last.downColor;
+                    percent.style.display = 'block';
+                    percent.style.fontSize = '10px';
+                    percent.style.fontWeight = '500';
+                    percent.style.lineHeight = '14px';
+                }
+                else {
+                    percent.style.display = 'none';
                 }
             }
+            else {
+                percent.style.display = 'none';
+            }
+        }
+        else {
+            percent.style.display = 'none';
         }
     };
     CrosshairHorizontalLabelView.prototype.compare = function (crosshair, paneId) {
