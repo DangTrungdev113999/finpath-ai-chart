@@ -13,6 +13,7 @@
  */
 
 import { isNumber, isValid } from '../common/utils/typeChecks'
+import { createDom } from '../common/utils/dom'
 
 import { eachFigures, type IndicatorFigure, type IndicatorFigureStyle } from '../component/Indicator'
 import type { EventHandler } from '../common/EventHandler'
@@ -22,6 +23,35 @@ import View from './View'
 import type { YAxis } from '../component/YAxis'
 
 export default class IndicatorLastValueView extends View<YAxis> {
+  // HTML overlay for labels that need to overflow Y-axis canvas bounds (e.g. VOL_SIMPLE)
+  private _htmlLabelEl: HTMLElement | null = null
+  private _htmlLabelSpan: HTMLElement | null = null
+
+  private _getOrCreateHtmlLabel (): { container: HTMLElement, span: HTMLElement } {
+    if (this._htmlLabelEl === null) {
+      const paneContainer = this.getWidget().getPane().getContainer()
+      this._htmlLabelEl = createDom('div', {
+        position: 'absolute',
+        right: '5px',
+        pointerEvents: 'none',
+        zIndex: '3',
+        display: 'none',
+        whiteSpace: 'nowrap'
+      })
+      this._htmlLabelSpan = createDom('span', {
+        display: 'inline-block',
+        fontSize: '11px',
+        fontFamily: 'Helvetica Neue, sans-serif',
+        fontWeight: 'normal',
+        padding: '2px 4px',
+        borderRadius: '2px'
+      })
+      this._htmlLabelEl.appendChild(this._htmlLabelSpan)
+      paneContainer.appendChild(this._htmlLabelEl)
+    }
+    return { container: this._htmlLabelEl, span: this._htmlLabelSpan! }
+  }
+
   private readonly _boundSectorLabelClickEvent = (sectorName: string) => () => {
     this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName })
     return false
@@ -247,27 +277,24 @@ export default class IndicatorLastValueView extends View<YAxis> {
           }
         }
 
-        // Pre-calculated pixel-Y label (for indicators with custom coordinate systems, e.g. VOL_SIMPLE)
-        // The indicator's draw function stores _lastValuePixelY and _lastValueText in extendData
+        // HTML overlay label for indicators with custom coordinate systems (e.g. VOL_SIMPLE).
+        // Rendered as HTML div at pane level to avoid Y-axis canvas clipping (canvas is ~38px,
+        // label can be ~60px+). The div overflows left into the chart area naturally.
         const pixelY = extData?._lastValuePixelY
         const pixelText = extData?._lastValueText
         if (isNumber(pixelY) && typeof pixelText === 'string') {
-          const pixelLabelStyles = (extData?._lastValueLabelStyles ?? {}) as Record<string, unknown>
-          const offsetRight = isNumber(extData?._lastValueOffsetRight) ? (extData._lastValueOffsetRight) : 5
-          let px = 0
-          let pTextAlign: CanvasTextAlign = 'left'
-          if (yAxis.isFromZero()) {
-            px = offsetRight
-            pTextAlign = 'left'
-          } else {
-            px = bounding.width - offsetRight
-            pTextAlign = 'right'
-          }
-          this.createFigure({
-            name: 'text',
-            attrs: { x: px, y: pixelY, text: pixelText, align: pTextAlign, baseline: 'middle' },
-            styles: { ...lastValueMarkTextStyles, ...pixelLabelStyles }
-          })?.draw(ctx)
+          const styles = (extData?._lastValueLabelStyles ?? {}) as Record<string, string | number | undefined>
+          const { container, span } = this._getOrCreateHtmlLabel()
+          container.style.display = 'block'
+          container.style.top = `${pixelY}px`
+          container.style.transform = 'translateY(-50%)'
+          span.textContent = pixelText
+          span.style.background = String(styles.backgroundColor ?? 'transparent')
+          span.style.color = String(styles.color ?? '#FFFFFF')
+          span.style.border = `${String(styles.borderSize ?? 0)}px solid ${String(styles.borderColor ?? 'transparent')}`
+          span.style.borderRadius = `${String(styles.borderRadius ?? 2)}px`
+        } else if (this._htmlLabelEl !== null) {
+          this._htmlLabelEl.style.display = 'none'
         }
       }
     })

@@ -14593,12 +14593,39 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
     __extends(IndicatorLastValueView, _super);
     function IndicatorLastValueView() {
         var _this = _super.apply(this, __spreadArray([], __read(arguments), false)) || this;
+        // HTML overlay for labels that need to overflow Y-axis canvas bounds (e.g. VOL_SIMPLE)
+        _this._htmlLabelEl = null;
+        _this._htmlLabelSpan = null;
         _this._boundSectorLabelClickEvent = function (sectorName) { return function () {
             _this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName: sectorName });
             return false;
         }; };
         return _this;
     }
+    IndicatorLastValueView.prototype._getOrCreateHtmlLabel = function () {
+        if (this._htmlLabelEl === null) {
+            var paneContainer = this.getWidget().getPane().getContainer();
+            this._htmlLabelEl = createDom('div', {
+                position: 'absolute',
+                right: '5px',
+                pointerEvents: 'none',
+                zIndex: '3',
+                display: 'none',
+                whiteSpace: 'nowrap'
+            });
+            this._htmlLabelSpan = createDom('span', {
+                display: 'inline-block',
+                fontSize: '11px',
+                fontFamily: 'Helvetica Neue, sans-serif',
+                fontWeight: 'normal',
+                padding: '2px 4px',
+                borderRadius: '2px'
+            });
+            this._htmlLabelEl.appendChild(this._htmlLabelSpan);
+            paneContainer.appendChild(this._htmlLabelEl);
+        }
+        return { container: this._htmlLabelEl, span: this._htmlLabelSpan };
+    };
     IndicatorLastValueView.prototype.drawImp = function (ctx) {
         var _this = this;
         var widget = this.getWidget();
@@ -14617,7 +14644,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
         indicators.forEach(function (indicator) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
             // Per-indicator lastValueMark override takes precedence over global
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- indicator.styles may lack lastValueMark at runtime
             var indicatorLVM = (_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.lastValueMark;
@@ -14772,28 +14799,25 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         })) === null || _p === void 0 ? void 0 : _p.draw(ctx);
                     }
                 }
-                // Pre-calculated pixel-Y label (for indicators with custom coordinate systems, e.g. VOL_SIMPLE)
-                // The indicator's draw function stores _lastValuePixelY and _lastValueText in extendData
+                // HTML overlay label for indicators with custom coordinate systems (e.g. VOL_SIMPLE).
+                // Rendered as HTML div at pane level to avoid Y-axis canvas clipping (canvas is ~38px,
+                // label can be ~60px+). The div overflows left into the chart area naturally.
                 var pixelY = extData === null || extData === void 0 ? void 0 : extData._lastValuePixelY;
                 var pixelText = extData === null || extData === void 0 ? void 0 : extData._lastValueText;
                 if (isNumber(pixelY) && typeof pixelText === 'string') {
-                    var pixelLabelStyles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
-                    var offsetRight = isNumber(extData === null || extData === void 0 ? void 0 : extData._lastValueOffsetRight) ? (extData._lastValueOffsetRight) : 5;
-                    var px = 0;
-                    var pTextAlign = 'left';
-                    if (yAxis.isFromZero()) {
-                        px = offsetRight;
-                        pTextAlign = 'left';
-                    }
-                    else {
-                        px = bounding.width - offsetRight;
-                        pTextAlign = 'right';
-                    }
-                    (_r = _this.createFigure({
-                        name: 'text',
-                        attrs: { x: px, y: pixelY, text: pixelText, align: pTextAlign, baseline: 'middle' },
-                        styles: __assign(__assign({}, lastValueMarkTextStyles), pixelLabelStyles)
-                    })) === null || _r === void 0 ? void 0 : _r.draw(ctx);
+                    var styles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
+                    var _w = _this._getOrCreateHtmlLabel(), container = _w.container, span = _w.span;
+                    container.style.display = 'block';
+                    container.style.top = "".concat(pixelY, "px");
+                    container.style.transform = 'translateY(-50%)';
+                    span.textContent = pixelText;
+                    span.style.background = String((_r = styles.backgroundColor) !== null && _r !== void 0 ? _r : 'transparent');
+                    span.style.color = String((_s = styles.color) !== null && _s !== void 0 ? _s : '#FFFFFF');
+                    span.style.border = "".concat(String((_t = styles.borderSize) !== null && _t !== void 0 ? _t : 0), "px solid ").concat(String((_u = styles.borderColor) !== null && _u !== void 0 ? _u : 'transparent'));
+                    span.style.borderRadius = "".concat(String((_v = styles.borderRadius) !== null && _v !== void 0 ? _v : 2), "px");
+                }
+                else if (_this._htmlLabelEl !== null) {
+                    _this._htmlLabelEl.style.display = 'none';
                 }
             }
         });
