@@ -14643,6 +14643,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var formatter = chartStore.getInnerFormatter();
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
+        var hasHtmlLabel = false;
         indicators.forEach(function (indicator) {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
             // Per-indicator lastValueMark override takes precedence over global
@@ -14805,6 +14806,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                 var pixelY = extData === null || extData === void 0 ? void 0 : extData._lastValuePixelY;
                 var pixelText = extData === null || extData === void 0 ? void 0 : extData._lastValueText;
                 if (isNumber(pixelY) && typeof pixelText === 'string') {
+                    hasHtmlLabel = true;
                     var styles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
                     var _w = _this._getOrCreateHtmlLabel(), container = _w.container, span = _w.span;
                     container.style.display = 'block';
@@ -14816,11 +14818,13 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                     span.style.border = "".concat(String((_t = styles.borderSize) !== null && _t !== void 0 ? _t : 0), "px solid ").concat(String((_u = styles.borderColor) !== null && _u !== void 0 ? _u : 'transparent'));
                     span.style.borderRadius = "".concat(String((_v = styles.borderRadius) !== null && _v !== void 0 ? _v : 2), "px");
                 }
-                else if (_this._htmlLabelEl !== null) {
-                    _this._htmlLabelEl.style.display = 'none';
-                }
             }
         });
+        // Hide HTML label only if NO indicator provided pixel-Y data
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- _htmlLabelEl is lazily created, can be null
+        if (!hasHtmlLabel && this._htmlLabelEl !== null) {
+            this._htmlLabelEl.style.display = 'none';
+        }
     };
     return IndicatorLastValueView;
 }(View));

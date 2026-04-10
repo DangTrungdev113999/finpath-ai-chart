@@ -73,6 +73,7 @@ export default class IndicatorLastValueView extends View<YAxis> {
     const formatter = chartStore.getInnerFormatter()
     const decimalFold = chartStore.getDecimalFold()
     const thousandsSeparator = chartStore.getThousandsSeparator()
+    let hasHtmlLabel = false
 
     indicators.forEach(indicator => {
       // Per-indicator lastValueMark override takes precedence over global
@@ -283,6 +284,7 @@ export default class IndicatorLastValueView extends View<YAxis> {
         const pixelY = extData?._lastValuePixelY
         const pixelText = extData?._lastValueText
         if (isNumber(pixelY) && typeof pixelText === 'string') {
+          hasHtmlLabel = true
           const styles = (extData?._lastValueLabelStyles ?? {}) as Record<string, string | number | undefined>
           const { container, span } = this._getOrCreateHtmlLabel()
           container.style.display = 'block'
@@ -293,10 +295,14 @@ export default class IndicatorLastValueView extends View<YAxis> {
           span.style.color = String(styles.color ?? '#FFFFFF')
           span.style.border = `${String(styles.borderSize ?? 0)}px solid ${String(styles.borderColor ?? 'transparent')}`
           span.style.borderRadius = `${String(styles.borderRadius ?? 2)}px`
-        } else if (this._htmlLabelEl !== null) {
-          this._htmlLabelEl.style.display = 'none'
         }
       }
     })
+
+    // Hide HTML label only if NO indicator provided pixel-Y data
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- _htmlLabelEl is lazily created, can be null
+    if (!hasHtmlLabel && this._htmlLabelEl !== null) {
+      this._htmlLabelEl.style.display = 'none'
+    }
   }
 }
