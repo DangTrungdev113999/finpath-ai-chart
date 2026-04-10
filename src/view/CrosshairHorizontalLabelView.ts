@@ -39,9 +39,11 @@ export default class CrosshairHorizontalLabelView<C extends Axis = YAxis> extend
       if (styles.show) {
         const directionStyles = this.getDirectionStyles(styles)
         const textStyles = directionStyles.text
-        if (directionStyles.show && textStyles.show) {
+        const axis = pane.getAxisComponent()
+        const isIndicatorPane = 'isInCandle' in axis && !(axis as unknown as YAxis).isInCandle()
+        const shouldShowLabel = textStyles.show || isIndicatorPane
+        if (directionStyles.show && shouldShowLabel) {
           const bounding = widget.getBounding()
-          const axis = pane.getAxisComponent()
           const text = this.getText(crosshair, chartStore, axis)
           ctx.font = createFont(textStyles.size, textStyles.weight, textStyles.family)
           this.createFigure({

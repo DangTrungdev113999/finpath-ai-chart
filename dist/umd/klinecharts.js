@@ -14881,9 +14881,11 @@ var CrosshairHorizontalLabelView = /** @class */ (function (_super) {
             if (styles.show) {
                 var directionStyles = this.getDirectionStyles(styles);
                 var textStyles = directionStyles.text;
-                if (directionStyles.show && textStyles.show) {
+                var axis = pane.getAxisComponent();
+                var isIndicatorPane = 'isInCandle' in axis && !axis.isInCandle();
+                var shouldShowLabel = textStyles.show || isIndicatorPane;
+                if (directionStyles.show && shouldShowLabel) {
                     var bounding = widget.getBounding();
-                    var axis = pane.getAxisComponent();
                     var text = this.getText(crosshair, chartStore, axis);
                     ctx.font = createFont(textStyles.size, textStyles.weight, textStyles.family);
                     (_a = this.createFigure({
