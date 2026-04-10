@@ -1117,9 +1117,14 @@ export interface Indicator<D = unknown, C = unknown, E = unknown> {
 	 */
 	createTooltipDataSource: Nullable<IndicatorCreateTooltipDataSourceCallback<D>>;
 	/**
-	 * Custom draw
+	 * Custom draw (runs BEFORE default figures)
 	 */
 	draw: Nullable<IndicatorDrawCallback<D, C, E>>;
+	/**
+	 * Custom draw that runs AFTER default figures are rendered.
+	 * Use for decorations (dots, markers) that must appear on top of the line.
+	 */
+	postDraw: Nullable<IndicatorDrawCallback<D, C, E>>;
 	/**
 	 * Calculation result
 	 */

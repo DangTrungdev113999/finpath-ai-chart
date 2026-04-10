@@ -1509,6 +1509,7 @@ var IndicatorImp = /** @class */ (function () {
         this.regenerateFigures = null;
         this.createTooltipDataSource = null;
         this.draw = null;
+        this.postDraw = null;
         this.result = [];
         this._lockSeriesPrecision = false;
         this.override(indicator);
@@ -3446,6 +3447,457 @@ var stopAndReverse = {
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
 
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// ═══════════════════════════════════════════════════════════════
+// Default colors
+// ═══════════════════════════════════════════════════════════════
+var DEFAULT_UP_TREND_COLOR = '#26A69A';
+var DEFAULT_DOWN_TREND_COLOR = '#EF5350';
+var DEFAULT_UP_FILL_COLOR = 'rgba(38, 166, 154, 0.1)';
+var DEFAULT_DN_FILL_COLOR = 'rgba(239, 83, 80, 0.1)';
+var DEFAULT_LINE_WIDTH = 2;
+// ═══════════════════════════════════════════════════════════════
+// Source price resolution
+// ═══════════════════════════════════════════════════════════════
+function getSourcePrice(data, source) {
+    switch (source) {
+        case 'open': return data.open;
+        case 'high': return data.high;
+        case 'low': return data.low;
+        case 'close': return data.close;
+        case 'hl2': return (data.high + data.low) / 2;
+        case 'hlc3': return (data.high + data.low + data.close) / 3;
+        case 'ohlc4': return (data.open + data.high + data.low + data.close) / 4;
+        case 'hlcc4': return (data.high + data.low + data.close + data.close) / 4;
+    }
+}
+// ═══════════════════════════════════════════════════════════════
+// Step-line (linebr) drawing helper
+// Draws horizontal at current y, then vertical to next y.
+// Breaks when value transitions to/from undefined.
+// ═══════════════════════════════════════════════════════════════
+function drawStepLineBr(ctx, result, from, to, xAxis, yAxis, key, color, lineWidth) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    var started = false;
+    var prevY = 0;
+    for (var i = from; i < to && i < result.length; i++) {
+        var val = result[i][key];
+        if (val == null) {
+            // Break the line
+            if (started) {
+                ctx.stroke();
+                ctx.beginPath();
+                started = false;
+            }
+            continue;
+        }
+        var x = xAxis.convertToPixel(i);
+        var y = yAxis.convertToPixel(val);
+        if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+        }
+        else {
+            // Step-line: horizontal to current x at previous y, then vertical
+            ctx.lineTo(x, prevY);
+            ctx.lineTo(x, y);
+        }
+        prevY = y;
+    }
+    if (started) {
+        ctx.stroke();
+    }
+}
+// ═══════════════════════════════════════════════════════════════
+// Fill region rendering
+// Fills between ohlc4 and the active trend line, with step-line
+// polygon shape. Segments at trend flips.
+// ═══════════════════════════════════════════════════════════════
+function drawSuperTrendFill(ctx, result, from, to, xAxis, yAxis, ext) {
+    var _a, _b;
+    var upFillColor = (_a = ext.upTrendFillColor) !== null && _a !== void 0 ? _a : DEFAULT_UP_FILL_COLOR;
+    var dnFillColor = (_b = ext.downTrendFillColor) !== null && _b !== void 0 ? _b : DEFAULT_DN_FILL_COLOR;
+    // Collect segments grouped by trend
+    var segTrend = 0;
+    var trendLinePoints = [];
+    var ohlc4Points = [];
+    var flushSegment = function () {
+        if (trendLinePoints.length < 2) {
+            trendLinePoints = [];
+            ohlc4Points = [];
+            return;
+        }
+        ctx.fillStyle = segTrend === 1 ? upFillColor : dnFillColor;
+        ctx.beginPath();
+        // Trace trend line forward (step-line shape)
+        ctx.moveTo(trendLinePoints[0].x, trendLinePoints[0].y);
+        for (var j = 1; j < trendLinePoints.length; j++) {
+            // Step: horizontal to current x at previous y, then vertical
+            ctx.lineTo(trendLinePoints[j].x, trendLinePoints[j - 1].y);
+            ctx.lineTo(trendLinePoints[j].x, trendLinePoints[j].y);
+        }
+        // Trace ohlc4 backward (straight lines between points)
+        for (var j = ohlc4Points.length - 1; j >= 0; j--) {
+            ctx.lineTo(ohlc4Points[j].x, ohlc4Points[j].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        trendLinePoints = [];
+        ohlc4Points = [];
+    };
+    for (var i = from; i < to && i < result.length; i++) {
+        var item = result[i];
+        var trendVal = item.trend === 1 ? item.up : item.dn;
+        if (trendVal == null) {
+            flushSegment();
+            continue;
+        }
+        var x = xAxis.convertToPixel(i);
+        var trendY = yAxis.convertToPixel(trendVal);
+        var ohlc4Y = yAxis.convertToPixel(item.ohlc4);
+        if (trendLinePoints.length === 0) {
+            // Start new segment
+            segTrend = item.trend;
+            trendLinePoints.push({ x: x, y: trendY });
+            ohlc4Points.push({ x: x, y: ohlc4Y });
+        }
+        else if (item.trend !== segTrend) {
+            // Trend flip: include this point in both segments for continuity
+            trendLinePoints.push({ x: x, y: trendY });
+            ohlc4Points.push({ x: x, y: ohlc4Y });
+            flushSegment();
+            // Start new segment from this point
+            segTrend = item.trend;
+            trendLinePoints.push({ x: x, y: trendY });
+            ohlc4Points.push({ x: x, y: ohlc4Y });
+        }
+        else {
+            trendLinePoints.push({ x: x, y: trendY });
+            ohlc4Points.push({ x: x, y: ohlc4Y });
+        }
+    }
+    flushSegment();
+}
+// ═══════════════════════════════════════════════════════════════
+// Signal markers: circles at reversal bars + Buy/Sell labels
+// ═══════════════════════════════════════════════════════════════
+function drawSignalMarkers(ctx, result, from, to, xAxis, yAxis, ext) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var showUpTrendBegins = (_a = ext.showUpTrendBegins) !== null && _a !== void 0 ? _a : true;
+    var showDownTrendBegins = (_b = ext.showDownTrendBegins) !== null && _b !== void 0 ? _b : true;
+    var showBuyLabel = (_c = ext.showBuyLabel) !== null && _c !== void 0 ? _c : true;
+    var showSellLabel = (_d = ext.showSellLabel) !== null && _d !== void 0 ? _d : true;
+    var upBeginsColor = (_e = ext.upTrendBeginsColor) !== null && _e !== void 0 ? _e : DEFAULT_UP_TREND_COLOR;
+    var dnBeginsColor = (_f = ext.downTrendBeginsColor) !== null && _f !== void 0 ? _f : DEFAULT_DOWN_TREND_COLOR;
+    var buyColor = (_g = ext.buyLabelColor) !== null && _g !== void 0 ? _g : DEFAULT_UP_TREND_COLOR;
+    var sellColor = (_h = ext.sellLabelColor) !== null && _h !== void 0 ? _h : DEFAULT_DOWN_TREND_COLOR;
+    for (var i = from; i < to && i < result.length; i++) {
+        var item = result[i];
+        if (item.buySignal) {
+            var x = xAxis.convertToPixel(i);
+            var y = yAxis.convertToPixel(item.rawUp);
+            // Circle marker at reversal point
+            if (showUpTrendBegins) {
+                ctx.fillStyle = upBeginsColor;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Buy label (rectangle with pointed bottom, positioned below the value)
+            if (showBuyLabel) {
+                var labelText = 'Buy';
+                ctx.font = '11px Arial';
+                var textWidth = ctx.measureText(labelText).width;
+                var padding = 4;
+                var labelW = textWidth + padding * 2;
+                var labelH = 16;
+                var arrowH = 5;
+                // Position: below the trend value
+                var labelX = x - labelW / 2;
+                var labelY = y + 6;
+                // Draw label body
+                ctx.fillStyle = buyColor;
+                ctx.beginPath();
+                ctx.moveTo(labelX, labelY + arrowH);
+                ctx.lineTo(labelX + labelW, labelY + arrowH);
+                ctx.lineTo(labelX + labelW, labelY + arrowH + labelH);
+                ctx.lineTo(labelX, labelY + arrowH + labelH);
+                ctx.closePath();
+                ctx.fill();
+                // Draw arrow pointing up
+                ctx.beginPath();
+                ctx.moveTo(x - 4, labelY + arrowH);
+                ctx.lineTo(x, labelY);
+                ctx.lineTo(x + 4, labelY + arrowH);
+                ctx.closePath();
+                ctx.fill();
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(labelText, x, labelY + arrowH + labelH / 2);
+            }
+        }
+        if (item.sellSignal) {
+            var x = xAxis.convertToPixel(i);
+            var y = yAxis.convertToPixel(item.rawDn);
+            // Circle marker at reversal point
+            if (showDownTrendBegins) {
+                ctx.fillStyle = dnBeginsColor;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Sell label (rectangle with pointed top, positioned above the value)
+            if (showSellLabel) {
+                var labelText = 'Sell';
+                ctx.font = '11px Arial';
+                var textWidth = ctx.measureText(labelText).width;
+                var padding = 4;
+                var labelW = textWidth + padding * 2;
+                var labelH = 16;
+                var arrowH = 5;
+                // Position: above the trend value (pointing down, label above)
+                var labelX = x - labelW / 2;
+                var labelY = y - 6 - arrowH - labelH;
+                // Draw label body
+                ctx.fillStyle = sellColor;
+                ctx.beginPath();
+                ctx.moveTo(labelX, labelY);
+                ctx.lineTo(labelX + labelW, labelY);
+                ctx.lineTo(labelX + labelW, labelY + labelH);
+                ctx.lineTo(labelX, labelY + labelH);
+                ctx.closePath();
+                ctx.fill();
+                // Draw arrow pointing down
+                ctx.beginPath();
+                ctx.moveTo(x - 4, labelY + labelH);
+                ctx.lineTo(x, labelY + labelH + arrowH);
+                ctx.lineTo(x + 4, labelY + labelH);
+                ctx.closePath();
+                ctx.fill();
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(labelText, x, labelY + labelH / 2);
+            }
+        }
+    }
+}
+// ═══════════════════════════════════════════════════════════════
+// SuperTrend IndicatorTemplate
+// ═══════════════════════════════════════════════════════════════
+var superTrend = {
+    name: 'SUPERTREND',
+    shortName: 'Supertrend',
+    series: 'price',
+    precision: 2,
+    shouldOhlc: true,
+    calcParams: [10, 3],
+    figures: [],
+    shouldUpdate: function (prev, current) {
+        var _a, _b;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var prevExt = ((_a = prev.extendData) !== null && _a !== void 0 ? _a : {});
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var currExt = ((_b = current.extendData) !== null && _b !== void 0 ? _b : {});
+        // Recalculate when source or ATR method changes
+        var needCalc = prevExt.source !== currExt.source || prevExt.changeATR !== currExt.changeATR;
+        if (needCalc) {
+            return { calc: true, draw: true };
+        }
+        return { calc: false, draw: true };
+    },
+    // ─── calc(): True Range, ATR, Bands, Trend State Machine ────────────
+    calc: function (dataList, indicator) {
+        var _a, _b, _c, _d;
+        var params = indicator.calcParams;
+        var atrPeriod = (_a = params[0]) !== null && _a !== void 0 ? _a : 10;
+        var multiplier = (_b = params[1]) !== null && _b !== void 0 ? _b : 3;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_c = indicator.extendData) !== null && _c !== void 0 ? _c : {});
+        var source = (_d = ext.source) !== null && _d !== void 0 ? _d : 'hl2';
+        var useRMA = ext.changeATR !== false; // default true = RMA
+        var len = dataList.length;
+        if (len === 0)
+            return [];
+        // Pre-compute True Range
+        var tr = [];
+        for (var i = 0; i < len; i++) {
+            var d = dataList[i];
+            if (i === 0) {
+                tr.push(d.high - d.low);
+            }
+            else {
+                var prevClose = dataList[i - 1].close;
+                tr.push(Math.max(d.high - d.low, Math.abs(d.high - prevClose), Math.abs(d.low - prevClose)));
+            }
+        }
+        // Compute ATR
+        var atr = [];
+        for (var i = 0; i < len; i++) {
+            atr.push(0);
+        }
+        if (useRMA) {
+            // RMA-based ATR: seed with SMA, then recursive
+            var trSum = 0;
+            for (var i = 0; i < len; i++) {
+                trSum += tr[i];
+                if (i < atrPeriod - 1) {
+                    atr[i] = 0;
+                }
+                else if (i === atrPeriod - 1) {
+                    atr[i] = trSum / atrPeriod;
+                }
+                else {
+                    atr[i] = (atr[i - 1] * (atrPeriod - 1) + tr[i]) / atrPeriod;
+                }
+            }
+        }
+        else {
+            // SMA-based ATR: simple moving average of TR
+            var trSum = 0;
+            for (var i = 0; i < len; i++) {
+                trSum += tr[i];
+                if (i >= atrPeriod) {
+                    trSum -= tr[i - atrPeriod];
+                }
+                if (i >= atrPeriod - 1) {
+                    atr[i] = trSum / atrPeriod;
+                }
+            }
+        }
+        // Compute bands, ratcheting, and trend state machine
+        var result = [];
+        var upBand = [];
+        var dnBand = [];
+        var trends = [];
+        for (var i = 0; i < len; i++) {
+            upBand.push(0);
+            dnBand.push(0);
+            trends.push(1);
+        }
+        for (var i = 0; i < len; i++) {
+            var d = dataList[i];
+            var ohlc4 = (d.open + d.high + d.low + d.close) / 4;
+            if (i < atrPeriod - 1) {
+                // Warm-up period: no valid ATR
+                result.push({
+                    trend: 1,
+                    buySignal: false,
+                    sellSignal: false,
+                    ohlc4: ohlc4,
+                    rawUp: 0,
+                    rawDn: 0
+                });
+                continue;
+            }
+            var src = getSourcePrice(d, source);
+            var up = src - multiplier * atr[i];
+            var dn = src + multiplier * atr[i];
+            // Band ratcheting
+            if (i > 0 && i >= atrPeriod) {
+                var prevClose = dataList[i - 1].close;
+                if (prevClose > upBand[i - 1]) {
+                    up = Math.max(up, upBand[i - 1]);
+                }
+                if (prevClose < dnBand[i - 1]) {
+                    dn = Math.min(dn, dnBand[i - 1]);
+                }
+            }
+            upBand[i] = up;
+            dnBand[i] = dn;
+            // Trend state machine
+            // eslint-disable-next-line @typescript-eslint/init-declarations -- assigned conditionally
+            var trend = void 0;
+            if (i === atrPeriod - 1) {
+                trend = 1;
+            }
+            else {
+                var prevTrend_1 = trends[i - 1];
+                var close_1 = d.close;
+                if (prevTrend_1 === -1 && close_1 > dnBand[i - 1]) {
+                    trend = 1; // Flip bullish
+                }
+                else if (prevTrend_1 === 1 && close_1 < upBand[i - 1]) {
+                    trend = -1; // Flip bearish
+                }
+                else {
+                    trend = prevTrend_1;
+                }
+            }
+            trends[i] = trend;
+            // Signal detection
+            var prevTrend = i > 0 ? trends[i - 1] : 1;
+            var buySignal = trend === 1 && prevTrend === -1;
+            var sellSignal = trend === -1 && prevTrend === 1;
+            result.push({
+                up: trend === 1 ? up : undefined,
+                dn: trend !== 1 ? dn : undefined,
+                trend: trend,
+                buySignal: buySignal,
+                sellSignal: sellSignal,
+                ohlc4: ohlc4,
+                rawUp: up,
+                rawDn: dn
+            });
+        }
+        return result;
+    },
+    // ─── draw(): fully custom rendering ─────────────────────────────────────
+    draw: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var ctx = _a.ctx, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis, chart = _a.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return true;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_b = indicator.extendData) !== null && _b !== void 0 ? _b : {});
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from;
+        var to = visibleRange.to;
+        if (from >= to)
+            return true;
+        ctx.save();
+        // 1. Fill regions (lowest z)
+        if (ext.highlighting !== false) {
+            ctx.globalCompositeOperation = 'source-over';
+            drawSuperTrendFill(ctx, result, from, to, xAxis, yAxis, ext);
+        }
+        // 2. Step lines
+        if (ext.showUpTrend !== false) {
+            drawStepLineBr(ctx, result, from, to, xAxis, yAxis, 'up', (_c = ext.upTrendColor) !== null && _c !== void 0 ? _c : DEFAULT_UP_TREND_COLOR, (_d = ext.lineWidth) !== null && _d !== void 0 ? _d : DEFAULT_LINE_WIDTH);
+        }
+        if (ext.showDownTrend !== false) {
+            drawStepLineBr(ctx, result, from, to, xAxis, yAxis, 'dn', (_e = ext.downTrendColor) !== null && _e !== void 0 ? _e : DEFAULT_DOWN_TREND_COLOR, (_f = ext.lineWidth) !== null && _f !== void 0 ? _f : DEFAULT_LINE_WIDTH);
+        }
+        // 3. Signal markers (highest z)
+        if (ext.showSignals !== false) {
+            drawSignalMarkers(ctx, result, from, to, xAxis, yAxis, ext);
+        }
+        ctx.restore();
+        return true;
+    }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
  * http:*www.apache.org/licenses/LICENSE-2.0
 
  * Unless required by applicable law or agreed to in writing, software
@@ -4120,7 +4572,7 @@ function createVPVRTooltip(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function resolveSettings(extendData) {
+function resolveSettings$1(extendData) {
     if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
         return __assign(__assign({}, VPVR_DEFAULT_SETTINGS), extendData);
     }
@@ -4144,7 +4596,7 @@ var volumeProfileVisibleRange = {
         var dataList = chart.getDataList();
         if (dataList.length === 0)
             return true;
-        var settings = resolveSettings(indicator.extendData);
+        var settings = resolveSettings$1(indicator.extendData);
         if (!settings.showProfile)
             return true;
         var visibleRange = chart.getVisibleRange();
@@ -4191,6 +4643,486 @@ var volumeProfileVisibleRange = {
         return true;
     },
     createTooltipDataSource: createVPVRTooltip
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var FP_VPFR_DEFAULT_SETTINGS = {
+    numberOfBars: 150,
+    rowSize: 24,
+    valueAreaPercent: 70,
+    pocColor: '#FF0000',
+    pocLineWidth: 2,
+    vaUpColor: 'rgba(33, 150, 243, 0.70)',
+    vaDownColor: 'rgba(255, 152, 0, 0.70)',
+    upVolumeColor: 'rgba(33, 150, 243, 0.25)',
+    downVolumeColor: 'rgba(255, 152, 0, 0.25)',
+    showPOCLabel: true,
+    showBoxes: true,
+    showPaneLabels: true,
+    showLines: true,
+    showStatusLineValues: true
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Geometric overlap between two ranges [y1Low..y1High] and [y2Low..y2High].
+ * Matches Pine Script `get_vol` overlap formula.
+ */
+function getOverlap(y1Low, y1High, y2Low, y2High) {
+    return Math.max(0, Math.min(Math.max(y1Low, y1High), Math.max(y2Low, y2High)) -
+        Math.max(Math.min(y1Low, y1High), Math.min(y2Low, y2High)));
+}
+/**
+ * Compute the Volume Profile Fixed Range profile using 2x wick-weighted
+ * volume distribution per Pine Script formula.
+ */
+function computeFPVPFRProfile(dataList, fromIdx, toIdx, settings) {
+    var _a;
+    if (fromIdx >= toIdx || fromIdx < 0 || toIdx >= dataList.length) {
+        return null;
+    }
+    // Find price range over the lookback
+    var profileHigh = -Infinity;
+    var profileLow = Infinity;
+    for (var i = fromIdx; i <= toIdx; i++) {
+        var bar = dataList[i];
+        if (bar.high > profileHigh)
+            profileHigh = bar.high;
+        if (bar.low < profileLow)
+            profileLow = bar.low;
+    }
+    if (profileHigh === profileLow)
+        profileHigh += 0.01;
+    // Build price level rows
+    var rowCount = Math.max(1, Math.min(settings.rowSize, 1000));
+    var step = (profileHigh - profileLow) / rowCount;
+    var rows = Array.from({ length: rowCount }, function (_, i) { return ({
+        low: profileLow + step * i,
+        high: profileLow + step * (i + 1),
+        mid: profileLow + step * (i + 0.5),
+        buyVol: 0,
+        sellVol: 0,
+        totalVol: 0
+    }); });
+    // 2x wick-weighted volume distribution
+    for (var bi = fromIdx; bi <= toIdx; bi++) {
+        var bar = dataList[bi];
+        var vol = (_a = bar.volume) !== null && _a !== void 0 ? _a : 0;
+        if (vol === 0)
+            continue;
+        var bodyTop = Math.max(bar.close, bar.open);
+        var bodyBot = Math.min(bar.close, bar.open);
+        var topWick = bar.high - bodyTop;
+        var bottomWick = bodyBot - bar.low;
+        var body = bodyTop - bodyBot;
+        var denominator = 2 * topWick + 2 * bottomWick + body;
+        if (denominator === 0)
+            continue; // Doji with no range — skip
+        var bodyVol = body * vol / denominator;
+        var topWickVol = 2 * topWick * vol / denominator;
+        var bottomWickVol = 2 * bottomWick * vol / denominator;
+        var isGreen = bar.close >= bar.open;
+        for (var ri = 0; ri < rowCount; ri++) {
+            var row = rows[ri];
+            // Body overlap
+            if (body > 0) {
+                var bodyOverlap = getOverlap(row.low, row.high, bodyBot, bodyTop);
+                if (bodyOverlap > 0) {
+                    var bodyProportion = bodyOverlap / body;
+                    if (isGreen) {
+                        row.buyVol += bodyVol * bodyProportion;
+                    }
+                    else {
+                        row.sellVol += bodyVol * bodyProportion;
+                    }
+                }
+            }
+            // Top wick overlap — split 50/50 buy/sell
+            if (topWick > 0) {
+                var topWickOverlap = getOverlap(row.low, row.high, bodyTop, bar.high);
+                if (topWickOverlap > 0) {
+                    var wickProportion = topWickOverlap / topWick;
+                    var halfVol = topWickVol * wickProportion / 2;
+                    row.buyVol += halfVol;
+                    row.sellVol += halfVol;
+                }
+            }
+            // Bottom wick overlap — split 50/50 buy/sell
+            if (bottomWick > 0) {
+                var bottomWickOverlap = getOverlap(row.low, row.high, bar.low, bodyBot);
+                if (bottomWickOverlap > 0) {
+                    var wickProportion = bottomWickOverlap / bottomWick;
+                    var halfVol = bottomWickVol * wickProportion / 2;
+                    row.buyVol += halfVol;
+                    row.sellVol += halfVol;
+                }
+            }
+        }
+    }
+    // Compute totalVol per row, find POC (max volume row)
+    var totalVolume = 0;
+    var maxRowVolume = 0;
+    var pocIndex = 0;
+    var midPrice = (profileHigh + profileLow) / 2;
+    for (var i = 0; i < rowCount; i++) {
+        rows[i].totalVol = rows[i].buyVol + rows[i].sellVol;
+        totalVolume += rows[i].totalVol;
+        // POC: highest totalVol, tie-break: closer to mid-range
+        if (rows[i].totalVol > maxRowVolume ||
+            (rows[i].totalVol === maxRowVolume && maxRowVolume > 0 &&
+                Math.abs(rows[i].mid - midPrice) < Math.abs(rows[pocIndex].mid - midPrice))) {
+            maxRowVolume = rows[i].totalVol;
+            pocIndex = i;
+        }
+    }
+    // Value Area: bilateral expansion from POC
+    var targetVol = totalVolume * (settings.valueAreaPercent / 100);
+    var accVol = rows[pocIndex].totalVol;
+    var vahIndex = pocIndex;
+    var valIndex = pocIndex;
+    var up = pocIndex + 1;
+    var dn = pocIndex - 1;
+    while (accVol < targetVol) {
+        var volUp = up < rowCount ? rows[up].totalVol : 0;
+        var volDn = dn >= 0 ? rows[dn].totalVol : 0;
+        if (volUp === 0 && volDn === 0)
+            break;
+        if (volUp >= volDn && up < rowCount) {
+            accVol += volUp;
+            vahIndex = up;
+            up++;
+        }
+        else if (dn >= 0) {
+            accVol += volDn;
+            valIndex = dn;
+            dn--;
+        }
+        else {
+            break;
+        }
+    }
+    return {
+        rows: rows,
+        pocIndex: pocIndex,
+        vahIndex: vahIndex,
+        valIndex: valIndex,
+        totalVolume: totalVolume,
+        maxRowVolume: maxRowVolume,
+        profileHigh: profileHigh,
+        profileLow: profileLow,
+        fromIndex: fromIdx,
+        toIndex: toIdx
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function batchFillRects(ctx, rects, color) {
+    var e_1, _a;
+    if (rects.length === 0)
+        return;
+    ctx.fillStyle = color;
+    try {
+        for (var rects_1 = __values(rects), rects_1_1 = rects_1.next(); !rects_1_1.done; rects_1_1 = rects_1.next()) {
+            var r = rects_1_1.value;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (rects_1_1 && !rects_1_1.done && (_a = rects_1.return)) _a.call(rects_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+}
+function formatPrice(price) {
+    // Auto-detect precision: show enough decimals for meaningful display
+    if (price >= 1000)
+        return price.toFixed(0);
+    if (price >= 100)
+        return price.toFixed(1);
+    if (price >= 1)
+        return price.toFixed(2);
+    return price.toFixed(4);
+}
+/**
+ * Draw a rounded rectangle path (for POC label background).
+ */
+function roundedRect(ctx, x, y, w, h, r) {
+    var radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.arcTo(x + w, y, x + w, y + radius, radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+    ctx.lineTo(x + radius, y + h);
+    ctx.arcTo(x, y + h, x, y + h - radius, radius);
+    ctx.lineTo(x, y + radius);
+    ctx.arcTo(x, y, x + radius, y, radius);
+    ctx.closePath();
+}
+function drawFPVPFR(ctx, profile, settings, bounding, xAxis, yAxis, dataList) {
+    var _a, _b;
+    // Time-anchored positioning: bars start at fromIndex
+    var fromX = xAxis.convertToPixel(profile.fromIndex);
+    var toX = xAxis.convertToPixel(profile.toIndex);
+    var rangeWidthPx = Math.abs(toX - fromX);
+    var maxBarWidthPx = rangeWidthPx / 3; // ~33% of lookback range
+    if (maxBarWidthPx < 1)
+        return;
+    // With destination-over compositing (zLevel=-1), items drawn FIRST are
+    // closest to the front (behind candles but on top of later draws).
+    // Draw order: POC line first -> histogram bars -> POC label last
+    // === 1. POC Line (solid, not dashed) ===
+    if (settings.showLines) {
+        var pocY = yAxis.convertToPixel(profile.rows[profile.pocIndex].mid);
+        ctx.strokeStyle = settings.pocColor;
+        ctx.lineWidth = settings.pocLineWidth;
+        ctx.setLineDash([]); // Solid line — clear any inherited dash pattern
+        ctx.beginPath();
+        ctx.moveTo(fromX, pocY);
+        ctx.lineTo(bounding.width, pocY); // Extends right to chart edge
+        ctx.stroke();
+    }
+    // === 2. Histogram Bars (4-color batched) ===
+    if (settings.showBoxes) {
+        var upOutside = [];
+        var downOutside = [];
+        var upInside = [];
+        var downInside = [];
+        for (var i = 0; i < profile.rows.length; i++) {
+            var row = profile.rows[i];
+            if (row.totalVol === 0)
+                continue;
+            var rowTopY = yAxis.convertToPixel(row.high);
+            var rowBottomY = yAxis.convertToPixel(row.low);
+            // Small gap between rows per Pine Script formula: dist = (top - bot) / 500
+            var dist = Math.abs(rowBottomY - rowTopY) / (profile.rows.length * 2);
+            var barHeight = Math.max(1, Math.abs(rowBottomY - rowTopY) - 2 * dist);
+            var isVA = i >= profile.valIndex && i <= profile.vahIndex;
+            var relWidth = row.totalVol / profile.maxRowVolume;
+            var totalWidth = relWidth * maxBarWidthPx;
+            var buyRatio = row.totalVol > 0 ? row.buyVol / row.totalVol : 0;
+            var buyWidth = totalWidth * buyRatio;
+            var sellWidth = totalWidth - buyWidth;
+            var y = Math.min(rowTopY, rowBottomY) + dist;
+            var x = fromX;
+            // Left = buy (up), Right = sell (down)
+            if (buyWidth > 0) {
+                (isVA ? upInside : upOutside).push({ x: x, y: y, w: buyWidth, h: barHeight });
+            }
+            if (sellWidth > 0) {
+                (isVA ? downInside : downOutside).push({ x: x + buyWidth, y: y, w: sellWidth, h: barHeight });
+            }
+        }
+        // Batch draw: outside first (behind), then inside (on top) due to destination-over
+        batchFillRects(ctx, downOutside, settings.downVolumeColor);
+        batchFillRects(ctx, upOutside, settings.upVolumeColor);
+        batchFillRects(ctx, downInside, settings.vaDownColor);
+        batchFillRects(ctx, upInside, settings.vaUpColor);
+    }
+    // === 3. POC Label ===
+    // Must use source-over compositing because zLevel=-1 uses destination-over,
+    // which would draw white text BEHIND the blue pill (invisible).
+    if (settings.showPOCLabel && settings.showPaneLabels) {
+        var prevCompositing = ctx.globalCompositeOperation;
+        ctx.globalCompositeOperation = 'source-over';
+        var pocPrice = profile.rows[profile.pocIndex].mid;
+        var pocY = yAxis.convertToPixel(pocPrice);
+        var labelX = xAxis.convertToPixel(profile.toIndex + 15);
+        var labelText = "POC: ".concat(formatPrice(pocPrice));
+        var lastClose = (_b = (_a = dataList[profile.toIndex]) === null || _a === void 0 ? void 0 : _a.close) !== null && _b !== void 0 ? _b : 0;
+        var isUp = lastClose >= pocPrice;
+        var fontSize = 11;
+        ctx.font = "".concat(fontSize, "px sans-serif");
+        var textMetrics = ctx.measureText(labelText);
+        var textWidth = textMetrics.width;
+        var paddingH = 6;
+        var paddingV = 3;
+        var arrowSize = 5;
+        var pillWidth = textWidth + paddingH * 2;
+        var pillHeight = fontSize + paddingV * 2;
+        var pillX = labelX - pillWidth / 2;
+        var pillY = isUp ? pocY - pillHeight - arrowSize : pocY + arrowSize;
+        // Blue background pill
+        ctx.fillStyle = '#2196F3';
+        roundedRect(ctx, pillX, pillY, pillWidth, pillHeight, 3);
+        ctx.fill();
+        // Arrow (triangle) pointing to POC line
+        ctx.beginPath();
+        if (isUp) {
+            // Arrow pointing down (label is above POC line)
+            ctx.moveTo(labelX - arrowSize, pillY + pillHeight);
+            ctx.lineTo(labelX + arrowSize, pillY + pillHeight);
+            ctx.lineTo(labelX, pillY + pillHeight + arrowSize);
+        }
+        else {
+            // Arrow pointing up (label is below POC line)
+            ctx.moveTo(labelX - arrowSize, pillY);
+            ctx.lineTo(labelX + arrowSize, pillY);
+            ctx.lineTo(labelX, pillY - arrowSize);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // White text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, pillX + pillWidth / 2, pillY + pillHeight / 2);
+        ctx.globalCompositeOperation = prevCompositing;
+    }
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * FP_VPFR has no canvas tooltip — zero plot() calls per Pine Script pattern.
+ * React HTML tooltip handles the header display.
+ */
+function createFPVPFRTooltip(_params) {
+    return {
+        name: '',
+        calcParamsText: '',
+        features: [],
+        legends: []
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function resolveSettings(extendData) {
+    if (extendData !== null && extendData !== undefined && typeof extendData === 'object') {
+        return __assign(__assign({}, FP_VPFR_DEFAULT_SETTINGS), extendData);
+    }
+    return __assign({}, FP_VPFR_DEFAULT_SETTINGS);
+}
+var fpVolumeProfileFixedRange = {
+    name: 'FP_VPFR',
+    shortName: 'FP_VPFR',
+    series: 'price',
+    precision: 0,
+    shouldOhlc: false,
+    shouldFormatBigNumber: true,
+    zLevel: -1,
+    figures: [],
+    calcParams: [],
+    // No-op calc: real computation happens in draw() based on fixed lookback range
+    calc: function (dataList) { return dataList.map(function () { return ({}); }); },
+    draw: function (_a) {
+        var _b;
+        var ctx = _a.ctx, chart = _a.chart, indicator = _a.indicator, bounding = _a.bounding, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var dataList = chart.getDataList();
+        if (dataList.length === 0)
+            return true;
+        var settings = resolveSettings(indicator.extendData);
+        // If all visual elements are hidden, skip rendering entirely
+        if (!settings.showBoxes && !settings.showLines && !settings.showPaneLabels)
+            return true;
+        // Fixed lookback range (KEY DIFFERENCE from VPVR)
+        var toIdx = dataList.length - 1;
+        var fromIdx = Math.max(0, toIdx - settings.numberOfBars + 1);
+        if (fromIdx >= toIdx)
+            return true;
+        // Cache check
+        var rangeKey = "".concat(fromIdx, "-").concat(toIdx, "-").concat(settings.rowSize, "-").concat(settings.valueAreaPercent, "-").concat(dataList.length);
+        var extData = indicator.extendData;
+        var existingCache = extData === null || extData === void 0 ? void 0 : extData._cache;
+        var profile = (existingCache === null || existingCache === void 0 ? void 0 : existingCache.rangeKey) === rangeKey ? (_b = existingCache.profile) !== null && _b !== void 0 ? _b : null : null;
+        if (profile === null) {
+            profile = computeFPVPFRProfile(dataList, fromIdx, toIdx, settings);
+            if (extData != null) {
+                extData._cache = { profile: profile, rangeKey: rangeKey };
+            }
+        }
+        if (profile === null || profile.maxRowVolume === 0)
+            return true;
+        // Store POC price + color for Y-axis label (IndicatorLastValueView reads these)
+        if (extData != null && settings.showLines) {
+            extData._pocPrice = profile.rows[profile.pocIndex].mid;
+            extData.pocColor = settings.pocColor;
+        }
+        else if (extData != null) {
+            extData._pocPrice = undefined;
+        }
+        // Store hit area for cursor/click detection (Event.ts reads this)
+        if (extData != null) {
+            var fromX = xAxis.convertToPixel(fromIdx);
+            var toX = xAxis.convertToPixel(toIdx);
+            var maxWidth = Math.abs(toX - fromX) / 3;
+            var topY = yAxis.convertToPixel(profile.profileHigh);
+            var bottomY = yAxis.convertToPixel(profile.profileLow);
+            extData._hitArea = {
+                left: fromX,
+                top: Math.min(topY, bottomY),
+                right: fromX + maxWidth,
+                bottom: Math.max(topY, bottomY)
+            };
+        }
+        ctx.save();
+        drawFPVPFR(ctx, profile, settings, bounding, xAxis, yAxis, dataList);
+        ctx.restore();
+        return true;
+    },
+    createTooltipDataSource: createFPVPFRTooltip
 };
 
 /**
@@ -4260,7 +5192,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, volumeRatio, williamsR
+    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, volumeRatio, williamsR
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
@@ -5250,7 +6182,7 @@ var rayLine = {
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-function isLightColor$2(hex) {
+function isLightColor$3(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -5453,7 +6385,7 @@ var segment = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
@@ -5472,7 +6404,7 @@ var segment = {
         // ─── 6. Control points at endpoints (when selected/hovered) ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
@@ -6515,7 +7447,7 @@ function renderVPFRFigures(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function isLightColor$1(hex) {
+function isLightColor$2(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -6647,7 +7579,7 @@ var vpfr = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_e = hoverInfo.overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id && hoverInfo.figureType !== 'none';
         var tickTextColor = String(chartStore.getStyles().yAxis.tickText.color);
-        var isDarkTheme = isLightColor$1(tickTextColor);
+        var isDarkTheme = isLightColor$2(tickTextColor);
         // X positions from coordinates (time-based)
         var leftX = Math.min(coordinates[0].x, coordinates[1].x);
         var rightX = Math.max(coordinates[0].x, coordinates[1].x);
@@ -7004,7 +7936,7 @@ var CP_MID_BORDER_RADIUS = 3;
  * Control points: 4 corners (circles) + 4 edge midpoints (squares)
  * All drag logic handled via performEventPressedMove with figureKey
  */
-function isLightColor(hex) {
+function isLightColor$1(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -7016,9 +7948,9 @@ function isLightColor(hex) {
 // ═══════════════════════════════════════
 // DEFAULTS
 // ═══════════════════════════════════════
-var DEFAULT_FILL_COLOR = 'rgba(20, 77, 209, 0.2)';
-var DEFAULT_BORDER_COLOR = '#144DD1';
-var DEFAULT_BORDER_WIDTH = 1;
+var DEFAULT_FILL_COLOR$1 = 'rgba(20, 77, 209, 0.2)';
+var DEFAULT_BORDER_COLOR$1 = '#144DD1';
+var DEFAULT_BORDER_WIDTH$1 = 1;
 var LINE_DASH_MAP = {
     solid: [],
     dashed: [8, 4],
@@ -7053,9 +7985,9 @@ var rect$1 = {
         var width = right - left;
         var height = bottom - top;
         // Styles
-        var fillColor = (_b = ext.fillColor) !== null && _b !== void 0 ? _b : DEFAULT_FILL_COLOR;
-        var borderColor = (_c = ext.borderColor) !== null && _c !== void 0 ? _c : DEFAULT_BORDER_COLOR;
-        var borderWidth = (_d = ext.borderWidth) !== null && _d !== void 0 ? _d : DEFAULT_BORDER_WIDTH;
+        var fillColor = (_b = ext.fillColor) !== null && _b !== void 0 ? _b : DEFAULT_FILL_COLOR$1;
+        var borderColor = (_c = ext.borderColor) !== null && _c !== void 0 ? _c : DEFAULT_BORDER_COLOR$1;
+        var borderWidth = (_d = ext.borderWidth) !== null && _d !== void 0 ? _d : DEFAULT_BORDER_WIDTH$1;
         var borderStyle = (_e = ext.borderStyle) !== null && _e !== void 0 ? _e : 'solid';
         var fillEnabled = ext.fillEnabled !== false;
         var figures = [];
@@ -7164,7 +8096,7 @@ var rect$1 = {
             var midY = (top + bottom) / 2;
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor(tickTextColor) ? '#131722' : '#ffffff';
+            var cpBg_1 = isLightColor$1(tickTextColor) ? '#131722' : '#ffffff';
             var cpColor_1 = CP_COLOR;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
@@ -7262,6 +8194,174 @@ var rect$1 = {
 };
 
 /**
+ * Circle overlay constants — default styles and minimum radius
+ */
+var DEFAULT_BORDER_COLOR = '#FF9800';
+var DEFAULT_BORDER_WIDTH = 1;
+var DEFAULT_FILL_COLOR = '#FF9800';
+var DEFAULT_FILL_OPACITY = 20;
+var MIN_RADIUS_PX = 5;
+
+/**
+ * Circle overlay — TradingView-style with 2 control points
+ *
+ * Data points: 2 (center + edge)
+ * Control points: center (move) + edge (resize)
+ * Drag logic: center CP translates entire circle, edge CP resizes
+ */
+function isLightColor(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+function hexToRgba(hex, alpha) {
+    if (hex.startsWith('rgba'))
+        return hex;
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (m == null)
+        return "rgba(255, 152, 0, ".concat(alpha, ")");
+    return "rgba(".concat(parseInt(m[1], 16), ", ").concat(parseInt(m[2], 16), ", ").concat(parseInt(m[3], 16), ", ").concat(alpha, ")");
+}
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var circle$1 = {
+    name: 'circle',
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: true,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _l = __read(coordinates, 2), center = _l[0], edge = _l[1];
+        var ext = overlay.extendData;
+        // Radius: Euclidean distance, min 5px
+        var radius = Math.max(Math.hypot(edge.x - center.x, edge.y - center.y), MIN_RADIUS_PX);
+        // Styles
+        var borderColor = (_b = ext.borderColor) !== null && _b !== void 0 ? _b : DEFAULT_BORDER_COLOR;
+        var borderWidth = (_c = ext.borderWidth) !== null && _c !== void 0 ? _c : DEFAULT_BORDER_WIDTH;
+        var fillColor = (_d = ext.fillColor) !== null && _d !== void 0 ? _d : DEFAULT_FILL_COLOR;
+        var fillOpacity = (_e = ext.fillOpacity) !== null && _e !== void 0 ? _e : DEFAULT_FILL_OPACITY;
+        var fillEnabled = ext.fillEnabled !== false;
+        var fillRgba = fillEnabled
+            ? hexToRgba(fillColor, fillOpacity / 100)
+            : 'transparent';
+        var figures = [];
+        // Figure 0: Fill circle (always rendered for body drag hit-test)
+        figures.push({
+            key: 'circle_fill',
+            type: 'circle',
+            attrs: { x: center.x, y: center.y, r: radius },
+            styles: {
+                style: 'fill',
+                color: fillRgba
+            }
+        });
+        // Figure 1: Border circle
+        figures.push({
+            key: 'circle_border',
+            type: 'circle',
+            attrs: { x: center.x, y: center.y, r: radius },
+            styles: {
+                style: 'stroke',
+                borderColor: borderColor,
+                borderSize: borderWidth
+            }
+        });
+        // Figure 2: Text (optional)
+        var isEditing = ext.isEditing === true;
+        var showLabel = ext.showLabel === true;
+        var text = (_f = ext.text) !== null && _f !== void 0 ? _f : '';
+        if (!isEditing && showLabel && text !== '') {
+            var textColor = (_g = ext.textColor) !== null && _g !== void 0 ? _g : DEFAULT_BORDER_COLOR;
+            var textSize = (_h = ext.textSize) !== null && _h !== void 0 ? _h : 14;
+            var isBold = ext.isBold === true;
+            var isItalic = ext.isItalic === true;
+            figures.push({
+                key: 'circle_text',
+                type: 'text',
+                attrs: {
+                    x: center.x,
+                    y: center.y,
+                    text: text,
+                    align: 'center',
+                    baseline: 'middle'
+                },
+                styles: {
+                    color: textColor,
+                    size: textSize,
+                    weight: isBold ? 'bold' : '600',
+                    style: isItalic ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // Selection state
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_j = chartStore.getClickOverlayInfo().overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_k = hoverInfo.overlay) === null || _k === void 0 ? void 0 : _k.id) === overlay.id && hoverInfo.figureType !== 'none';
+        // Figures 3-4: Control points (only when selected or hovered)
+        if (isSelected || isHovered) {
+            // Detect theme from Y-axis tick text color: light text = dark theme
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor(tickTextColor) ? '#131722' : '#ffffff';
+            // CP at center (drag to translate entire circle)
+            figures.push({
+                key: 'circle_cp_center',
+                type: 'circle',
+                attrs: { x: center.x, y: center.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_CIRCLE_BORDER
+                },
+                pointIndex: 0,
+                cursor: 'move'
+            });
+            // CP at edge (drag to resize)
+            figures.push({
+                key: 'circle_cp_edge',
+                type: 'circle',
+                attrs: { x: edge.x, y: edge.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_CIRCLE_BORDER
+                },
+                pointIndex: 1,
+                cursor: 'crosshair'
+            });
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey;
+        if (figureKey == null || figureKey === '' || prevPoints.length < 2)
+            return;
+        if (figureKey === 'circle_cp_center') {
+            // Translate entire circle: shift edge point by same delta as center
+            var dt = ((_b = points[0].timestamp) !== null && _b !== void 0 ? _b : 0) - ((_c = prevPoints[0].timestamp) !== null && _c !== void 0 ? _c : 0);
+            var dv = ((_d = points[0].value) !== null && _d !== void 0 ? _d : 0) - ((_e = prevPoints[0].value) !== null && _e !== void 0 ? _e : 0);
+            points[1].timestamp = ((_f = prevPoints[1].timestamp) !== null && _f !== void 0 ? _f : 0) + dt;
+            points[1].value = ((_g = prevPoints[1].value) !== null && _g !== void 0 ? _g : 0) + dv;
+        }
+        // circle_cp_edge: default behavior (center stays fixed, edge moves)
+    }
+};
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -7279,7 +8379,7 @@ var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag, vpfr, rect$1
+    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
@@ -10704,6 +11804,12 @@ var IndicatorView = /** @class */ (function (_super) {
                         }
                     });
                 }
+                // postDraw: runs AFTER figures (lines) — for decorations on top of the line
+                if (indicator.postDraw !== null) {
+                    ctx.save();
+                    indicator.postDraw({ ctx: ctx, chart: chart, indicator: indicator, bounding: bounding, xAxis: xAxis, yAxis: yAxis });
+                    ctx.restore();
+                }
             }
         });
         ctx.restore();
@@ -11680,7 +12786,7 @@ var SectorReferenceLabelView = /** @class */ (function (_super) {
             var extData = indicator.extendData;
             if (!isValid(extData))
                 return;
-            var showSectorLine = ((_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.showSectorLine) !== false;
+            var showSectorLine = ((_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.showSectorLine) === true;
             if (!showSectorLine)
                 return;
             var sectorLineColor = (_c = (_b = indicator.styles) === null || _b === void 0 ? void 0 : _b.sectorLineColor) !== null && _c !== void 0 ? _c : '#26A69A';
@@ -13220,7 +14326,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                 var sectorPE = extData === null || extData === void 0 ? void 0 : extData.sectorPE;
                 var sectorPB = extData === null || extData === void 0 ? void 0 : extData.sectorPB;
                 var indicatorStylesObj = indicator.styles;
-                var showSectorLine = (indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.showSectorLine) !== false;
+                var showSectorLine = (indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.showSectorLine) === true;
                 var sectorLineColor = (_d = indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.sectorLineColor) !== null && _d !== void 0 ? _d : '#26A69A';
                 var sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined;
                 if (showSectorLine && isNumber(sectorValue)) {
@@ -13681,10 +14787,10 @@ var YAxisImp = /** @class */ (function (_super) {
                     }
                 }
             }
-            indicators.forEach(function (_a) {
-                var _b;
-                var result = _a.result, figures = _a.figures, extendData = _a.extendData;
-                var data = (_b = result[dataIndex]) !== null && _b !== void 0 ? _b : {};
+            indicators.forEach(function (ind) {
+                var _a, _b;
+                var result = ind.result, figures = ind.figures, extendData = ind.extendData;
+                var data = (_a = result[dataIndex]) !== null && _a !== void 0 ? _a : {};
                 figures.forEach(function (figure) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
                     var value = data[figure.key];
@@ -13693,8 +14799,9 @@ var YAxisImp = /** @class */ (function (_super) {
                         max = Math.max(max, value);
                     }
                 });
-                // Include sector reference value matching this indicator's field
-                if (isValid(extendData)) {
+                // Include sector reference value in min/max only when showSectorLine is enabled
+                var showSectorLine = ((_b = ind.styles) === null || _b === void 0 ? void 0 : _b.showSectorLine) === true;
+                if (showSectorLine && isValid(extendData)) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
                     var labelField = extendData._labelField;
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- ignore
@@ -15852,6 +16959,8 @@ var Event = /** @class */ (function () {
         // 用来记录捏合缩放的尺寸
         this._pinchScale = 1;
         this._mouseDownWidget = null;
+        /** Currently hovered indicator ID (for hover enter/leave transition tracking) */
+        this._hoveredIndicatorId = null;
         this._prevYAxisRange = null;
         this._xAxisStartScaleCoordinate = null;
         this._xAxisStartScaleDistance = 0;
@@ -15911,7 +17020,7 @@ var Event = /** @class */ (function () {
                 var hitArea = extData === null || extData === void 0 ? void 0 : extData._hitArea;
                 if (hitArea != null && isNumber(hitArea.left)) {
                     if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
-                        return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId() };
+                        return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator };
                     }
                 }
             }
@@ -15924,6 +17033,58 @@ var Event = /** @class */ (function () {
             finally { if (e_1) throw e_1.error; }
         }
         return null;
+    };
+    /**
+     * Update indicator hover state. Only fires on enter/leave transitions.
+     * Directly mutates extendData._hovered and triggers a lightweight pane redraw.
+     */
+    Event.prototype._updateIndicatorHover = function (pane, hoverInfo) {
+        if (hoverInfo !== null) {
+            if (this._hoveredIndicatorId !== hoverInfo.indicatorId) {
+                // Clear previous hover
+                this._clearIndicatorHover();
+                // Set new hover
+                var indObj = hoverInfo.indicator;
+                var ext = indObj === null || indObj === void 0 ? void 0 : indObj.extendData;
+                if (ext != null) {
+                    ext._hovered = true;
+                }
+                this._hoveredIndicatorId = hoverInfo.indicatorId;
+                if (pane !== null) {
+                    this._chart.updatePane(0 /* UpdateLevel.Main */, pane.getId());
+                }
+            }
+        }
+        else if (this._hoveredIndicatorId !== null) {
+            this._clearIndicatorHover();
+            // Redraw all panes to clear dots (hovered indicator could be in any pane)
+            this._chart.updatePane(0 /* UpdateLevel.Main */);
+        }
+    };
+    /** Clear _hovered flag on the currently hovered indicator */
+    Event.prototype._clearIndicatorHover = function () {
+        var e_2, _a;
+        if (this._hoveredIndicatorId === null)
+            return;
+        var chartStore = this._chart.getChartStore();
+        var indicators = chartStore.getIndicatorsByFilter({ id: this._hoveredIndicatorId });
+        try {
+            for (var indicators_2 = __values(indicators), indicators_2_1 = indicators_2.next(); !indicators_2_1.done; indicators_2_1 = indicators_2.next()) {
+                var ind = indicators_2_1.value;
+                var ext = ind.extendData;
+                if (ext != null) {
+                    ext._hovered = false;
+                }
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (indicators_2_1 && !indicators_2_1.done && (_a = indicators_2.return)) _a.call(indicators_2);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+        this._hoveredIndicatorId = null;
     };
     Event.prototype.pinchStartEvent = function () {
         this._touchZoomed = true;
@@ -16009,11 +17170,15 @@ var Event = /** @class */ (function () {
                         }
                         widget.setCursor('pointer');
                     }
-                    else if (this._findIndicatorAtPoint(pane, event.x, event.y) !== null) {
-                        widget.setCursor('pointer');
-                    }
                     else {
-                        widget.setCursor('crosshair');
+                        var hoverInfo = this._findIndicatorAtPoint(pane, event.x, event.y);
+                        if (hoverInfo !== null) {
+                            widget.setCursor('pointer');
+                        }
+                        else {
+                            widget.setCursor('crosshair');
+                        }
+                        this._updateIndicatorHover(pane, hoverInfo);
                     }
                     this._chart.getChartStore().setCrosshair(crosshair);
                     return consumed;
@@ -16471,7 +17636,7 @@ var Event = /** @class */ (function () {
         return consumed;
     };
     Event.prototype._findWidgetByEvent = function (event) {
-        var e_2, _a, e_3, _b;
+        var e_3, _a, e_4, _b;
         var x = event.x, y = event.y;
         var separatorPanes = this._chart.getSeparatorPanes();
         var separatorSize = this._chart.getStyles().separator.size;
@@ -16487,12 +17652,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
                 if (separatorPanes_1_1 && !separatorPanes_1_1.done && (_a = separatorPanes_1.return)) _a.call(separatorPanes_1);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         var drawPanes = this._chart.getDrawPanes();
         var pane = null;
@@ -16507,12 +17672,12 @@ var Event = /** @class */ (function () {
                 }
             }
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
                 if (drawPanes_1_1 && !drawPanes_1_1.done && (_b = drawPanes_1.return)) _b.call(drawPanes_1);
             }
-            finally { if (e_3) throw e_3.error; }
+            finally { if (e_4) throw e_4.error; }
         }
         var widget = null;
         if (pane !== null) {
