@@ -45,13 +45,28 @@ export default class IndicatorLastValueView extends View<YAxis> {
     const thousandsSeparator = chartStore.getThousandsSeparator()
 
     indicators.forEach(indicator => {
+      // Per-indicator lastValueMark override takes precedence over global
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- indicator.styles may lack lastValueMark at runtime
+      const indicatorLVM = (indicator.styles as Record<string, unknown>)?.lastValueMark as
+        { show?: boolean; text?: Record<string, unknown>; figureKeys?: string[] } | undefined
+      const shouldShowLastValue = indicatorLVM?.show ?? lastValueMarkStyles.show
+
       // Standard last-value labels (for indicators with figures)
-      if (lastValueMarkStyles.show) {
+      if (shouldShowLastValue) {
         const result = indicator.result
         const data = result[dataIndex] ?? {}
         if (isValid(data) && indicator.visible) {
           const precision = indicator.precision
+          // Merge per-indicator text styles over global defaults
+          const mergedTextStyles = indicatorLVM?.text != null
+            ? { ...lastValueMarkTextStyles, ...indicatorLVM.text }
+            : lastValueMarkTextStyles
+          const figureFilter = indicatorLVM?.figureKeys
+
           eachFigures(indicator, dataIndex, defaultStyles, (figure: IndicatorFigure, figureStyles: Required<IndicatorFigureStyle>) => {
+            // Filter: only show labels for specified figure keys
+            if (figureFilter != null && !figureFilter.includes(figure.key)) return
+
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
             const value = data[figure.key]
             if (isNumber(value)) {
@@ -87,7 +102,7 @@ export default class IndicatorLastValueView extends View<YAxis> {
                   baseline: 'middle'
                 },
                 styles: {
-                  ...lastValueMarkTextStyles,
+                  ...mergedTextStyles,
                   backgroundColor: figureStyles.color
                 }
               })?.draw(ctx)

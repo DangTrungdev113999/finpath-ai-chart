@@ -14617,15 +14617,26 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
         indicators.forEach(function (indicator) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+            // Per-indicator lastValueMark override takes precedence over global
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- indicator.styles may lack lastValueMark at runtime
+            var indicatorLVM = (_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.lastValueMark;
+            var shouldShowLastValue = (_b = indicatorLVM === null || indicatorLVM === void 0 ? void 0 : indicatorLVM.show) !== null && _b !== void 0 ? _b : lastValueMarkStyles.show;
             // Standard last-value labels (for indicators with figures)
-            if (lastValueMarkStyles.show) {
+            if (shouldShowLastValue) {
                 var result = indicator.result;
-                var data_1 = (_a = result[dataIndex]) !== null && _a !== void 0 ? _a : {};
+                var data_1 = (_c = result[dataIndex]) !== null && _c !== void 0 ? _c : {};
                 if (isValid(data_1) && indicator.visible) {
                     var precision_1 = indicator.precision;
+                    // Merge per-indicator text styles over global defaults
+                    var mergedTextStyles_1 = (indicatorLVM === null || indicatorLVM === void 0 ? void 0 : indicatorLVM.text) != null
+                        ? __assign(__assign({}, lastValueMarkTextStyles), indicatorLVM.text) : lastValueMarkTextStyles;
+                    var figureFilter_1 = indicatorLVM === null || indicatorLVM === void 0 ? void 0 : indicatorLVM.figureKeys;
                     eachFigures(indicator, dataIndex, defaultStyles, function (figure, figureStyles) {
                         var _a;
+                        // Filter: only show labels for specified figure keys
+                        if (figureFilter_1 != null && !figureFilter_1.includes(figure.key))
+                            return;
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
                         var value = data_1[figure.key];
                         if (isNumber(value)) {
@@ -14654,7 +14665,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                                     align: textAlign,
                                     baseline: 'middle'
                                 },
-                                styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: figureStyles.color })
+                                styles: __assign(__assign({}, mergedTextStyles_1), { backgroundColor: figureStyles.color })
                             })) === null || _a === void 0 ? void 0 : _a.draw(ctx);
                         }
                     });
@@ -14666,7 +14677,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                 var extData = indicator.extendData;
                 var pocPrice = extData === null || extData === void 0 ? void 0 : extData._pocPrice;
                 if (isNumber(pocPrice)) {
-                    var pocColor = (_b = extData.pocColor) !== null && _b !== void 0 ? _b : '#FF0000';
+                    var pocColor = (_d = extData.pocColor) !== null && _d !== void 0 ? _d : '#FF0000';
                     var y = yAxis.convertToNicePixel(pocPrice);
                     var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(pocPrice, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
                     text = decimalFold.format(thousandsSeparator.format(text));
@@ -14680,26 +14691,26 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         x = bounding.width;
                         textAlign = 'right';
                     }
-                    (_c = _this.createFigure({
+                    (_e = _this.createFigure({
                         name: 'text',
                         attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
                         styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: pocColor, color: '#FFFFFF' })
-                    })) === null || _c === void 0 ? void 0 : _c.draw(ctx);
+                    })) === null || _e === void 0 ? void 0 : _e.draw(ctx);
                 }
                 // Sector reference VALUE label on Y-axis (just the number, like PE last value)
                 var sectorPE = extData === null || extData === void 0 ? void 0 : extData.sectorPE;
                 var sectorPB = extData === null || extData === void 0 ? void 0 : extData.sectorPB;
                 var indicatorStylesObj = indicator.styles;
                 var showSectorLine = (indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.showSectorLine) === true;
-                var sectorLineColor = (_d = indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.sectorLineColor) !== null && _d !== void 0 ? _d : '#26A69A';
+                var sectorLineColor = (_f = indicatorStylesObj === null || indicatorStylesObj === void 0 ? void 0 : indicatorStylesObj.sectorLineColor) !== null && _f !== void 0 ? _f : '#26A69A';
                 var sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined;
                 if (showSectorLine && isNumber(sectorValue)) {
                     var sectorY = yAxis.convertToNicePixel(sectorValue);
                     var sectorText = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(sectorValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
                     sectorText = decimalFold.format(thousandsSeparator.format(sectorText));
-                    var sectorNameStr = (_e = extData === null || extData === void 0 ? void 0 : extData.sectorName) !== null && _e !== void 0 ? _e : '';
+                    var sectorNameStr = (_g = extData === null || extData === void 0 ? void 0 : extData.sectorName) !== null && _g !== void 0 ? _g : '';
                     // Avoid overlap with last value label: find the indicator's last value Y
-                    var lastResult = (_f = indicator.result[dataIndex]) !== null && _f !== void 0 ? _f : {};
+                    var lastResult = (_h = indicator.result[dataIndex]) !== null && _h !== void 0 ? _h : {};
                     var labelFieldForCollision = indicator.name === 'PE' ? 'pe' : indicator.name === 'PB' ? 'pb' : '';
                     var lastVal = lastResult[labelFieldForCollision];
                     if (isNumber(lastVal)) {
@@ -14724,11 +14735,11 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                         mouseClickEvent: _this._boundSectorLabelClickEvent(sectorNameStr),
                         mouseMoveEvent: function () { return true; }
                     };
-                    (_g = _this.createFigure({
+                    (_j = _this.createFigure({
                         name: 'text',
                         attrs: { x: sx, y: sectorY, text: sectorText, align: sTextAlign, baseline: 'middle' },
                         styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: sectorLineColor, color: '#FFFFFF' })
-                    }, sectorHandler)) === null || _g === void 0 ? void 0 : _g.draw(ctx);
+                    }, sectorHandler)) === null || _j === void 0 ? void 0 : _j.draw(ctx);
                 }
                 // Dynamic label: reads indicator.result at the last visible candle index.
                 // Set extendData._labelField = "pe" (or "pb") to enable.
@@ -14736,11 +14747,11 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                 if (typeof labelField === 'string' && labelField.length > 0) {
                     var visibleRange = chartStore.getVisibleRange();
                     var lastVisibleIdx = Math.min(visibleRange.realTo - 1, dataList.length - 1);
-                    var resultData = ((_h = indicator.result[lastVisibleIdx]) !== null && _h !== void 0 ? _h : {});
+                    var resultData = ((_k = indicator.result[lastVisibleIdx]) !== null && _k !== void 0 ? _k : {});
                     var labelValue = resultData[labelField];
                     if (isNumber(labelValue)) {
                         var stylesLines = indicator.styles.lines;
-                        var labelColor = (_l = (_j = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _j !== void 0 ? _j : (_k = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _k === void 0 ? void 0 : _k.color) !== null && _l !== void 0 ? _l : '#1E88FF';
+                        var labelColor = (_o = (_l = extData === null || extData === void 0 ? void 0 : extData.pocColor) !== null && _l !== void 0 ? _l : (_m = stylesLines === null || stylesLines === void 0 ? void 0 : stylesLines[0]) === null || _m === void 0 ? void 0 : _m.color) !== null && _o !== void 0 ? _o : '#1E88FF';
                         var y = yAxis.convertToNicePixel(labelValue);
                         var text = yAxis.displayValueToText(yAxis.realValueToDisplayValue(yAxis.valueToRealValue(labelValue, { range: yAxisRange }), { range: yAxisRange }), indicator.precision);
                         text = decimalFold.format(thousandsSeparator.format(text));
@@ -14754,11 +14765,11 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                             x = bounding.width;
                             textAlign = 'right';
                         }
-                        (_m = _this.createFigure({
+                        (_p = _this.createFigure({
                             name: 'text',
                             attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
                             styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: labelColor, color: '#FFFFFF' })
-                        })) === null || _m === void 0 ? void 0 : _m.draw(ctx);
+                        })) === null || _p === void 0 ? void 0 : _p.draw(ctx);
                     }
                 }
             }
