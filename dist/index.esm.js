@@ -14778,7 +14778,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                 var pixelText = extData === null || extData === void 0 ? void 0 : extData._lastValueText;
                 if (isNumber(pixelY) && typeof pixelText === 'string') {
                     var pixelLabelStyles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
-                    var offsetRight = isNumber(extData === null || extData === void 0 ? void 0 : extData._lastValueOffsetRight) ? extData._lastValueOffsetRight : 0;
+                    var offsetRight = isNumber(extData === null || extData === void 0 ? void 0 : extData._lastValueOffsetRight) ? (extData._lastValueOffsetRight) : 5;
                     var px = 0;
                     var pTextAlign = 'left';
                     if (yAxis.isFromZero()) {
