@@ -14622,7 +14622,7 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
         var decimalFold = chartStore.getDecimalFold();
         var thousandsSeparator = chartStore.getThousandsSeparator();
         indicators.forEach(function (indicator) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
             // Per-indicator lastValueMark override takes precedence over global
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- indicator.styles may lack lastValueMark at runtime
             var indicatorLVM = (_a = indicator.styles) === null || _a === void 0 ? void 0 : _a.lastValueMark;
@@ -14776,6 +14776,28 @@ var IndicatorLastValueView = /** @class */ (function (_super) {
                             styles: __assign(__assign({}, lastValueMarkTextStyles), { backgroundColor: labelColor, color: '#FFFFFF' })
                         })) === null || _p === void 0 ? void 0 : _p.draw(ctx);
                     }
+                }
+                // Pre-calculated pixel-Y label (for indicators with custom coordinate systems, e.g. VOL_SIMPLE)
+                // The indicator's draw function stores _lastValuePixelY and _lastValueText in extendData
+                var pixelY = extData === null || extData === void 0 ? void 0 : extData._lastValuePixelY;
+                var pixelText = extData === null || extData === void 0 ? void 0 : extData._lastValueText;
+                if (isNumber(pixelY) && typeof pixelText === 'string') {
+                    var pixelLabelStyles = ((_q = extData === null || extData === void 0 ? void 0 : extData._lastValueLabelStyles) !== null && _q !== void 0 ? _q : {});
+                    var px = 0;
+                    var pTextAlign = 'left';
+                    if (yAxis.isFromZero()) {
+                        px = 0;
+                        pTextAlign = 'left';
+                    }
+                    else {
+                        px = bounding.width;
+                        pTextAlign = 'right';
+                    }
+                    (_r = _this.createFigure({
+                        name: 'text',
+                        attrs: { x: px, y: pixelY, text: pixelText, align: pTextAlign, baseline: 'middle' },
+                        styles: __assign(__assign({}, lastValueMarkTextStyles), pixelLabelStyles)
+                    })) === null || _r === void 0 ? void 0 : _r.draw(ctx);
                 }
             }
         });

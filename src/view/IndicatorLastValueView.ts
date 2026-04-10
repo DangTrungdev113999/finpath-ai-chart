@@ -246,6 +246,28 @@ export default class IndicatorLastValueView extends View<YAxis> {
             })?.draw(ctx)
           }
         }
+
+        // Pre-calculated pixel-Y label (for indicators with custom coordinate systems, e.g. VOL_SIMPLE)
+        // The indicator's draw function stores _lastValuePixelY and _lastValueText in extendData
+        const pixelY = extData?._lastValuePixelY
+        const pixelText = extData?._lastValueText
+        if (isNumber(pixelY) && typeof pixelText === 'string') {
+          const pixelLabelStyles = (extData?._lastValueLabelStyles ?? {}) as Record<string, unknown>
+          let px = 0
+          let pTextAlign: CanvasTextAlign = 'left'
+          if (yAxis.isFromZero()) {
+            px = 0
+            pTextAlign = 'left'
+          } else {
+            px = bounding.width
+            pTextAlign = 'right'
+          }
+          this.createFigure({
+            name: 'text',
+            attrs: { x: px, y: pixelY, text: pixelText, align: pTextAlign, baseline: 'middle' },
+            styles: { ...lastValueMarkTextStyles, ...pixelLabelStyles }
+          })?.draw(ctx)
+        }
       }
     })
   }
