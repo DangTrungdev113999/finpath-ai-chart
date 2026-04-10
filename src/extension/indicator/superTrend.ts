@@ -436,14 +436,55 @@ function drawControlPoints (
   yAxis: { convertToPixel: (v: number) => number },
   bgColor: string
 ): void {
-  // Collect vertex positions from both up and down trend lines
+  // Collect ONLY vertex positions where the step-line changes value or starts/ends.
+  // A vertex = first bar of a segment, last bar before a break, or where value changes.
   const points: Array<{ x: number; y: number }> = []
+
+  // eslint-disable-next-line @typescript-eslint/init-declarations -- intentionally undefined until first value
+  let prevUpVal: number | undefined
+  // eslint-disable-next-line @typescript-eslint/init-declarations -- intentionally undefined until first value
+  let prevDnVal: number | undefined
+  let prevUpStarted = false
+  let prevDnStarted = false
 
   for (let i = from; i < to && i < result.length; i++) {
     const item = result[i]
-    const val = item.up ?? item.dn
-    if (val == null) continue
-    points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(val) })
+
+    // Up trend vertices
+    if (item.up != null) {
+      if (!prevUpStarted || item.up !== prevUpVal) {
+        // Value changed or segment started — this is a vertex
+        points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(item.up) })
+      }
+      prevUpVal = item.up
+      prevUpStarted = true
+    } else {
+      if (prevUpStarted && i > from) {
+        // Segment ended at previous bar — add the last point
+        const prev = result[i - 1]
+        if (prev.up != null) {
+          points.push({ x: xAxis.convertToPixel(i - 1), y: yAxis.convertToPixel(prev.up) })
+        }
+      }
+      prevUpStarted = false
+    }
+
+    // Down trend vertices
+    if (item.dn != null) {
+      if (!prevDnStarted || item.dn !== prevDnVal) {
+        points.push({ x: xAxis.convertToPixel(i), y: yAxis.convertToPixel(item.dn) })
+      }
+      prevDnVal = item.dn
+      prevDnStarted = true
+    } else {
+      if (prevDnStarted && i > from) {
+        const prev = result[i - 1]
+        if (prev.dn != null) {
+          points.push({ x: xAxis.convertToPixel(i - 1), y: yAxis.convertToPixel(prev.dn) })
+        }
+      }
+      prevDnStarted = false
+    }
   }
 
   // Draw each control point
