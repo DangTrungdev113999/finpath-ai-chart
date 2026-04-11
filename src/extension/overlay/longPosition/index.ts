@@ -202,6 +202,25 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
       ignoreEvent: true
     })
 
+    // ── 5b. Diagonal dashed line (entry-left → TP-right) ──
+    figures.push({
+      key: 'lp_diagonal',
+      type: 'line',
+      attrs: {
+        coordinates: [
+          { x: leftX, y: entryY },
+          { x: leftX + zoneWidth, y: targetY }
+        ]
+      },
+      styles: {
+        style: 'dashed',
+        color: ext.lineColor,
+        size: 1,
+        dashedValue: [4, 4]
+      },
+      ignoreEvent: true
+    })
+
     // ── 6. Hitbox (transparent, catches events) ──
     const hitTop = Math.min(targetY, entryY, stopY)
     const hitBottom = Math.max(targetY, entryY, stopY)
@@ -302,7 +321,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         })
       }
 
-      // ── Entry label: 2 lines, red bg, teal border, smart repositioning ──
+      // ── Entry label: 2 lines, dynamic bg (green if profit, red if loss), white border ──
       {
         const line1 = formatEntryLabel(stats, ext.compact, precision)
         const line2 = formatEntryLabelLine2(stats, ext.compact)
@@ -323,19 +342,20 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         let entryLabelY = entryY - entryLabelH / 2
         if (entryLabelW > zoneWidth) {
           if (tpZoneHeight >= slZoneHeight) {
-            // TP zone is taller → shift label UP (above entry, overlapping TP zone)
             entryLabelY = entryY - entryLabelH - 5
           } else {
-            // SL zone is taller → shift label DOWN (below entry, overlapping SL zone)
             entryLabelY = entryY + 5
           }
         }
+
+        // Dynamic bg: green when in profit, red when in loss
+        const entryBgColor = stats.openPL >= 0 ? tpSolid : slSolid
 
         figures.push({
           key: 'lp_entry_label_bg',
           type: 'rect',
           attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
-          styles: { style: 'stroke_fill', color: slSolid, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
+          styles: { style: 'stroke_fill', color: entryBgColor, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
           ignoreEvent: true
         })
 
