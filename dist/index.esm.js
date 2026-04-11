@@ -8766,7 +8766,7 @@ var ENTRY_LABEL_LINE_GAP = 2; // gap between 2 lines of entry label
 /**
  * Long Position utility functions — calculations and label formatting
  */
-function calculateStats(entryPrice, targetPrice, stopPrice, ext) {
+function calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext) {
     var tpDiff = targetPrice - entryPrice;
     var slDiff = entryPrice - stopPrice;
     var tpPct = entryPrice !== 0 ? (tpDiff / entryPrice) * 100 : 0;
@@ -8780,7 +8780,8 @@ function calculateStats(entryPrice, targetPrice, stopPrice, ext) {
     var qty = slDiff !== 0 ? Math.floor(riskAmount / slDiff) : 0;
     var amountTarget = tpDiff * qty;
     var amountStop = slDiff * qty;
-    return { tpDiff: tpDiff, slDiff: slDiff, tpPct: tpPct, slPct: slPct, rrRatio: rrRatio, tpTicks: tpTicks, slTicks: slTicks, qty: qty, amountTarget: amountTarget, amountStop: amountStop };
+    var openPL = currentPrice - entryPrice;
+    return { tpDiff: tpDiff, slDiff: slDiff, tpPct: tpPct, slPct: slPct, rrRatio: rrRatio, tpTicks: tpTicks, slTicks: slTicks, qty: qty, amountTarget: amountTarget, amountStop: amountStop, openPL: openPL };
 }
 // ═══════════════════════════════════════
 // Label text formatting
@@ -8802,9 +8803,9 @@ function formatTpLabel(stats, compact, precision) {
 }
 function formatEntryLabel(stats, compact, precision) {
     if (compact) {
-        return "".concat(fmtNum(stats.amountTarget, precision), " - ").concat(stats.qty);
+        return "".concat(fmtNum(stats.openPL, precision), " - ").concat(stats.qty);
     }
-    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.amountTarget, precision), ", S.Lg: ").concat(stats.qty);
+    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.openPL, precision), ", S.Lg: ").concat(stats.qty);
 }
 function formatEntryLabelLine2(stats, compact) {
     if (compact)
@@ -8863,7 +8864,7 @@ var longPosition = {
     needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h, _j;
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
         var ext = getExt(overlay.extendData);
         // ── Missing points: show minimal preview ──
@@ -8890,7 +8891,7 @@ var longPosition = {
                 }];
         }
         // ── Full rendering with 4 points ──
-        var _k = __read(coordinates, 4), c1 = _k[0], c2 = _k[1], c3 = _k[2], c4 = _k[3];
+        var _m = __read(coordinates, 4), c1 = _m[0], c2 = _m[1], c3 = _m[2], c4 = _m[3];
         var leftX = Math.min(c1.x, c4.x);
         var rightX = Math.max(c1.x, c4.x);
         var entryY = c1.y;
@@ -9023,7 +9024,10 @@ var longPosition = {
             var targetPrice = (_g = (_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.value) !== null && _g !== void 0 ? _g : 0;
             var stopPrice = (_j = (_h = overlay.points[2]) === null || _h === void 0 ? void 0 : _h.value) !== null && _j !== void 0 ? _j : 0;
             var precision = ext.pricePrecision;
-            var stats = calculateStats(entryPrice, targetPrice, stopPrice, ext);
+            // Get current market price for open P&L calculation
+            var dataList = chart.getDataList();
+            var currentPrice = dataList.length > 0 ? ((_l = (_k = dataList[dataList.length - 1]) === null || _k === void 0 ? void 0 : _k.close) !== null && _l !== void 0 ? _l : entryPrice) : entryPrice;
+            var stats = calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext);
             var fontSize = ext.fontSize;
             var labelTextColor = ext.textColor;
             var tpSolid = rgbaToSolid(ext.profitBackground);
@@ -9105,7 +9109,7 @@ var longPosition = {
                     key: 'lp_entry_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
-                    styles: { style: 'stroke_fill', color: slSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
+                    styles: { style: 'stroke_fill', color: slSolid, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
                 // Line 1
@@ -9284,6 +9288,41 @@ var longPosition = {
                 },
                 ignoreEvent: true
             });
+        }
+        return figures;
+    },
+    createXAxisFigures: function (_a) {
+        var _b;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
+        if (coordinates.length < 1)
+            return [];
+        var figures = [];
+        // Show entry date label on X-axis (only when selected)
+        var x = coordinates[0].x;
+        if (x >= 0 && x <= bounding.width) {
+            var entryTimestamp = (_b = overlay.points[0]) === null || _b === void 0 ? void 0 : _b.timestamp;
+            if (entryTimestamp != null) {
+                var d = new Date(entryTimestamp);
+                var day = d.getDate();
+                var month = d.getMonth() + 1;
+                var year = d.getFullYear() % 100;
+                var dateText = "".concat(day, " Thg ").concat(month, " '").concat(year);
+                figures.push({
+                    type: 'text',
+                    attrs: { x: x, y: 0, text: dateText, align: 'center', baseline: 'top' },
+                    styles: {
+                        color: '#ffffff',
+                        backgroundColor: '#2962FF',
+                        paddingLeft: 6,
+                        paddingRight: 6,
+                        paddingTop: 3,
+                        paddingBottom: 3,
+                        borderRadius: 2,
+                        size: 11
+                    },
+                    ignoreEvent: true
+                });
+            }
         }
         return figures;
     },
