@@ -73,11 +73,12 @@ export function formatTpLabel (stats: LongPositionStats, compact: boolean, preci
   return `M\u1EE5c ti\u00EAu: ${fmtNum(stats.tpDiff, precision)} (${fmtPct(stats.tpPct)}%) ${stats.tpTicks}, S\u1ED1 ti\u1EC1n: ${fmtNum(stats.amountTarget, precision)}`
 }
 
-export function formatEntryLabel (stats: LongPositionStats, compact: boolean, precision: number): string {
+export function formatEntryLabel (stats: LongPositionStats, compact: boolean, precision: number, isClosed = false): string {
+  const prefix = isClosed ? '\u0110\u00F3ng' : 'M\u1EDF'
   if (compact) {
     return `${fmtNum(stats.openPL, precision)} - ${stats.qty}`
   }
-  return `M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.openPL, precision)}, S.Lg: ${stats.qty}`
+  return `${prefix} L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.openPL, precision)}, S.Lg: ${stats.qty}`
 }
 
 export function formatEntryLabelLine2 (stats: LongPositionStats, compact: boolean): string {

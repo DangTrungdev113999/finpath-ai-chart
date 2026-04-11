@@ -202,22 +202,92 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
       ignoreEvent: true
     })
 
-    // ── 5b. Diagonal dashed line (entry-left → TP-right) ──
+    // ── 5b. Trade simulation: scan bars P1→P4 for TP/SL hits ──
+    const dataList = chart.getDataList()
+    const p1Idx = overlay.points[0]?.dataIndex ?? 0
+    const p4Idx = overlay.points[3]?.dataIndex ?? (dataList.length - 1)
+    const entryPrice = overlay.points[0]?.value ?? 0
+    const targetPrice = overlay.points[1]?.value ?? 0
+    const stopPrice = overlay.points[2]?.value ?? 0
+
+    let tpHitIdx = -1
+    let slHitIdx = -1
+    const scanEnd = Math.min(p4Idx, dataList.length - 1)
+    for (let i = p1Idx; i <= scanEnd; i++) {
+      const bar = dataList[i]
+      if (tpHitIdx < 0 && bar.high >= targetPrice) tpHitIdx = i
+      if (slHitIdx < 0 && bar.low <= stopPrice) slHitIdx = i
+    }
+
+    let tradeResult: 'tp' | 'sl' | 'open' = 'open'
+    if (tpHitIdx >= 0 && slHitIdx >= 0) {
+      tradeResult = tpHitIdx <= slHitIdx ? 'tp' : 'sl'
+    } else if (tpHitIdx >= 0) {
+      tradeResult = 'tp'
+    } else if (slHitIdx >= 0) {
+      tradeResult = 'sl'
+    }
+
+    // Compute projected shape end position + P&L value
+    const p1X = leftX
+    const p4X = rightX
+    let shapeEndX = p4X
+    let shapeEndY = entryY
+    let tradePL = 0
+
+    if (tradeResult === 'tp') {
+      // TP hit: shape ends at hit bar, diagonal UP to targetY
+      tradePL = targetPrice - entryPrice
+      shapeEndX = p4Idx !== p1Idx
+        ? p1X + (tpHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+        : p4X
+      shapeEndY = targetY
+    } else if (tradeResult === 'sl') {
+      // SL hit: shape ends at hit bar, diagonal DOWN to stopY
+      tradePL = -(entryPrice - stopPrice)
+      shapeEndX = p4Idx !== p1Idx
+        ? p1X + (slHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+        : p4X
+      shapeEndY = stopY
+    } else {
+      // Open: use close of last bar in range
+      const rightBarIdx = Math.min(p4Idx, dataList.length - 1)
+      const closePrice = rightBarIdx >= 0 ? (dataList[rightBarIdx]?.close ?? entryPrice) : entryPrice
+      tradePL = closePrice - entryPrice
+      // Convert closePrice to pixel Y using linear interpolation from known points
+      if (targetPrice !== entryPrice) {
+        shapeEndY = entryY - (closePrice - entryPrice) / (targetPrice - entryPrice) * (entryY - targetY)
+      }
+    }
+
+    // ── 5c. Projected shape (filled rectangle from entry to hit/close) ──
+    if (Math.abs(shapeEndY - entryY) > 1 && Math.abs(shapeEndX - leftX) > 1) {
+      const projColor = tradePL >= 0 ? ext.profitBackground : ext.stopBackground
+      figures.push({
+        key: 'lp_projected',
+        type: 'rect',
+        attrs: {
+          x: leftX,
+          y: Math.min(entryY, shapeEndY),
+          width: Math.abs(shapeEndX - leftX),
+          height: Math.abs(shapeEndY - entryY)
+        },
+        styles: { style: 'fill', color: projColor },
+        ignoreEvent: true
+      })
+    }
+
+    // ── 5d. Diagonal dashed line (entry → projected end) ──
     figures.push({
       key: 'lp_diagonal',
       type: 'line',
       attrs: {
         coordinates: [
           { x: leftX, y: entryY },
-          { x: leftX + zoneWidth, y: targetY }
+          { x: shapeEndX, y: shapeEndY }
         ]
       },
-      styles: {
-        style: 'dashed',
-        color: ext.lineColor,
-        size: 1,
-        dashedValue: [4, 4]
-      },
+      styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
       ignoreEvent: true
     })
 
@@ -253,16 +323,10 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
     // SL label: BELOW red zone, red bg + red border
     const showLabels = ext.alwaysShowStats || isHoveredOrSelected
     if (showLabels) {
-      const entryPrice = overlay.points[0]?.value ?? 0
-      const targetPrice = overlay.points[1]?.value ?? 0
-      const stopPrice = overlay.points[2]?.value ?? 0
       const precision = ext.pricePrecision
+      const isClosed = tradeResult !== 'open'
 
-      // Get current market price for open P&L calculation
-      const dataList = chart.getDataList()
-      const currentPrice = dataList.length > 0 ? (dataList[dataList.length - 1]?.close ?? entryPrice) : entryPrice
-
-      const stats = calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext)
+      const stats = calculateStats(entryPrice, targetPrice, stopPrice, tradePL + entryPrice, ext)
 
       const fontSize = ext.fontSize
       const labelTextColor = ext.textColor
@@ -323,7 +387,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
 
       // ── Entry label: 2 lines, dynamic bg (green if profit, red if loss), white border ──
       {
-        const line1 = formatEntryLabel(stats, ext.compact, precision)
+        const line1 = formatEntryLabel(stats, ext.compact, precision, isClosed)
         const line2 = formatEntryLabelLine2(stats, ext.compact)
         const hasLine2 = line2.length > 0
 
