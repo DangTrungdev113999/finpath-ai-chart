@@ -210,86 +210,89 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
     const targetPrice = overlay.points[1]?.value ?? 0
     const stopPrice = overlay.points[2]?.value ?? 0
 
+    // Check if ANY candles exist within shape range
+    const scanStart = Math.max(p1Idx, 0)
+    const scanEnd = Math.min(p4Idx, dataList.length - 1)
+    const hasBarsInRange = scanStart <= scanEnd && scanStart < dataList.length
+
     let tpHitIdx = -1
     let slHitIdx = -1
-    const scanEnd = Math.min(p4Idx, dataList.length - 1)
-    for (let i = p1Idx; i <= scanEnd; i++) {
-      const bar = dataList[i]
-      if (tpHitIdx < 0 && bar.high >= targetPrice) tpHitIdx = i
-      if (slHitIdx < 0 && bar.low <= stopPrice) slHitIdx = i
-    }
-
     let tradeResult: 'tp' | 'sl' | 'open' = 'open'
-    if (tpHitIdx >= 0 && slHitIdx >= 0) {
-      tradeResult = tpHitIdx <= slHitIdx ? 'tp' : 'sl'
-    } else if (tpHitIdx >= 0) {
-      tradeResult = 'tp'
-    } else if (slHitIdx >= 0) {
-      tradeResult = 'sl'
-    }
-
-    // Compute projected shape end position + P&L value
-    const p1X = leftX
-    const p4X = rightX
-    let shapeEndX = p4X
-    let shapeEndY = entryY
     let tradePL = 0
 
-    if (tradeResult === 'tp') {
-      // TP hit: shape ends at hit bar, diagonal UP to targetY
-      tradePL = targetPrice - entryPrice
-      shapeEndX = p4Idx !== p1Idx
-        ? p1X + (tpHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
-        : p4X
-      shapeEndY = targetY
-    } else if (tradeResult === 'sl') {
-      // SL hit: shape ends at hit bar, diagonal DOWN to stopY
-      tradePL = -(entryPrice - stopPrice)
-      shapeEndX = p4Idx !== p1Idx
-        ? p1X + (slHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
-        : p4X
-      shapeEndY = stopY
-    } else {
-      // Open: use close of last bar in range
-      const rightBarIdx = Math.min(p4Idx, dataList.length - 1)
-      const closePrice = rightBarIdx >= 0 ? (dataList[rightBarIdx]?.close ?? entryPrice) : entryPrice
-      tradePL = closePrice - entryPrice
-      // Convert closePrice to pixel Y using linear interpolation from known points
-      if (targetPrice !== entryPrice) {
-        shapeEndY = entryY - (closePrice - entryPrice) / (targetPrice - entryPrice) * (entryY - targetY)
+    if (hasBarsInRange) {
+      for (let i = scanStart; i <= scanEnd; i++) {
+        const bar = dataList[i]
+        if (tpHitIdx < 0 && bar.high >= targetPrice) tpHitIdx = i
+        if (slHitIdx < 0 && bar.low <= stopPrice) slHitIdx = i
       }
-    }
 
-    // ── 5c. Projected shape (filled rectangle from entry to hit/close) ──
-    if (Math.abs(shapeEndY - entryY) > 1 && Math.abs(shapeEndX - leftX) > 1) {
-      const projColor = tradePL >= 0 ? ext.profitBackground : ext.stopBackground
+      if (tpHitIdx >= 0 && slHitIdx >= 0) {
+        tradeResult = tpHitIdx <= slHitIdx ? 'tp' : 'sl'
+      } else if (tpHitIdx >= 0) {
+        tradeResult = 'tp'
+      } else if (slHitIdx >= 0) {
+        tradeResult = 'sl'
+      }
+
+      // Compute projected shape end position + P&L value
+      const p1X = leftX
+      const p4X = rightX
+      let shapeEndX = p4X
+      let shapeEndY = entryY
+
+      if (tradeResult === 'tp') {
+        tradePL = targetPrice - entryPrice
+        shapeEndX = p4Idx !== p1Idx
+          ? p1X + (tpHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+          : p4X
+        shapeEndY = targetY
+      } else if (tradeResult === 'sl') {
+        tradePL = -(entryPrice - stopPrice)
+        shapeEndX = p4Idx !== p1Idx
+          ? p1X + (slHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+          : p4X
+        shapeEndY = stopY
+      } else {
+        const closePrice = dataList[scanEnd]?.close ?? entryPrice
+        tradePL = closePrice - entryPrice
+        if (targetPrice !== entryPrice) {
+          shapeEndY = entryY - (closePrice - entryPrice) / (targetPrice - entryPrice) * (entryY - targetY)
+        }
+      }
+
+      // ── 5c. Projected shape (filled rectangle from entry to hit/close) ──
+      if (Math.abs(shapeEndY - entryY) > 1 && Math.abs(shapeEndX - leftX) > 1) {
+        const projColor = tradePL >= 0 ? ext.profitBackground : ext.stopBackground
+        figures.push({
+          key: 'lp_projected',
+          type: 'rect',
+          attrs: {
+            x: leftX,
+            y: Math.min(entryY, shapeEndY),
+            width: Math.abs(shapeEndX - leftX),
+            height: Math.abs(shapeEndY - entryY)
+          },
+          styles: { style: 'fill', color: projColor },
+          ignoreEvent: true
+        })
+      }
+
+      // ── 5d. Diagonal dashed line (entry → projected end) ──
       figures.push({
-        key: 'lp_projected',
-        type: 'rect',
+        key: 'lp_diagonal',
+        type: 'line',
         attrs: {
-          x: leftX,
-          y: Math.min(entryY, shapeEndY),
-          width: Math.abs(shapeEndX - leftX),
-          height: Math.abs(shapeEndY - entryY)
+          coordinates: [
+            { x: leftX, y: entryY },
+            { x: shapeEndX, y: shapeEndY }
+          ]
         },
-        styles: { style: 'fill', color: projColor },
+        styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
         ignoreEvent: true
       })
     }
-
-    // ── 5d. Diagonal dashed line (entry → projected end) ──
-    figures.push({
-      key: 'lp_diagonal',
-      type: 'line',
-      attrs: {
-        coordinates: [
-          { x: leftX, y: entryY },
-          { x: shapeEndX, y: shapeEndY }
-        ]
-      },
-      styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
-      ignoreEvent: true
-    })
+    // When hasBarsInRange is false (no candles) → no diagonal, no projected shape
 
     // ── 6. Hitbox (transparent, catches events) ──
     const hitTop = Math.min(targetY, entryY, stopY)
