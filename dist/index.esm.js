@@ -8778,8 +8778,8 @@ function calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext) {
         ? ext.accountSize * (ext.risk / 100)
         : ext.risk;
     var qty = slDiff !== 0 ? Math.floor(riskAmount / slDiff) : 0;
-    var amountTarget = tpDiff * qty;
-    var amountStop = slDiff * qty;
+    var amountTarget = ext.accountSize + tpDiff * qty;
+    var amountStop = ext.accountSize - slDiff * qty;
     var openPL = currentPrice - entryPrice;
     return { tpDiff: tpDiff, slDiff: slDiff, tpPct: tpPct, slPct: slPct, rrRatio: rrRatio, tpTicks: tpTicks, slTicks: slTicks, qty: qty, amountTarget: amountTarget, amountStop: amountStop, openPL: openPL };
 }
