@@ -8760,7 +8760,7 @@ var LABEL_PADDING_H = 10;
 var LABEL_PADDING_V = 5;
 var LABEL_BORDER_RADIUS = 6;
 var LABEL_BORDER_SIZE = 1.5;
-var LABEL_GAP = 5; // gap between label and zone edge
+var LABEL_GAP = 10; // gap between label and zone edge
 var ENTRY_LABEL_LINE_GAP = 2; // gap between 2 lines of entry label
 
 /**
