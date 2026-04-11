@@ -326,10 +326,11 @@ export default class Event implements EventHandler {
           const consumed = widget.dispatchEvent('mouseMoveEvent', event)
           let crosshair: Crosshair | undefined = { x: event.x, y: event.y, paneId: pane?.getId() }
           if (consumed) {
-            if (widget.getForceCursor() !== 'pointer') {
+            const forceCursor = widget.getForceCursor()
+            if (forceCursor == null) {
               crosshair = undefined
             }
-            widget.setCursor('pointer')
+            widget.setCursor(forceCursor ?? 'pointer')
           } else {
             const hoverInfo = this._findIndicatorAtPoint(pane, event.x, event.y)
             if (hoverInfo !== null) {
