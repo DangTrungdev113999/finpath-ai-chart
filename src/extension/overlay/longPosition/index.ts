@@ -239,7 +239,11 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
       const stopPrice = overlay.points[2]?.value ?? 0
       const precision = ext.pricePrecision
 
-      const stats = calculateStats(entryPrice, targetPrice, stopPrice, ext)
+      // Get current market price for open P&L calculation
+      const dataList = chart.getDataList()
+      const currentPrice = dataList.length > 0 ? (dataList[dataList.length - 1]?.close ?? entryPrice) : entryPrice
+
+      const stats = calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext)
 
       const fontSize = ext.fontSize
       const labelTextColor = ext.textColor
@@ -331,7 +335,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
           key: 'lp_entry_label_bg',
           type: 'rect',
           attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
-          styles: { style: 'stroke_fill', color: slSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
+          styles: { style: 'stroke_fill', color: slSolid, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
           ignoreEvent: true
         })
 
@@ -520,6 +524,43 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         },
         ignoreEvent: true
       })
+    }
+
+    return figures
+  },
+
+  createXAxisFigures: ({ overlay, coordinates, bounding }) => {
+    if (coordinates.length < 1) return []
+
+    const figures: OverlayFigure[] = []
+
+    // Show entry date label on X-axis (only when selected)
+    const x = coordinates[0].x
+    if (x >= 0 && x <= bounding.width) {
+      const entryTimestamp = overlay.points[0]?.timestamp
+      if (entryTimestamp != null) {
+        const d = new Date(entryTimestamp)
+        const day = d.getDate()
+        const month = d.getMonth() + 1
+        const year = d.getFullYear() % 100
+        const dateText = `${day} Thg ${month} '${year}`
+
+        figures.push({
+          type: 'text',
+          attrs: { x, y: 0, text: dateText, align: 'center' as CanvasTextAlign, baseline: 'top' as CanvasTextBaseline },
+          styles: {
+            color: '#ffffff',
+            backgroundColor: '#2962FF',
+            paddingLeft: 6,
+            paddingRight: 6,
+            paddingTop: 3,
+            paddingBottom: 3,
+            borderRadius: 2,
+            size: 11
+          },
+          ignoreEvent: true
+        })
+      }
     }
 
     return figures

@@ -20,12 +20,14 @@ export interface LongPositionStats {
   qty: number
   amountTarget: number
   amountStop: number
+  openPL: number // currentPrice - entryPrice (raw price difference)
 }
 
 export function calculateStats (
   entryPrice: number,
   targetPrice: number,
   stopPrice: number,
+  currentPrice: number,
   ext: LongPositionExtendData
 ): LongPositionStats {
   const tpDiff = targetPrice - entryPrice
@@ -43,8 +45,9 @@ export function calculateStats (
   const qty = slDiff !== 0 ? Math.floor(riskAmount / slDiff) : 0
   const amountTarget = tpDiff * qty
   const amountStop = slDiff * qty
+  const openPL = currentPrice - entryPrice
 
-  return { tpDiff, slDiff, tpPct, slPct, rrRatio, tpTicks, slTicks, qty, amountTarget, amountStop }
+  return { tpDiff, slDiff, tpPct, slPct, rrRatio, tpTicks, slTicks, qty, amountTarget, amountStop, openPL }
 }
 
 // ═══════════════════════════════════════
@@ -72,9 +75,9 @@ export function formatTpLabel (stats: LongPositionStats, compact: boolean, preci
 
 export function formatEntryLabel (stats: LongPositionStats, compact: boolean, precision: number): string {
   if (compact) {
-    return `${fmtNum(stats.amountTarget, precision)} - ${stats.qty}`
+    return `${fmtNum(stats.openPL, precision)} - ${stats.qty}`
   }
-  return `M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.amountTarget, precision)}, S.Lg: ${stats.qty}`
+  return `M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.openPL, precision)}, S.Lg: ${stats.qty}`
 }
 
 export function formatEntryLabelLine2 (stats: LongPositionStats, compact: boolean): string {
