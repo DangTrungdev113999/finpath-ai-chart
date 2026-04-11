@@ -76,4 +76,4 @@ export const LONG_POSITION_DEFAULTS: LongPositionExtendData = {
 // Label layout
 export const LABEL_PADDING_H = 8
 export const LABEL_PADDING_V = 6
-export const LABEL_BORDER_RADIUS = 3
+export const LABEL_BORDER_RADIUS = 4

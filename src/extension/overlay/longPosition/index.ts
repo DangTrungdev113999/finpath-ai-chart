@@ -245,7 +245,9 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
       const showTpLabel = tpZoneHeight >= labelMinHeight
       const showSlLabel = slZoneHeight >= labelMinHeight
 
-      const labelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent'
+      const tpLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.profitBackground) : 'transparent'
+      const slLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.stopBackground) : 'transparent'
+      const entryLabelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent'
       const labelTextColor = ext.textColor
 
       // TP label (centered inside green zone)
@@ -268,7 +270,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
           },
           styles: {
             style: 'fill',
-            color: labelBg,
+            color: tpLabelBg,
             borderRadius: LABEL_BORDER_RADIUS
           },
           ignoreEvent: true
@@ -312,7 +314,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
           },
           styles: {
             style: 'fill',
-            color: labelBg,
+            color: entryLabelBg,
             borderRadius: LABEL_BORDER_RADIUS
           },
           ignoreEvent: true
@@ -357,7 +359,7 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
           },
           styles: {
             style: 'fill',
-            color: labelBg,
+            color: slLabelBg,
             borderRadius: LABEL_BORDER_RADIUS
           },
           ignoreEvent: true
