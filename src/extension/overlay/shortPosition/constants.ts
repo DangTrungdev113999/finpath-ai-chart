@@ -54,7 +54,7 @@ export const SHORT_POSITION_DEFAULTS: ShortPositionExtendData = {
   riskDisplayMode: 'percents',
   tickMultiplier: 100,
   lineColor: '#787B86',
-  lineWidth: 4,
+  lineWidth: 1,
   lineStyle: 'solid',
   stopBackground: 'rgba(242, 54, 69, 0.2)',
   profitBackground: 'rgba(8, 153, 129, 0.2)',
