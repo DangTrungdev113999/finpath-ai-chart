@@ -8756,9 +8756,12 @@ var LONG_POSITION_DEFAULTS = {
     pricePrecision: 2
 };
 // Label layout
-var LABEL_PADDING_H = 8;
-var LABEL_PADDING_V = 6;
-var LABEL_BORDER_RADIUS = 4;
+var LABEL_PADDING_H = 10;
+var LABEL_PADDING_V = 5;
+var LABEL_BORDER_RADIUS = 6;
+var LABEL_BORDER_SIZE = 1.5;
+var LABEL_GAP = 5; // gap between label and zone edge
+var ENTRY_LABEL_LINE_GAP = 2; // gap between 2 lines of entry label
 
 /**
  * Long Position utility functions — calculations and label formatting
@@ -8801,7 +8804,12 @@ function formatEntryLabel(stats, compact, precision) {
     if (compact) {
         return "".concat(fmtNum(stats.amountTarget, precision), " - ").concat(stats.qty);
     }
-    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.amountTarget, precision), ", S.Lg: ").concat(stats.qty, ", T\u1EF7 l\u1EC7 R\u1EE7i ro/L\u1EE3i nhu\u1EADn: ").concat(fmtRatio(stats.rrRatio));
+    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.amountTarget, precision), ", S.Lg: ").concat(stats.qty);
+}
+function formatEntryLabelLine2(stats, compact) {
+    if (compact)
+        return '';
+    return "T\u1EF7 l\u1EC7 R\u1EE7i ro/L\u1EE3i nhu\u1EADn: ".concat(fmtRatio(stats.rrRatio));
 }
 function formatSlLabel(stats, compact, precision) {
     if (compact) {
@@ -9005,7 +9013,10 @@ var longPosition = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
         var isHoveredOrSelected = isSelected || isHovered;
-        // ── 7-12. Labels ──
+        // ── 7-12. Labels (TradingView style) ──
+        // TP label: ABOVE green zone, teal bg + teal border
+        // Entry label: centered on entry line (2 lines), red bg + teal border, smart repositioning
+        // SL label: BELOW red zone, red bg + red border
         var showLabels = ext.alwaysShowStats || isHoveredOrSelected;
         if (showLabels) {
             var entryPrice = (_e = (_d = overlay.points[0]) === null || _d === void 0 ? void 0 : _d.value) !== null && _e !== void 0 ? _e : 0;
@@ -9014,139 +9025,111 @@ var longPosition = {
             var precision = ext.pricePrecision;
             var stats = calculateStats(entryPrice, targetPrice, stopPrice, ext);
             var fontSize = ext.fontSize;
-            var labelMinHeight = fontSize + 2 * LABEL_PADDING_V;
+            var labelTextColor = ext.textColor;
+            var tpSolid = rgbaToSolid(ext.profitBackground);
+            var slSolid = rgbaToSolid(ext.stopBackground);
             var tpZoneHeight = Math.abs(entryY - targetY);
             var slZoneHeight = Math.abs(stopY - entryY);
-            var showTpLabel = tpZoneHeight >= labelMinHeight;
-            var showSlLabel = slZoneHeight >= labelMinHeight;
-            var tpLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.profitBackground) : 'transparent';
-            var slLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.stopBackground) : 'transparent';
-            var entryLabelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent';
-            var labelTextColor = ext.textColor;
-            // TP label (centered inside green zone)
-            if (showTpLabel) {
+            var centerX = leftX + zoneWidth / 2;
+            // ── TP label: ABOVE green zone ──
+            {
                 var tpText = formatTpLabel(stats, ext.compact, precision);
-                var tpTextWidth = calcTextWidth(tpText, fontSize);
-                var tpLabelW = tpTextWidth + 2 * LABEL_PADDING_H;
+                var tpTextW = calcTextWidth(tpText, fontSize);
+                var tpLabelW = tpTextW + 2 * LABEL_PADDING_H;
                 var tpLabelH = fontSize + 2 * LABEL_PADDING_V;
-                var tpCenterX = leftX + zoneWidth / 2;
-                var tpCenterY = Math.min(targetY, entryY) + tpZoneHeight / 2;
+                var tpLabelY = Math.min(targetY, entryY) - tpLabelH - LABEL_GAP;
                 figures.push({
                     key: 'lp_tp_label_bg',
                     type: 'rect',
-                    attrs: {
-                        x: tpCenterX - tpLabelW / 2,
-                        y: tpCenterY - tpLabelH / 2,
-                        width: tpLabelW,
-                        height: tpLabelH
-                    },
-                    styles: {
-                        style: 'fill',
-                        color: tpLabelBg,
-                        borderRadius: LABEL_BORDER_RADIUS
-                    },
+                    attrs: { x: centerX - tpLabelW / 2, y: tpLabelY, width: tpLabelW, height: tpLabelH },
+                    styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
                 figures.push({
                     key: 'lp_tp_label_text',
                     type: 'text',
-                    attrs: {
-                        x: tpCenterX,
-                        y: tpCenterY,
-                        text: tpText,
-                        align: 'center',
-                        baseline: 'middle'
-                    },
-                    styles: {
-                        color: labelTextColor,
-                        size: fontSize,
-                        backgroundColor: 'transparent'
-                    },
+                    attrs: { x: centerX, y: tpLabelY + tpLabelH / 2, text: tpText, align: 'center', baseline: 'middle' },
+                    styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
                     ignoreEvent: true
                 });
             }
-            // Entry label (centered on entry line)
+            // ── SL label: BELOW red zone ──
             {
-                var entryText = formatEntryLabel(stats, ext.compact, precision);
-                var entryTextWidth = calcTextWidth(entryText, fontSize);
-                var entryLabelW = entryTextWidth + 2 * LABEL_PADDING_H;
-                var entryLabelH = fontSize + 2 * LABEL_PADDING_V;
-                var entryCenterX = leftX + zoneWidth / 2;
-                figures.push({
-                    key: 'lp_entry_label_bg',
-                    type: 'rect',
-                    attrs: {
-                        x: entryCenterX - entryLabelW / 2,
-                        y: entryY - entryLabelH / 2,
-                        width: entryLabelW,
-                        height: entryLabelH
-                    },
-                    styles: {
-                        style: 'fill',
-                        color: entryLabelBg,
-                        borderRadius: LABEL_BORDER_RADIUS
-                    },
-                    ignoreEvent: true
-                });
-                figures.push({
-                    key: 'lp_entry_label_text',
-                    type: 'text',
-                    attrs: {
-                        x: entryCenterX,
-                        y: entryY,
-                        text: entryText,
-                        align: 'center',
-                        baseline: 'middle'
-                    },
-                    styles: {
-                        color: labelTextColor,
-                        size: fontSize,
-                        backgroundColor: 'transparent'
-                    },
-                    ignoreEvent: true
-                });
-            }
-            // SL label (centered inside red zone)
-            if (showSlLabel) {
                 var slText = formatSlLabel(stats, ext.compact, precision);
-                var slTextWidth = calcTextWidth(slText, fontSize);
-                var slLabelW = slTextWidth + 2 * LABEL_PADDING_H;
+                var slTextW = calcTextWidth(slText, fontSize);
+                var slLabelW = slTextW + 2 * LABEL_PADDING_H;
                 var slLabelH = fontSize + 2 * LABEL_PADDING_V;
-                var slCenterX = leftX + zoneWidth / 2;
-                var slCenterY = Math.min(entryY, stopY) + slZoneHeight / 2;
+                var slLabelY = Math.max(stopY, entryY) + LABEL_GAP;
                 figures.push({
                     key: 'lp_sl_label_bg',
                     type: 'rect',
-                    attrs: {
-                        x: slCenterX - slLabelW / 2,
-                        y: slCenterY - slLabelH / 2,
-                        width: slLabelW,
-                        height: slLabelH
-                    },
-                    styles: {
-                        style: 'fill',
-                        color: slLabelBg,
-                        borderRadius: LABEL_BORDER_RADIUS
-                    },
+                    attrs: { x: centerX - slLabelW / 2, y: slLabelY, width: slLabelW, height: slLabelH },
+                    styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
                 figures.push({
                     key: 'lp_sl_label_text',
                     type: 'text',
-                    attrs: {
-                        x: slCenterX,
-                        y: slCenterY,
-                        text: slText,
-                        align: 'center',
-                        baseline: 'middle'
-                    },
-                    styles: {
-                        color: labelTextColor,
-                        size: fontSize,
-                        backgroundColor: 'transparent'
-                    },
+                    attrs: { x: centerX, y: slLabelY + slLabelH / 2, text: slText, align: 'center', baseline: 'middle' },
+                    styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
                     ignoreEvent: true
                 });
+            }
+            // ── Entry label: 2 lines, red bg, teal border, smart repositioning ──
+            {
+                var line1 = formatEntryLabel(stats, ext.compact, precision);
+                var line2 = formatEntryLabelLine2(stats, ext.compact);
+                var hasLine2 = line2.length > 0;
+                var line1W = calcTextWidth(line1, fontSize);
+                var line2W = hasLine2 ? calcTextWidth(line2, fontSize) : 0;
+                var maxTextW = Math.max(line1W, line2W);
+                var entryLabelW = maxTextW + 2 * LABEL_PADDING_H;
+                var entryLabelH = hasLine2
+                    ? 2 * fontSize + ENTRY_LABEL_LINE_GAP + 2 * LABEL_PADDING_V
+                    : fontSize + 2 * LABEL_PADDING_V;
+                // Smart Y positioning:
+                // Default: centered on entry line
+                // If label is wider than zone → move to the taller zone area
+                var entryLabelY = entryY - entryLabelH / 2;
+                if (entryLabelW > zoneWidth) {
+                    if (tpZoneHeight >= slZoneHeight) {
+                        // TP zone is taller → shift label UP (above entry, overlapping TP zone)
+                        entryLabelY = entryY - entryLabelH - 5;
+                    }
+                    else {
+                        // SL zone is taller → shift label DOWN (below entry, overlapping SL zone)
+                        entryLabelY = entryY + 5;
+                    }
+                }
+                figures.push({
+                    key: 'lp_entry_label_bg',
+                    type: 'rect',
+                    attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
+                    styles: { style: 'stroke_fill', color: slSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
+                    ignoreEvent: true
+                });
+                // Line 1
+                var line1Y = hasLine2
+                    ? entryLabelY + LABEL_PADDING_V + fontSize / 2
+                    : entryLabelY + entryLabelH / 2;
+                figures.push({
+                    key: 'lp_entry_label_text1',
+                    type: 'text',
+                    attrs: { x: centerX, y: line1Y, text: line1, align: 'center', baseline: 'middle' },
+                    styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+                // Line 2 (if not compact)
+                if (hasLine2) {
+                    var line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP;
+                    figures.push({
+                        key: 'lp_entry_label_text2',
+                        type: 'text',
+                        attrs: { x: centerX, y: line2Y, text: line2, align: 'center', baseline: 'middle' },
+                        styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
+                        ignoreEvent: true
+                    });
+                }
             }
         }
         // ── 13-16. Control points (only when selected or hovered) ──
