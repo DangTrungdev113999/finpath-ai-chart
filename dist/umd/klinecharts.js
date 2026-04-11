@@ -8806,11 +8806,13 @@ function formatTpLabel(stats, compact, precision) {
     }
     return "M\u1EE5c ti\u00EAu: ".concat(fmtNum(stats.tpDiff, precision), " (").concat(fmtPct(stats.tpPct), "%) ").concat(stats.tpTicks, ", S\u1ED1 ti\u1EC1n: ").concat(fmtNum(stats.amountTarget, precision));
 }
-function formatEntryLabel(stats, compact, precision) {
+function formatEntryLabel(stats, compact, precision, isClosed) {
+    if (isClosed === void 0) { isClosed = false; }
+    var prefix = isClosed ? '\u0110\u00F3ng' : 'M\u1EDF';
     if (compact) {
         return "".concat(fmtNum(stats.openPL, precision), " - ").concat(stats.qty);
     }
-    return "M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ".concat(fmtNum(stats.openPL, precision), ", S.Lg: ").concat(stats.qty);
+    return "".concat(prefix, " L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ").concat(fmtNum(stats.openPL, precision), ", S.Lg: ").concat(stats.qty);
 }
 function formatEntryLabelLine2(stats, compact) {
     if (compact)
@@ -8869,7 +8871,7 @@ var longPosition = {
     needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
         var ext = getExt(overlay.extendData);
         // ── Missing points: show minimal preview ──
@@ -8896,7 +8898,7 @@ var longPosition = {
                 }];
         }
         // ── Full rendering with 4 points ──
-        var _m = __read(coordinates, 4), c1 = _m[0], c2 = _m[1], c3 = _m[2], c4 = _m[3];
+        var _r = __read(coordinates, 4), c1 = _r[0], c2 = _r[1], c3 = _r[2], c4 = _r[3];
         var leftX = Math.min(c1.x, c4.x);
         var rightX = Math.max(c1.x, c4.x);
         var entryY = c1.y;
@@ -8995,22 +8997,92 @@ var longPosition = {
             },
             ignoreEvent: true
         });
-        // ── 5b. Diagonal dashed line (entry-left → TP-right) ──
+        // ── 5b. Trade simulation: scan bars P1→P4 for TP/SL hits ──
+        var dataList = chart.getDataList();
+        var p1Idx = (_c = (_b = overlay.points[0]) === null || _b === void 0 ? void 0 : _b.dataIndex) !== null && _c !== void 0 ? _c : 0;
+        var p4Idx = (_e = (_d = overlay.points[3]) === null || _d === void 0 ? void 0 : _d.dataIndex) !== null && _e !== void 0 ? _e : (dataList.length - 1);
+        var entryPrice = (_g = (_f = overlay.points[0]) === null || _f === void 0 ? void 0 : _f.value) !== null && _g !== void 0 ? _g : 0;
+        var targetPrice = (_j = (_h = overlay.points[1]) === null || _h === void 0 ? void 0 : _h.value) !== null && _j !== void 0 ? _j : 0;
+        var stopPrice = (_l = (_k = overlay.points[2]) === null || _k === void 0 ? void 0 : _k.value) !== null && _l !== void 0 ? _l : 0;
+        var tpHitIdx = -1;
+        var slHitIdx = -1;
+        var scanEnd = Math.min(p4Idx, dataList.length - 1);
+        for (var i = p1Idx; i <= scanEnd; i++) {
+            var bar = dataList[i];
+            if (tpHitIdx < 0 && bar.high >= targetPrice)
+                tpHitIdx = i;
+            if (slHitIdx < 0 && bar.low <= stopPrice)
+                slHitIdx = i;
+        }
+        var tradeResult = 'open';
+        if (tpHitIdx >= 0 && slHitIdx >= 0) {
+            tradeResult = tpHitIdx <= slHitIdx ? 'tp' : 'sl';
+        }
+        else if (tpHitIdx >= 0) {
+            tradeResult = 'tp';
+        }
+        else if (slHitIdx >= 0) {
+            tradeResult = 'sl';
+        }
+        // Compute projected shape end position + P&L value
+        var p1X = leftX;
+        var p4X = rightX;
+        var shapeEndX = p4X;
+        var shapeEndY = entryY;
+        var tradePL = 0;
+        if (tradeResult === 'tp') {
+            // TP hit: shape ends at hit bar, diagonal UP to targetY
+            tradePL = targetPrice - entryPrice;
+            shapeEndX = p4Idx !== p1Idx
+                ? p1X + (tpHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+                : p4X;
+            shapeEndY = targetY;
+        }
+        else if (tradeResult === 'sl') {
+            // SL hit: shape ends at hit bar, diagonal DOWN to stopY
+            tradePL = -(entryPrice - stopPrice);
+            shapeEndX = p4Idx !== p1Idx
+                ? p1X + (slHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
+                : p4X;
+            shapeEndY = stopY;
+        }
+        else {
+            // Open: use close of last bar in range
+            var rightBarIdx = Math.min(p4Idx, dataList.length - 1);
+            var closePrice = rightBarIdx >= 0 ? ((_o = (_m = dataList[rightBarIdx]) === null || _m === void 0 ? void 0 : _m.close) !== null && _o !== void 0 ? _o : entryPrice) : entryPrice;
+            tradePL = closePrice - entryPrice;
+            // Convert closePrice to pixel Y using linear interpolation from known points
+            if (targetPrice !== entryPrice) {
+                shapeEndY = entryY - (closePrice - entryPrice) / (targetPrice - entryPrice) * (entryY - targetY);
+            }
+        }
+        // ── 5c. Projected shape (filled rectangle from entry to hit/close) ──
+        if (Math.abs(shapeEndY - entryY) > 1 && Math.abs(shapeEndX - leftX) > 1) {
+            var projColor = tradePL >= 0 ? ext.profitBackground : ext.stopBackground;
+            figures.push({
+                key: 'lp_projected',
+                type: 'rect',
+                attrs: {
+                    x: leftX,
+                    y: Math.min(entryY, shapeEndY),
+                    width: Math.abs(shapeEndX - leftX),
+                    height: Math.abs(shapeEndY - entryY)
+                },
+                styles: { style: 'fill', color: projColor },
+                ignoreEvent: true
+            });
+        }
+        // ── 5d. Diagonal dashed line (entry → projected end) ──
         figures.push({
             key: 'lp_diagonal',
             type: 'line',
             attrs: {
                 coordinates: [
                     { x: leftX, y: entryY },
-                    { x: leftX + zoneWidth, y: targetY }
+                    { x: shapeEndX, y: shapeEndY }
                 ]
             },
-            styles: {
-                style: 'dashed',
-                color: ext.lineColor,
-                size: 1,
-                dashedValue: [4, 4]
-            },
+            styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
             ignoreEvent: true
         });
         // ── 6. Hitbox (transparent, catches events) ──
@@ -9033,9 +9105,9 @@ var longPosition = {
         });
         // ── Selection state detection ──
         var chartStore = chart.getChartStore();
-        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var isSelected = ((_p = chartStore.getClickOverlayInfo().overlay) === null || _p === void 0 ? void 0 : _p.id) === overlay.id;
         var hoverInfo = chartStore.getHoverOverlayInfo();
-        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isHovered = ((_q = hoverInfo.overlay) === null || _q === void 0 ? void 0 : _q.id) === overlay.id && hoverInfo.figureType !== 'none';
         var isHoveredOrSelected = isSelected || isHovered;
         // ── 7-12. Labels (TradingView style) ──
         // TP label: ABOVE green zone, teal bg + teal border
@@ -9043,14 +9115,9 @@ var longPosition = {
         // SL label: BELOW red zone, red bg + red border
         var showLabels = ext.alwaysShowStats || isHoveredOrSelected;
         if (showLabels) {
-            var entryPrice = (_e = (_d = overlay.points[0]) === null || _d === void 0 ? void 0 : _d.value) !== null && _e !== void 0 ? _e : 0;
-            var targetPrice = (_g = (_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.value) !== null && _g !== void 0 ? _g : 0;
-            var stopPrice = (_j = (_h = overlay.points[2]) === null || _h === void 0 ? void 0 : _h.value) !== null && _j !== void 0 ? _j : 0;
             var precision = ext.pricePrecision;
-            // Get current market price for open P&L calculation
-            var dataList = chart.getDataList();
-            var currentPrice = dataList.length > 0 ? ((_l = (_k = dataList[dataList.length - 1]) === null || _k === void 0 ? void 0 : _k.close) !== null && _l !== void 0 ? _l : entryPrice) : entryPrice;
-            var stats = calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext);
+            var isClosed = tradeResult !== 'open';
+            var stats = calculateStats(entryPrice, targetPrice, stopPrice, tradePL + entryPrice, ext);
             var fontSize = ext.fontSize;
             var labelTextColor = ext.textColor;
             var tpSolid = rgbaToSolid(ext.profitBackground);
@@ -9104,7 +9171,7 @@ var longPosition = {
             }
             // ── Entry label: 2 lines, dynamic bg (green if profit, red if loss), white border ──
             {
-                var line1 = formatEntryLabel(stats, ext.compact, precision);
+                var line1 = formatEntryLabel(stats, ext.compact, precision, isClosed);
                 var line2 = formatEntryLabelLine2(stats, ext.compact);
                 var hasLine2 = line2.length > 0;
                 var line1W = calcTextWidth(line1, fontSize);
