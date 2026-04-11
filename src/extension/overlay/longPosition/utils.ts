@@ -43,8 +43,8 @@ export function calculateStats (
     ? ext.accountSize * (ext.risk / 100)
     : ext.risk
   const qty = slDiff !== 0 ? Math.floor(riskAmount / slDiff) : 0
-  const amountTarget = tpDiff * qty
-  const amountStop = slDiff * qty
+  const amountTarget = ext.accountSize + tpDiff * qty
+  const amountStop = ext.accountSize - slDiff * qty
   const openPL = currentPrice - entryPrice
 
   return { tpDiff, slDiff, tpPct, slPct, rrRatio, tpTicks, slTicks, qty, amountTarget, amountStop, openPL }
