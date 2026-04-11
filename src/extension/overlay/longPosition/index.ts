@@ -204,11 +204,17 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
 
     // ── 5b. Trade simulation: scan bars P1→P4 for TP/SL hits ──
     const dataList = chart.getDataList()
-    const p1Idx = overlay.points[0]?.dataIndex ?? 0
-    const p4Idx = overlay.points[3]?.dataIndex ?? (dataList.length - 1)
     const entryPrice = overlay.points[0]?.value ?? 0
     const targetPrice = overlay.points[1]?.value ?? 0
     const stopPrice = overlay.points[2]?.value ?? 0
+
+    // Derive bar indices from pixel coordinates (reliable, not dependent on dataIndex)
+    const convertResult = chart.convertFromPixel(
+      [{ x: c1.x }, { x: c4.x }],
+      { paneId: overlay.paneId }
+    ) as Array<Partial<{ dataIndex: number; value: number }>>
+    const p1Idx = Math.max(convertResult[0]?.dataIndex ?? 0, 0)
+    const p4Idx = Math.min(convertResult[1]?.dataIndex ?? (dataList.length - 1), dataList.length - 1)
 
     // Check if ANY candles exist within shape range
     const scanStart = Math.max(p1Idx, 0)
@@ -217,12 +223,15 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
 
     let tpHitIdx = -1
     let slHitIdx = -1
+    let entryBarIdx = -1 // first bar where close crosses entry price
     let tradeResult: 'tp' | 'sl' | 'open' = 'open'
     let tradePL = 0
 
     if (hasBarsInRange) {
       for (let i = scanStart; i <= scanEnd; i++) {
         const bar = dataList[i]
+        // Find first bar where close >= entry (trade "enters" the market)
+        if (entryBarIdx < 0 && bar.close >= entryPrice) entryBarIdx = i
         if (tpHitIdx < 0 && bar.high >= targetPrice) tpHitIdx = i
         if (slHitIdx < 0 && bar.low <= stopPrice) slHitIdx = i
       }
@@ -235,23 +244,27 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         tradeResult = 'sl'
       }
 
+      // Projected shape start: first bar where close >= entry (not P1)
+      // If no entry bar found, use P1
+      const projStartIdx = entryBarIdx >= 0 ? entryBarIdx : scanStart
+
       // Compute projected shape end position + P&L value
-      const p1X = leftX
-      const p4X = rightX
-      let shapeEndX = p4X
+      const idxToX = (idx: number): number => {
+        if (p4Idx === p1Idx) return rightX
+        return leftX + (idx - p1Idx) / (p4Idx - p1Idx) * (rightX - leftX)
+      }
+
+      const shapeStartX = idxToX(projStartIdx)
+      let shapeEndX = rightX
       let shapeEndY = entryY
 
       if (tradeResult === 'tp') {
         tradePL = targetPrice - entryPrice
-        shapeEndX = p4Idx !== p1Idx
-          ? p1X + (tpHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
-          : p4X
+        shapeEndX = idxToX(tpHitIdx)
         shapeEndY = targetY
       } else if (tradeResult === 'sl') {
         tradePL = -(entryPrice - stopPrice)
-        shapeEndX = p4Idx !== p1Idx
-          ? p1X + (slHitIdx - p1Idx) / (p4Idx - p1Idx) * (p4X - p1X)
-          : p4X
+        shapeEndX = idxToX(slHitIdx)
         shapeEndY = stopY
       } else {
         const closePrice = dataList[scanEnd]?.close ?? entryPrice
@@ -261,16 +274,17 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         }
       }
 
-      // ── 5c. Projected shape (filled rectangle from entry to hit/close) ──
-      if (Math.abs(shapeEndY - entryY) > 1 && Math.abs(shapeEndX - leftX) > 1) {
+      // ── 5c. Projected shape (from entry bar to hit/close bar) ──
+      const projWidth = Math.abs(shapeEndX - shapeStartX)
+      if (Math.abs(shapeEndY - entryY) > 1 && projWidth > 1) {
         const projColor = tradePL >= 0 ? ext.profitBackground : ext.stopBackground
         figures.push({
           key: 'lp_projected',
           type: 'rect',
           attrs: {
-            x: leftX,
+            x: Math.min(shapeStartX, shapeEndX),
             y: Math.min(entryY, shapeEndY),
-            width: Math.abs(shapeEndX - leftX),
+            width: projWidth,
             height: Math.abs(shapeEndY - entryY)
           },
           styles: { style: 'fill', color: projColor },
@@ -278,19 +292,21 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
         })
       }
 
-      // ── 5d. Diagonal dashed line (entry → projected end) ──
-      figures.push({
-        key: 'lp_diagonal',
-        type: 'line',
-        attrs: {
-          coordinates: [
-            { x: leftX, y: entryY },
-            { x: shapeEndX, y: shapeEndY }
-          ]
-        },
-        styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
-        ignoreEvent: true
-      })
+      // ── 5d. Diagonal dashed line (entry bar → projected end) ──
+      if (projWidth > 1) {
+        figures.push({
+          key: 'lp_diagonal',
+          type: 'line',
+          attrs: {
+            coordinates: [
+              { x: shapeStartX, y: entryY },
+              { x: shapeEndX, y: shapeEndY }
+            ]
+          },
+          styles: { style: 'dashed', color: ext.lineColor, size: 1, dashedValue: [4, 4] },
+          ignoreEvent: true
+        })
+      }
     }
     // When hasBarsInRange is false (no candles) → no diagonal, no projected shape
 
