@@ -14,11 +14,12 @@ import { formatPrecision } from '../../../common/utils/format'
 import type { LongPositionExtendData } from './constants'
 import {
   LONG_POSITION_DEFAULTS,
-  LABEL_PADDING_H, LABEL_PADDING_V, LABEL_BORDER_RADIUS,
+  LABEL_PADDING_H, LABEL_PADDING_V, LABEL_BORDER_RADIUS, LABEL_BORDER_SIZE,
+  LABEL_GAP, ENTRY_LABEL_LINE_GAP,
   CP_COLOR, CP_RADIUS, CP_CIRCLE_BORDER,
   CP_MID_SIZE, CP_MID_BORDER, CP_MID_BORDER_RADIUS
 } from './constants'
-import { calculateStats, formatTpLabel, formatEntryLabel, formatSlLabel } from './utils'
+import { calculateStats, formatTpLabel, formatEntryLabel, formatEntryLabelLine2, formatSlLabel } from './utils'
 
 // ═══════════════════════════════════════
 // Helpers
@@ -227,7 +228,10 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
     const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
     const isHoveredOrSelected = isSelected || isHovered
 
-    // ── 7-12. Labels ──
+    // ── 7-12. Labels (TradingView style) ──
+    // TP label: ABOVE green zone, teal bg + teal border
+    // Entry label: centered on entry line (2 lines), red bg + teal border, smart repositioning
+    // SL label: BELOW red zone, red bg + red border
     const showLabels = ext.alwaysShowStats || isHoveredOrSelected
     if (showLabels) {
       const entryPrice = overlay.points[0]?.value ?? 0
@@ -238,150 +242,122 @@ const longPosition: OverlayTemplate<LongPositionExtendData> = {
       const stats = calculateStats(entryPrice, targetPrice, stopPrice, ext)
 
       const fontSize = ext.fontSize
-      const labelMinHeight = fontSize + 2 * LABEL_PADDING_V
+      const labelTextColor = ext.textColor
+      const tpSolid = rgbaToSolid(ext.profitBackground)
+      const slSolid = rgbaToSolid(ext.stopBackground)
 
       const tpZoneHeight = Math.abs(entryY - targetY)
       const slZoneHeight = Math.abs(stopY - entryY)
-      const showTpLabel = tpZoneHeight >= labelMinHeight
-      const showSlLabel = slZoneHeight >= labelMinHeight
+      const centerX = leftX + zoneWidth / 2
 
-      const tpLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.profitBackground) : 'transparent'
-      const slLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.stopBackground) : 'transparent'
-      const entryLabelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent'
-      const labelTextColor = ext.textColor
-
-      // TP label (centered inside green zone)
-      if (showTpLabel) {
+      // ── TP label: ABOVE green zone ──
+      {
         const tpText = formatTpLabel(stats, ext.compact, precision)
-        const tpTextWidth = calcTextWidth(tpText, fontSize)
-        const tpLabelW = tpTextWidth + 2 * LABEL_PADDING_H
+        const tpTextW = calcTextWidth(tpText, fontSize)
+        const tpLabelW = tpTextW + 2 * LABEL_PADDING_H
         const tpLabelH = fontSize + 2 * LABEL_PADDING_V
-        const tpCenterX = leftX + zoneWidth / 2
-        const tpCenterY = Math.min(targetY, entryY) + tpZoneHeight / 2
+        const tpLabelY = Math.min(targetY, entryY) - tpLabelH - LABEL_GAP
 
         figures.push({
           key: 'lp_tp_label_bg',
           type: 'rect',
-          attrs: {
-            x: tpCenterX - tpLabelW / 2,
-            y: tpCenterY - tpLabelH / 2,
-            width: tpLabelW,
-            height: tpLabelH
-          },
-          styles: {
-            style: 'fill',
-            color: tpLabelBg,
-            borderRadius: LABEL_BORDER_RADIUS
-          },
+          attrs: { x: centerX - tpLabelW / 2, y: tpLabelY, width: tpLabelW, height: tpLabelH },
+          styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
           ignoreEvent: true
         })
-
         figures.push({
           key: 'lp_tp_label_text',
           type: 'text',
-          attrs: {
-            x: tpCenterX,
-            y: tpCenterY,
-            text: tpText,
-            align: 'center',
-            baseline: 'middle'
-          },
-          styles: {
-            color: labelTextColor,
-            size: fontSize,
-            backgroundColor: 'transparent'
-          },
+          attrs: { x: centerX, y: tpLabelY + tpLabelH / 2, text: tpText, align: 'center', baseline: 'middle' },
+          styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
           ignoreEvent: true
         })
       }
 
-      // Entry label (centered on entry line)
+      // ── SL label: BELOW red zone ──
       {
-        const entryText = formatEntryLabel(stats, ext.compact, precision)
-        const entryTextWidth = calcTextWidth(entryText, fontSize)
-        const entryLabelW = entryTextWidth + 2 * LABEL_PADDING_H
-        const entryLabelH = fontSize + 2 * LABEL_PADDING_V
-        const entryCenterX = leftX + zoneWidth / 2
-
-        figures.push({
-          key: 'lp_entry_label_bg',
-          type: 'rect',
-          attrs: {
-            x: entryCenterX - entryLabelW / 2,
-            y: entryY - entryLabelH / 2,
-            width: entryLabelW,
-            height: entryLabelH
-          },
-          styles: {
-            style: 'fill',
-            color: entryLabelBg,
-            borderRadius: LABEL_BORDER_RADIUS
-          },
-          ignoreEvent: true
-        })
-
-        figures.push({
-          key: 'lp_entry_label_text',
-          type: 'text',
-          attrs: {
-            x: entryCenterX,
-            y: entryY,
-            text: entryText,
-            align: 'center',
-            baseline: 'middle'
-          },
-          styles: {
-            color: labelTextColor,
-            size: fontSize,
-            backgroundColor: 'transparent'
-          },
-          ignoreEvent: true
-        })
-      }
-
-      // SL label (centered inside red zone)
-      if (showSlLabel) {
         const slText = formatSlLabel(stats, ext.compact, precision)
-        const slTextWidth = calcTextWidth(slText, fontSize)
-        const slLabelW = slTextWidth + 2 * LABEL_PADDING_H
+        const slTextW = calcTextWidth(slText, fontSize)
+        const slLabelW = slTextW + 2 * LABEL_PADDING_H
         const slLabelH = fontSize + 2 * LABEL_PADDING_V
-        const slCenterX = leftX + zoneWidth / 2
-        const slCenterY = Math.min(entryY, stopY) + slZoneHeight / 2
+        const slLabelY = Math.max(stopY, entryY) + LABEL_GAP
 
         figures.push({
           key: 'lp_sl_label_bg',
           type: 'rect',
-          attrs: {
-            x: slCenterX - slLabelW / 2,
-            y: slCenterY - slLabelH / 2,
-            width: slLabelW,
-            height: slLabelH
-          },
-          styles: {
-            style: 'fill',
-            color: slLabelBg,
-            borderRadius: LABEL_BORDER_RADIUS
-          },
+          attrs: { x: centerX - slLabelW / 2, y: slLabelY, width: slLabelW, height: slLabelH },
+          styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
           ignoreEvent: true
         })
-
         figures.push({
           key: 'lp_sl_label_text',
           type: 'text',
-          attrs: {
-            x: slCenterX,
-            y: slCenterY,
-            text: slText,
-            align: 'center',
-            baseline: 'middle'
-          },
-          styles: {
-            color: labelTextColor,
-            size: fontSize,
-            backgroundColor: 'transparent'
-          },
+          attrs: { x: centerX, y: slLabelY + slLabelH / 2, text: slText, align: 'center', baseline: 'middle' },
+          styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
           ignoreEvent: true
         })
+      }
+
+      // ── Entry label: 2 lines, red bg, teal border, smart repositioning ──
+      {
+        const line1 = formatEntryLabel(stats, ext.compact, precision)
+        const line2 = formatEntryLabelLine2(stats, ext.compact)
+        const hasLine2 = line2.length > 0
+
+        const line1W = calcTextWidth(line1, fontSize)
+        const line2W = hasLine2 ? calcTextWidth(line2, fontSize) : 0
+        const maxTextW = Math.max(line1W, line2W)
+
+        const entryLabelW = maxTextW + 2 * LABEL_PADDING_H
+        const entryLabelH = hasLine2
+          ? 2 * fontSize + ENTRY_LABEL_LINE_GAP + 2 * LABEL_PADDING_V
+          : fontSize + 2 * LABEL_PADDING_V
+
+        // Smart Y positioning:
+        // Default: centered on entry line
+        // If label is wider than zone → move to the taller zone area
+        let entryLabelY = entryY - entryLabelH / 2
+        if (entryLabelW > zoneWidth) {
+          if (tpZoneHeight >= slZoneHeight) {
+            // TP zone is taller → shift label UP (above entry, overlapping TP zone)
+            entryLabelY = entryY - entryLabelH - 5
+          } else {
+            // SL zone is taller → shift label DOWN (below entry, overlapping SL zone)
+            entryLabelY = entryY + 5
+          }
+        }
+
+        figures.push({
+          key: 'lp_entry_label_bg',
+          type: 'rect',
+          attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
+          styles: { style: 'stroke_fill', color: slSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
+          ignoreEvent: true
+        })
+
+        // Line 1
+        const line1Y = hasLine2
+          ? entryLabelY + LABEL_PADDING_V + fontSize / 2
+          : entryLabelY + entryLabelH / 2
+        figures.push({
+          key: 'lp_entry_label_text1',
+          type: 'text',
+          attrs: { x: centerX, y: line1Y, text: line1, align: 'center', baseline: 'middle' },
+          styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
+          ignoreEvent: true
+        })
+
+        // Line 2 (if not compact)
+        if (hasLine2) {
+          const line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP
+          figures.push({
+            key: 'lp_entry_label_text2',
+            type: 'text',
+            attrs: { x: centerX, y: line2Y, text: line2, align: 'center', baseline: 'middle' },
+            styles: { color: labelTextColor, size: fontSize, backgroundColor: 'transparent' },
+            ignoreEvent: true
+          })
+        }
       }
     }
 

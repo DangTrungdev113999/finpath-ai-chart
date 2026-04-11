@@ -74,7 +74,12 @@ export function formatEntryLabel (stats: LongPositionStats, compact: boolean, pr
   if (compact) {
     return `${fmtNum(stats.amountTarget, precision)} - ${stats.qty}`
   }
-  return `M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.amountTarget, precision)}, S.Lg: ${stats.qty}, T\u1EF7 l\u1EC7 R\u1EE7i ro/L\u1EE3i nhu\u1EADn: ${fmtRatio(stats.rrRatio)}`
+  return `M\u1EDF L\u1EE3i nhu\u1EADn & Thua l\u1ED7: ${fmtNum(stats.amountTarget, precision)}, S.Lg: ${stats.qty}`
+}
+
+export function formatEntryLabelLine2 (stats: LongPositionStats, compact: boolean): string {
+  if (compact) return ''
+  return `T\u1EF7 l\u1EC7 R\u1EE7i ro/L\u1EE3i nhu\u1EADn: ${fmtRatio(stats.rrRatio)}`
 }
 
 export function formatSlLabel (stats: LongPositionStats, compact: boolean, precision: number): string {

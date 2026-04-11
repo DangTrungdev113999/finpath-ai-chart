@@ -74,6 +74,9 @@ export const LONG_POSITION_DEFAULTS: LongPositionExtendData = {
 }
 
 // Label layout
-export const LABEL_PADDING_H = 8
-export const LABEL_PADDING_V = 6
-export const LABEL_BORDER_RADIUS = 4
+export const LABEL_PADDING_H = 10
+export const LABEL_PADDING_V = 5
+export const LABEL_BORDER_RADIUS = 6
+export const LABEL_BORDER_SIZE = 1.5
+export const LABEL_GAP = 5 // gap between label and zone edge
+export const ENTRY_LABEL_LINE_GAP = 2 // gap between 2 lines of entry label
