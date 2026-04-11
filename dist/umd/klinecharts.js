@@ -8763,7 +8763,7 @@ var LONG_POSITION_DEFAULTS = {
 // Label layout
 var LABEL_PADDING_H = 8;
 var LABEL_PADDING_V = 6;
-var LABEL_BORDER_RADIUS = 3;
+var LABEL_BORDER_RADIUS = 4;
 
 /**
  * Long Position utility functions — calculations and label formatting
@@ -9024,7 +9024,9 @@ var longPosition = {
             var slZoneHeight = Math.abs(stopY - entryY);
             var showTpLabel = tpZoneHeight >= labelMinHeight;
             var showSlLabel = slZoneHeight >= labelMinHeight;
-            var labelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent';
+            var tpLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.profitBackground) : 'transparent';
+            var slLabelBg = ext.fillLabelBackground ? rgbaToSolid(ext.stopBackground) : 'transparent';
+            var entryLabelBg = ext.fillLabelBackground ? ext.labelBackgroundColor : 'transparent';
             var labelTextColor = ext.textColor;
             // TP label (centered inside green zone)
             if (showTpLabel) {
@@ -9045,7 +9047,7 @@ var longPosition = {
                     },
                     styles: {
                         style: 'fill',
-                        color: labelBg,
+                        color: tpLabelBg,
                         borderRadius: LABEL_BORDER_RADIUS
                     },
                     ignoreEvent: true
@@ -9086,7 +9088,7 @@ var longPosition = {
                     },
                     styles: {
                         style: 'fill',
-                        color: labelBg,
+                        color: entryLabelBg,
                         borderRadius: LABEL_BORDER_RADIUS
                     },
                     ignoreEvent: true
@@ -9128,7 +9130,7 @@ var longPosition = {
                     },
                     styles: {
                         style: 'fill',
-                        color: labelBg,
+                        color: slLabelBg,
                         borderRadius: LABEL_BORDER_RADIUS
                     },
                     ignoreEvent: true
