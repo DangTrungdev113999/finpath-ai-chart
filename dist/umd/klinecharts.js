@@ -6764,6 +6764,336 @@ var finpathSupportResistanceWithBreaks = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// Default palette — BRD §3.2
+var FP_MACD_DEFAULTS = {
+    macdColor: '#68C296',
+    signalColor: '#D94040',
+    histPosRisingColor: '#008000',
+    histNegDeepeningColor: '#FF0000',
+    histPosFallingColor: '#80FF00',
+    histNegLighteningColor: '#FF8080',
+    sellColor: '#FF0000',
+    buyColor: '#00FF00'
+};
+var MARKER_RADIUS = 4;
+/**
+ * Recursive EMA with seed — matches legacy helper `t(e, t, n, r)`.
+ * @param values  source series (length may exceed `period`)
+ * @param period  smoothing window
+ * @param seed    seed value (previous EMA, or priceClose[1] / macdArray[0] on warm-up)
+ * @param init    true → iterate full array from index 1 (cold-start);
+ *                false → single-step update using last value only
+ */
+function ema(values, period, seed, init) {
+    var k = 2 / (period + 1);
+    var out = seed;
+    if (init) {
+        for (var i = 1; i < values.length; i++) {
+            out = values[i] * k + out * (1 - k);
+        }
+    }
+    else {
+        out = values[values.length - 1] * k + seed * (1 - k);
+    }
+    return out;
+}
+/**
+ * Trailing simple moving average over last `period` elements.
+ * Matches legacy helper `n(e, t)` — when values.length < period, averages available.
+ */
+function sma(values, period) {
+    var n = Math.min(values.length, period);
+    var sum = 0;
+    for (var i = values.length - n; i < values.length; i++) {
+        sum += values[i];
+    }
+    return sum / n;
+}
+var figures$1 = [
+    // plot_0 — MACD line  (#68C296)
+    {
+        key: 'macd',
+        title: 'MACD: ',
+        type: 'line',
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'lines[0].color', FP_MACD_DEFAULTS.macdColor);
+            return { color: color, size: 1 };
+        }
+    },
+    // plot_1 — Signal line  (#D94040)
+    {
+        key: 'signal',
+        title: 'Tín hiệu: ',
+        type: 'line',
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'lines[1].color', FP_MACD_DEFAULTS.signalColor);
+            return { color: color, size: 1 };
+        }
+    },
+    // plot_2 — Histogram positive & rising  (#008000)
+    {
+        key: 'histPosRising',
+        title: 'Biểu đồ tần suất dương tăng: ',
+        type: 'bar',
+        baseValue: 0,
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'bars[0].upColor', FP_MACD_DEFAULTS.histPosRisingColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    },
+    // plot_3 — Histogram negative & deepening  (#FF0000)
+    {
+        key: 'histNegDeepening',
+        title: 'Biểu đồ tần suất âm giảm: ',
+        type: 'bar',
+        baseValue: 0,
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'bars[1].downColor', FP_MACD_DEFAULTS.histNegDeepeningColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    },
+    // plot_4 — Histogram positive & falling  (#80FF00)
+    {
+        key: 'histPosFalling',
+        title: 'Biểu đồ tần suất dương giảm: ',
+        type: 'bar',
+        baseValue: 0,
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'bars[2].upColor', FP_MACD_DEFAULTS.histPosFallingColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    },
+    // plot_5 — Histogram negative & lightening  (#FF8080)
+    {
+        key: 'histNegLightening',
+        title: 'Biểu đồ tần suất âm tăng: ',
+        type: 'bar',
+        baseValue: 0,
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'bars[3].downColor', FP_MACD_DEFAULTS.histNegLighteningColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    },
+    // plot_6 — Sell marker (circle, #FF0000)
+    // `title: undefined` → auto-omitted from legend by `IndicatorTooltipView.ts:349`
+    // `isString(title)` gate. Renders on canvas regardless.
+    {
+        key: 'sellMarker',
+        type: 'circle',
+        attrs: function (_a) {
+            var coordinate = _a.coordinate;
+            return ({
+                x: coordinate.current.x,
+                y: coordinate.current.sellMarker,
+                r: MARKER_RADIUS
+            });
+        },
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'circles[0].downColor', FP_MACD_DEFAULTS.sellColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    },
+    // plot_7 — Buy marker (circle, #00FF00)
+    {
+        key: 'buyMarker',
+        type: 'circle',
+        attrs: function (_a) {
+            var coordinate = _a.coordinate;
+            return ({
+                x: coordinate.current.x,
+                y: coordinate.current.buyMarker,
+                r: MARKER_RADIUS
+            });
+        },
+        styles: function (_a) {
+            var indicator = _a.indicator;
+            var color = formatValue(indicator.styles, 'circles[1].upColor', FP_MACD_DEFAULTS.buyColor);
+            return { style: 'fill', color: color, borderColor: color };
+        }
+    }
+];
+var finpathMovingAverageConvergenceDivergence = {
+    name: 'FP-MACD',
+    shortName: 'FP MACD',
+    series: 'normal',
+    precision: 4,
+    shouldOhlc: false,
+    shouldFormatBigNumber: false,
+    calcParams: [26, 12, 9, 'EMA'],
+    figures: figures$1,
+    calc: function (dataList, indicator) {
+        var cp = indicator.calcParams;
+        // Silent clamps — AC-04. DO NOT mutate indicator.calcParams; legend must show
+        // the raw user-entered value even when effective period is clamped.
+        var slow = Math.max(cp[0], 15);
+        var fast = Math.max(cp[1], 5);
+        var signal = Math.max(cp[2], 2);
+        var method = cp[3];
+        // Running state — fresh each call (no cross-call leakage).
+        var priceClose = [];
+        var macdArray = [];
+        // slow-EMA state
+        var macdLong = 0;
+        // fast-EMA state
+        var macdShort = 0;
+        // signal-EMA/SMA state
+        var macdSignal = 0;
+        // -1 sentinel = "not yet initialized"
+        var prevMacdLong = -1;
+        var prevMacdShort = -1;
+        var prevMacdSignal = -1;
+        var macd = 0;
+        var prevMacd = 0;
+        var prevSignal = 0;
+        var histogram = 0;
+        var prevHistogram = Number.NEGATIVE_INFINITY;
+        var out = [];
+        for (var i = 0; i < dataList.length; i++) {
+            var close_1 = dataList[i].close;
+            priceClose.push(close_1);
+            var pcLen = priceClose.length;
+            // Default bar — warm-up period emits all zeros for histogram buckets
+            // so legend shows `0.0000` (NOT `--`) per AC-21.
+            // Markers default to undefined → figure pipeline skips them on warm-up.
+            var bar = {
+                macd: 0,
+                signal: 0,
+                histPosRising: 0,
+                histNegDeepening: 0,
+                histPosFalling: 0,
+                histNegLightening: 0
+            };
+            // Legacy gates eval on `count > 1` (1-based), i.e. i >= 1 here.
+            if (i >= 1) {
+                // Fast EMA — legacy: count > a + 1  →  i > fast
+                if (i > fast) {
+                    // cold-start seed / recursive step
+                    var newShort = prevMacdShort === -1
+                        ? ema(priceClose, fast, priceClose[1], true)
+                        : ema(priceClose, fast, macdShort, false);
+                    prevMacdShort = macdShort;
+                    macdShort = newShort;
+                    // Slow EMA — legacy: count > o + 1  →  i > slow
+                    if (i > slow) {
+                        var newLong = prevMacdLong === -1
+                            ? ema(priceClose, slow, priceClose[1], true)
+                            : ema(priceClose, slow, macdLong, false);
+                        prevMacdLong = macdLong;
+                        macdLong = newLong;
+                    }
+                    else {
+                        // Placeholder while slow still warming up — legacy lines:
+                        //   prevMACDLong = priceClose[h-2];  macdLong = priceClose[h-1]
+                        prevMacdLong = priceClose[pcLen - 2];
+                        macdLong = priceClose[pcLen - 1];
+                    }
+                    // MACD = fast - slow — snapshot prev BEFORE update (AC-07/08 depend on this).
+                    prevMacd = macd;
+                    macd = macdShort - macdLong;
+                    macdArray.push(macd);
+                    var maLen = macdArray.length;
+                    // Signal — legacy: count > o + l + 1  →  i > slow + signal
+                    if (i > slow + signal) {
+                        var newSignal = 0;
+                        if (method === 'SMA') {
+                            newSignal = sma(macdArray, signal);
+                        }
+                        else {
+                            newSignal = prevMacdSignal === -1
+                                ? ema(macdArray, signal, macdArray[0], true)
+                                : ema(macdArray, signal, macdSignal, false);
+                        }
+                        // Snapshot prev signal BEFORE overwriting (marker condition reads prevSignal).
+                        prevSignal = macdSignal;
+                        prevMacdSignal = macdSignal;
+                        macdSignal = newSignal;
+                    }
+                    else {
+                        // Placeholder while signal still warming up.
+                        prevSignal = maLen >= 2 ? macdArray[maLen - 2] : macdArray[maLen - 1];
+                        macdSignal = macdArray[maLen - 1];
+                    }
+                    // Bound macdArray — legacy: p > o + l → splice(0, 1)
+                    if (maLen > slow + signal) {
+                        macdArray.splice(0, 1);
+                    }
+                }
+                else {
+                    // Fast EMA still warming — legacy fallback.
+                    macdShort = priceClose[pcLen - 1];
+                    prevMacdShort = priceClose[pcLen - 2];
+                    macd = 0;
+                    macdSignal = 0;
+                }
+                // ─── Histogram — legacy step 8 ─────────────────────────────────
+                prevHistogram = histogram;
+                histogram = macd - macdSignal;
+                // (bar already has all 4 buckets = 0 from the default — we overwrite one)
+                if (histogram >= 0) {
+                    if (histogram >= prevHistogram) {
+                        // plot_2
+                        bar.histPosRising = histogram;
+                    }
+                    else {
+                        // plot_4
+                        bar.histPosFalling = histogram;
+                    }
+                }
+                else {
+                    if (histogram <= prevHistogram) {
+                        // plot_3
+                        bar.histNegDeepening = histogram;
+                    }
+                    else {
+                        // plot_5
+                        bar.histNegLightening = histogram;
+                    }
+                }
+                // ─── Markers — legacy steps 9 & 10 ─────────────────────────────
+                // Sell: prev MACD > prev Signal  AND  now MACD < Signal  AND  MACD > 0
+                if (prevMacd > prevSignal && macd < macdSignal && macd > 0) {
+                    bar.sellMarker = (0.1 * macd > 3) ? (macd + 3) : (1.1 * macd);
+                }
+                // Buy: prev MACD < prev Signal  AND  now MACD > Signal  AND  MACD < 0
+                //
+                // NOTE: when macd < 0, `0.1 * macd` is always negative → never > 3 →
+                // always `1.1 * macd` branch. Ternary preserved for 1:1 legacy parity (AC-08).
+                if (prevMacd < prevSignal && macd > macdSignal && macd < 0) {
+                    bar.buyMarker = (0.1 * macd > 3) ? (macd - 3) : (1.1 * macd);
+                }
+                bar.macd = macd;
+                bar.signal = macdSignal;
+                // Bound priceClose — legacy: count > o+l+1 → splice(0, 1)
+                if (i > slow + signal && priceClose.length > slow + signal + 1) {
+                    priceClose.splice(0, 1);
+                }
+            }
+            out.push(bar);
+        }
+        return out;
+    }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * WR
  * 公式 WR(N) = 100 * [ C - HIGH(N) ] / [ HIGH(N)-LOW(N) ]
@@ -6818,7 +7148,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, volumeRatio, williamsR
+    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, volumeRatio, williamsR
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
