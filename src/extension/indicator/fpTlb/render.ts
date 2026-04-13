@@ -183,24 +183,25 @@ function drawBreakoutLabels (
 }
 
 /**
- * TV `shape.labelup`: 12×12 rounded-body tag with a 4px downward arrow,
- * anchored at the break bar's `low`. "B" in white, 9px Arial.
+ * TV `shape.labelup`: 12×12 body BELOW the anchor with a 4px upward arrow
+ * tip touching the anchor (the break bar's `low`). "B" in white, 9px Arial.
  */
 function drawLabelUp (ctx: CanvasRenderingContext2D, x: number, y: number, bg: string): void {
   const w = 12
   const h = 12
   const pointer = 4
-  const topY = y - pointer - h
+  const bodyTop = y + pointer
+  const bodyBottom = bodyTop + h
   ctx.save()
   ctx.fillStyle = bg
   ctx.beginPath()
-  ctx.moveTo(x - w / 2, topY)
-  ctx.lineTo(x + w / 2, topY)
-  ctx.lineTo(x + w / 2, topY + h)
-  ctx.lineTo(x + pointer, topY + h)
-  ctx.lineTo(x, topY + h + pointer)
-  ctx.lineTo(x - pointer, topY + h)
-  ctx.lineTo(x - w / 2, topY + h)
+  ctx.moveTo(x, y) // arrow tip — points UP at anchor
+  ctx.lineTo(x + pointer, bodyTop) // right side of pointer base
+  ctx.lineTo(x + w / 2, bodyTop) // top-right of body
+  ctx.lineTo(x + w / 2, bodyBottom) // bottom-right
+  ctx.lineTo(x - w / 2, bodyBottom) // bottom-left
+  ctx.lineTo(x - w / 2, bodyTop) // top-left
+  ctx.lineTo(x - pointer, bodyTop) // left side of pointer base
   ctx.closePath()
   ctx.fill()
 
@@ -208,29 +209,30 @@ function drawLabelUp (ctx: CanvasRenderingContext2D, x: number, y: number, bg: s
   ctx.font = '9px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText('B', x, topY + h / 2)
+  ctx.fillText('B', x, bodyTop + h / 2)
   ctx.restore()
 }
 
 /**
- * TV `shape.labeldown`: mirror of labelup — 4px upward arrow + 12×12 body
- * anchored at the break bar's `high`.
+ * TV `shape.labeldown`: mirror of labelup — 12×12 body ABOVE the anchor with
+ * a 4px downward arrow tip touching the anchor (the break bar's `high`).
  */
 function drawLabelDown (ctx: CanvasRenderingContext2D, x: number, y: number, bg: string): void {
   const w = 12
   const h = 12
   const pointer = 4
-  const topY = y + pointer
+  const bodyBottom = y - pointer
+  const bodyTop = bodyBottom - h
   ctx.save()
   ctx.fillStyle = bg
   ctx.beginPath()
-  ctx.moveTo(x, topY - pointer)
-  ctx.lineTo(x + pointer, topY)
-  ctx.lineTo(x + w / 2, topY)
-  ctx.lineTo(x + w / 2, topY + h)
-  ctx.lineTo(x - w / 2, topY + h)
-  ctx.lineTo(x - w / 2, topY)
-  ctx.lineTo(x - pointer, topY)
+  ctx.moveTo(x, y) // arrow tip — points DOWN at anchor
+  ctx.lineTo(x + pointer, bodyBottom) // right side of pointer base
+  ctx.lineTo(x + w / 2, bodyBottom) // bottom-right of body
+  ctx.lineTo(x + w / 2, bodyTop) // top-right
+  ctx.lineTo(x - w / 2, bodyTop) // top-left
+  ctx.lineTo(x - w / 2, bodyBottom) // bottom-left
+  ctx.lineTo(x - pointer, bodyBottom) // left side of pointer base
   ctx.closePath()
   ctx.fill()
 
@@ -238,6 +240,6 @@ function drawLabelDown (ctx: CanvasRenderingContext2D, x: number, y: number, bg:
   ctx.font = '9px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText('B', x, topY + h / 2)
+  ctx.fillText('B', x, bodyTop + h / 2)
   ctx.restore()
 }
