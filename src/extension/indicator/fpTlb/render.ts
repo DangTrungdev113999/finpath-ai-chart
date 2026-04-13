@@ -53,7 +53,10 @@ export function drawTLB (
     drawDashedExtension(ctx, result, xAxis, yAxis, 'lower', dnColor, length, indexOffset)
   }
 
-  drawBreakoutLabels(ctx, result, from, to, xAxis, yAxis, upColor, dnColor, indexOffset)
+  // Pine `plotshape` has no `offset` argument in this script — breakout
+  // markers fire at the actual breakout bar regardless of `backpaint`. Pass
+  // 0 here so the labels stay anchored to bar `i`, not shifted with the lines.
+  drawBreakoutLabels(ctx, result, from, to, xAxis, yAxis, upColor, dnColor, 0)
 }
 
 /**
