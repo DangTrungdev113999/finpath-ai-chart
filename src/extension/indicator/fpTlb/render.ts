@@ -45,8 +45,8 @@ export function drawTLB (
   const backpaint = ext.backpaint ?? true
   const indexOffset = backpaint ? -length : 0
 
-  drawSegmentedLine(ctx, result, from, to, xAxis, yAxis, 'upper', upColor, 1, indexOffset)
-  drawSegmentedLine(ctx, result, from, to, xAxis, yAxis, 'lower', dnColor, 1, indexOffset)
+  drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset)
+  drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset)
 
   if (showExt) {
     drawDashedExtension(ctx, result, xAxis, yAxis, 'upper', upColor, length, indexOffset)
@@ -60,14 +60,21 @@ export function drawTLB (
 }
 
 /**
- * Solid per-bar line. `undefined` values (at pivot-confirm bars or warmup)
- * naturally break the stroke, producing the required single-bar gap.
+ * Solid trend-line draw. Between two pivot-confirm bars (both emit
+ * `undefined` → segment break), the state machine guarantees `upper`/`lower`
+ * is LINEAR in bar index (`upperState -= slopePh` with constant `slopePh`).
+ * So each contiguous non-undefined run is collapsed to a SINGLE straight
+ * line from first-point to last-point — bypassing the per-bar integer
+ * pixel snap (`Math.floor` in `dataIndexToCoordinate`) that would otherwise
+ * cause visible zigzag waviness at fractional bar spacing.
+ *
+ * Scans the full data range (not just `[from,to]`): with `indexOffset = -length`
+ * (backpaint) a run's endpoints may sit outside the visible data-index window
+ * while still being on-screen in pixel space.
  */
 function drawSegmentedLine (
   ctx: CanvasRenderingContext2D,
   result: TLBData[],
-  from: number,
-  to: number,
   xAxis: AxisConv,
   yAxis: AxisConv,
   key: 'upper' | 'lower',
@@ -75,30 +82,42 @@ function drawSegmentedLine (
   width: number,
   indexOffset: number
 ): void {
-  ctx.save()
   ctx.strokeStyle = color
   ctx.lineWidth = width
   ctx.setLineDash([])
   ctx.beginPath()
 
-  let started = false
-  for (let i = from; i < to && i < result.length; i++) {
+  let firstIdx = -1
+  let firstVal = 0
+  let lastIdx = -1
+  let lastVal = 0
+
+  const flushRun = (): void => {
+    if (firstIdx < 0) return
+    const x1 = xAxis.convertToPixel(firstIdx + indexOffset)
+    const y1 = yAxis.convertToPixel(firstVal)
+    const x2 = xAxis.convertToPixel(lastIdx + indexOffset)
+    const y2 = yAxis.convertToPixel(lastVal)
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
+  }
+
+  for (let i = 0; i < result.length; i++) {
     const v = result[i][key]
     if (v === undefined) {
-      started = false
+      flushRun()
+      firstIdx = -1
       continue
     }
-    const x = xAxis.convertToPixel(i + indexOffset)
-    const y = yAxis.convertToPixel(v)
-    if (!started) {
-      ctx.moveTo(x, y)
-      started = true
-    } else {
-      ctx.lineTo(x, y)
+    if (firstIdx < 0) {
+      firstIdx = i
+      firstVal = v
     }
+    lastIdx = i
+    lastVal = v
   }
+  flushRun()
   ctx.stroke()
-  ctx.restore()
 }
 
 /**

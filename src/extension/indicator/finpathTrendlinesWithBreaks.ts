@@ -102,9 +102,13 @@ const finpathTrendlinesWithBreaks: IndicatorTemplate<TLBData, number, TLBExtendD
     const { from, to } = chart.getVisibleRange()
     if (from >= to) return true
 
+    // Single outer save/restore wrapping BOTH drawTLB and the control-point
+    // pass — matches SuperTrend's pattern. Closing the save block before
+    // applyIndicatorInteraction runs caused the blue circular border on
+    // control points to go missing (host ctx state leaked back in between
+    // fill() and stroke()).
     ctx.save()
     drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length)
-    ctx.restore()
 
     // Hit-test segments + control points when selected.
     const indexOffset = (ext.backpaint ?? true) ? -length : 0
@@ -120,6 +124,7 @@ const finpathTrendlinesWithBreaks: IndicatorTemplate<TLBData, number, TLBExtendD
       indexOffset,
       getControlPointBgColor(chart)
     )
+    ctx.restore()
 
     // Expose current values for Y-axis label layer (finpath-web consumer).
     const extData = indicator.extendData as unknown as Record<string, unknown> | null
