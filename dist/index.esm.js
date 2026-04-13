@@ -1895,6 +1895,7 @@ function applyIndicatorInteraction(ctx,
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic indicator type
 indicator, result, from, to, xAxis, yAxis, keys, indexOffset, bgColor) {
     var e_3, _a;
+    if (indexOffset === void 0) { indexOffset = 0; }
     if (bgColor === void 0) { bgColor = '#131722'; }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- generic indicator type
     var extData = indicator.extendData;
@@ -5502,6 +5503,1246 @@ var fpVolumeProfileFixedRange = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// Library indicator identifier (used by finpath-web picker / lookup).
+var FP_TLB_INDICATOR_NAME = 'FP_TL_WITH_BREAKS';
+// Display name shown in legend.
+var FP_TLB_SHORT_NAME = 'Finpath - Trendlines with Breaks';
+// TV LuxAlgo defaults (color.teal / color.red).
+var FP_TLB_DEFAULT_UP_COLOR = '#089981';
+var FP_TLB_DEFAULT_DN_COLOR = '#F23645';
+// Pine defaults — lookback = 14 bars, slope multiplier = 1.
+var FP_TLB_DEFAULT_LENGTH = 14;
+var FP_TLB_DEFAULT_MULT = 1;
+var FP_TLB_DEFAULT_EXTEND_DATA = {
+    calcMethod: 'Atr',
+    backpaint: true,
+    upColor: FP_TLB_DEFAULT_UP_COLOR,
+    dnColor: FP_TLB_DEFAULT_DN_COLOR,
+    showExt: true
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Pine `ta.pivothigh(length, length)` — returns the HIGH of bar `i - right`
+ * when it is the strict local maximum over the `left + right + 1` window,
+ * otherwise `undefined`. The pivot is "confirmed" at bar `i` (right bars
+ * after the actual pivot bar). Ties on either side disqualify (matches Pine).
+ */
+function pivotHigh$1(dataList, i, left, right) {
+    var mid = i - right;
+    if (mid < left || mid < 0 || i >= dataList.length)
+        return undefined;
+    var pivotVal = dataList[mid].high;
+    for (var k = mid - left; k < mid; k++) {
+        if (dataList[k].high >= pivotVal)
+            return undefined;
+    }
+    for (var k = mid + 1; k <= i; k++) {
+        if (dataList[k].high >= pivotVal)
+            return undefined;
+    }
+    return pivotVal;
+}
+function pivotLow$1(dataList, i, left, right) {
+    var mid = i - right;
+    if (mid < left || mid < 0 || i >= dataList.length)
+        return undefined;
+    var pivotVal = dataList[mid].low;
+    for (var k = mid - left; k < mid; k++) {
+        if (dataList[k].low <= pivotVal)
+            return undefined;
+    }
+    for (var k = mid + 1; k <= i; k++) {
+        if (dataList[k].low <= pivotVal)
+            return undefined;
+    }
+    return pivotVal;
+}
+/** True Range — used as building block for Pine ta.atr. */
+function trueRange(d, prev) {
+    if (prev === undefined)
+        return d.high - d.low;
+    return Math.max(d.high - d.low, Math.abs(d.high - prev.close), Math.abs(d.low - prev.close));
+}
+/**
+ * Per-bar slope magnitude. Returns 0 during warmup (i < length - 1).
+ *
+ * Pine formulae:
+ *   'Atr'    => ta.atr(length) / length * mult
+ *   'Stdev'  => ta.stdev(src, length) / length * mult
+ *   'Linreg' => |sma(src*n, length) - sma(src, length) * sma(n, length)|
+ *               / variance(n, length) / 2 * mult
+ * where `n` is bar_index and `src` is close.
+ */
+function computeSlopeAt(dataList, i, length, mult, method, atrBuf, stdevBuf) {
+    if (i < length - 1)
+        return 0;
+    switch (method) {
+        case 'Atr':
+            return (atrBuf[i] / length) * mult;
+        case 'Stdev':
+            return (stdevBuf[i] / length) * mult;
+        case 'Linreg': {
+            var sumSrcN = 0;
+            var sumSrc = 0;
+            var sumN = 0;
+            var sumN2 = 0;
+            for (var k = i - length + 1; k <= i; k++) {
+                var c = dataList[k].close;
+                sumSrcN += c * k;
+                sumSrc += c;
+                sumN += k;
+                sumN2 += k * k;
+            }
+            var smaSrcN = sumSrcN / length;
+            var smaSrc = sumSrc / length;
+            var smaN = sumN / length;
+            // Population variance (ta.variance defaults to biased=true in Pine).
+            var varN = sumN2 / length - smaN * smaN;
+            if (varN === 0)
+                return 0;
+            return (Math.abs(smaSrcN - smaSrc * smaN) / varN / 2) * mult;
+        }
+    }
+}
+/**
+ * Full per-bar computation of Finpath - Trendlines with Breaks.
+ *
+ * Mirrors the LuxAlgo Pine implementation:
+ *   upper := ph ? ph : upper - slope_ph
+ *   lower := pl ? pl : lower + slope_pl
+ *   upos  := ph ? 0 : (close > upper - slope_ph * length ? 1 : upos)
+ *   dnos  := pl ? 0 : (close < lower + slope_pl * length ? 1 : dnos)
+ *
+ * We emit `undefined` for `upper` / `lower` at pivot-confirm bars so the
+ * downstream line renderer produces the required single-bar visual gap.
+ *
+ * Backpaint is NOT applied here — it is a render-time shift of the x-index.
+ */
+function computeTLB(dataList, length, mult, calcMethod) {
+    var len = dataList.length;
+    var out = [];
+    if (len === 0)
+        return out;
+    // ─── Pre-compute ATR (Pine ta.atr = RMA of TR) ──────────────────────────
+    var atrBuf = new Array(len).fill(0);
+    {
+        var trSum = 0;
+        for (var i = 0; i < len; i++) {
+            var tr = trueRange(dataList[i], i > 0 ? dataList[i - 1] : undefined);
+            if (i < length) {
+                trSum += tr;
+                if (i === length - 1)
+                    atrBuf[i] = trSum / length;
+            }
+            else {
+                // RMA (Wilder's): atr[i] = (atr[i-1] * (N-1) + tr[i]) / N
+                atrBuf[i] = (atrBuf[i - 1] * (length - 1) + tr) / length;
+            }
+        }
+    }
+    // ─── Pre-compute rolling population stdev of close ──────────────────────
+    var stdevBuf = new Array(len).fill(0);
+    for (var i = length - 1; i < len; i++) {
+        var mean = 0;
+        for (var k = i - length + 1; k <= i; k++)
+            mean += dataList[k].close;
+        mean /= length;
+        var varSum = 0;
+        for (var k = i - length + 1; k <= i; k++) {
+            var d = dataList[k].close - mean;
+            varSum += d * d;
+        }
+        // Pine ta.stdev defaults to biased=true → divide by N, not N-1.
+        stdevBuf[i] = Math.sqrt(varSum / length);
+    }
+    // ─── Per-bar state machine ──────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/init-declarations -- populated at first pivot
+    var upperState;
+    // eslint-disable-next-line @typescript-eslint/init-declarations -- populated at first pivot
+    var lowerState;
+    var slopePh = 0;
+    var slopePl = 0;
+    var upos = 0;
+    var dnos = 0;
+    var prevUpos = 0;
+    var prevDnos = 0;
+    for (var i = 0; i < len; i++) {
+        var d = dataList[i];
+        var slope = computeSlopeAt(dataList, i, length, mult, calcMethod, atrBuf, stdevBuf);
+        var ph = pivotHigh$1(dataList, i, length, length);
+        var pl = pivotLow$1(dataList, i, length, length);
+        // Capture slope at pivot confirmation.
+        if (ph !== undefined)
+            slopePh = slope;
+        if (pl !== undefined)
+            slopePl = slope;
+        // Working trend-line values drift by captured slope between pivots.
+        if (ph !== undefined) {
+            upperState = ph;
+        }
+        else if (upperState !== undefined) {
+            upperState = upperState - slopePh;
+        }
+        if (pl !== undefined) {
+            lowerState = pl;
+        }
+        else if (lowerState !== undefined) {
+            lowerState = lowerState + slopePl;
+        }
+        // Break state: `close > upper - slope_ph * length` — price vs forward projection.
+        var projUpper = (upperState !== null && upperState !== void 0 ? upperState : Number.POSITIVE_INFINITY) - slopePh * length;
+        var projLower = (lowerState !== null && lowerState !== void 0 ? lowerState : Number.NEGATIVE_INFINITY) + slopePl * length;
+        if (ph !== undefined) {
+            upos = 0;
+        }
+        else if (upperState !== undefined && d.close > projUpper) {
+            upos = 1;
+        }
+        if (pl !== undefined) {
+            dnos = 0;
+        }
+        else if (lowerState !== undefined && d.close < projLower) {
+            dnos = 1;
+        }
+        var upperBreak = upos > prevUpos;
+        var lowerBreak = dnos > prevDnos;
+        // Emit undefined at pivot-confirm bars for the single-bar visual gap (AC-03).
+        // Before the first pivot, `*State` is undefined and we emit undefined naturally.
+        var emitUpper = (ph !== undefined) ? undefined : upperState;
+        var emitLower = (pl !== undefined) ? undefined : lowerState;
+        out.push({
+            upper: emitUpper,
+            lower: emitLower,
+            slopePh: slopePh,
+            slopePl: slopePl,
+            upos: upos,
+            dnos: dnos,
+            upperBreak: upperBreak,
+            lowerBreak: lowerBreak,
+            pivotHigh: ph,
+            pivotLow: pl,
+            pivotHighSrcIndex: ph !== undefined ? i - length : undefined,
+            pivotLowSrcIndex: pl !== undefined ? i - length : undefined,
+            low: d.low,
+            high: d.high,
+            anchorSlopePh: ph !== undefined ? slope : undefined,
+            anchorSlopePl: pl !== undefined ? slope : undefined
+        });
+        prevUpos = upos;
+        prevDnos = dnos;
+    }
+    return out;
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Top-level render entry. Draws, in z-order low → high:
+ *   1. Main solid segments (upper, lower)
+ *   2. Dashed right-extending projections (if showExt)
+ *   3. Breakout "B" labels at current-bar break events
+ *
+ * Backpaint is applied exclusively here via `indexOffset` so toggling it
+ * triggers only a re-draw (not a recompute).
+ */
+function drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length) {
+    var _a, _b, _c, _d;
+    var upColor = (_a = ext.upColor) !== null && _a !== void 0 ? _a : FP_TLB_DEFAULT_UP_COLOR;
+    var dnColor = (_b = ext.dnColor) !== null && _b !== void 0 ? _b : FP_TLB_DEFAULT_DN_COLOR;
+    var showExt = (_c = ext.showExt) !== null && _c !== void 0 ? _c : true;
+    var backpaint = (_d = ext.backpaint) !== null && _d !== void 0 ? _d : true;
+    var indexOffset = backpaint ? -length : 0;
+    drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset);
+    drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset);
+    if (showExt) {
+        drawDashedExtension(ctx, result, xAxis, yAxis, 'upper', upColor, length, indexOffset);
+        drawDashedExtension(ctx, result, xAxis, yAxis, 'lower', dnColor, length, indexOffset);
+    }
+    // Pine `plotshape` has no `offset` argument in this script — breakout
+    // markers fire at the actual breakout bar regardless of `backpaint`. Pass
+    // 0 here so the labels stay anchored to bar `i`, not shifted with the lines.
+    drawBreakoutLabels(ctx, result, from, to, xAxis, yAxis, upColor, dnColor, 0);
+}
+/**
+ * Solid trend-line draw. Between two pivot-confirm bars (both emit
+ * `undefined` → segment break), the state machine guarantees `upper`/`lower`
+ * is LINEAR in bar index (`upperState -= slopePh` with constant `slopePh`).
+ * So each contiguous non-undefined run is collapsed to a SINGLE straight
+ * line from first-point to last-point — bypassing the per-bar integer
+ * pixel snap (`Math.floor` in `dataIndexToCoordinate`) that would otherwise
+ * cause visible zigzag waviness at fractional bar spacing.
+ *
+ * Scans the full data range (not just `[from,to]`): with `indexOffset = -length`
+ * (backpaint) a run's endpoints may sit outside the visible data-index window
+ * while still being on-screen in pixel space.
+ */
+function drawSegmentedLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    var firstIdx = -1;
+    var firstVal = 0;
+    var lastIdx = -1;
+    var lastVal = 0;
+    var flushRun = function () {
+        if (firstIdx < 0)
+            return;
+        var x1 = xAxis.convertToPixel(firstIdx + indexOffset);
+        var y1 = yAxis.convertToPixel(firstVal);
+        var x2 = xAxis.convertToPixel(lastIdx + indexOffset);
+        var y2 = yAxis.convertToPixel(lastVal);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+    };
+    for (var i = 0; i < result.length; i++) {
+        var v = result[i][key];
+        if (v === undefined) {
+            flushRun();
+            firstIdx = -1;
+            continue;
+        }
+        if (firstIdx < 0) {
+            firstIdx = i;
+            firstVal = v;
+        }
+        lastIdx = i;
+        lastVal = v;
+    }
+    flushRun();
+    ctx.stroke();
+}
+/**
+ * Dashed extension from the most recent defined point forward, projecting
+ * `length * 8` bars past the last bar (reliably past the visible right edge
+ * at normal zoom). Slope matches the solid-segment slope at time of last
+ * pivot confirmation.
+ */
+function drawDashedExtension(ctx, result, xAxis, yAxis, key, color, length, indexOffset) {
+    var lastIdx = -1;
+    var lastVal = 0;
+    for (var i = result.length - 1; i >= 0; i--) {
+        var v = result[i][key];
+        if (v !== undefined) {
+            lastIdx = i;
+            lastVal = v;
+            break;
+        }
+    }
+    if (lastIdx < 0)
+        return;
+    var slope = key === 'upper' ? result[lastIdx].slopePh : result[lastIdx].slopePl;
+    var rightExtendBars = length * 8;
+    var endIdx = result.length - 1 + rightExtendBars;
+    // Upper descends per bar (−slopePh); lower ascends per bar (+slopePl).
+    var slopePerBar = key === 'upper' ? -slope : slope;
+    var endVal = lastVal + slopePerBar * (endIdx - lastIdx);
+    var x1 = xAxis.convertToPixel(lastIdx + indexOffset);
+    var y1 = yAxis.convertToPixel(lastVal);
+    var x2 = xAxis.convertToPixel(endIdx + indexOffset);
+    var y2 = yAxis.convertToPixel(endVal);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+}
+/** Iterate the visible range; draw break labels at anchor prices. */
+function drawBreakoutLabels(ctx, result, from, to, xAxis, yAxis, upColor, dnColor, indexOffset) {
+    for (var i = from; i < to && i < result.length; i++) {
+        var r = result[i];
+        if (r.upperBreak) {
+            drawLabelUp$1(ctx, xAxis.convertToPixel(i + indexOffset), yAxis.convertToPixel(r.low), upColor);
+        }
+        if (r.lowerBreak) {
+            drawLabelDown$1(ctx, xAxis.convertToPixel(i + indexOffset), yAxis.convertToPixel(r.high), dnColor);
+        }
+    }
+}
+/**
+ * TV `shape.labelup`: 12×12 body BELOW the anchor with a 4px upward arrow
+ * tip touching the anchor (the break bar's `low`). "B" in white, 9px Arial.
+ */
+function drawLabelUp$1(ctx, x, y, bg) {
+    var w = 12;
+    var h = 12;
+    var pointer = 4;
+    var bodyTop = y + pointer;
+    var bodyBottom = bodyTop + h;
+    ctx.save();
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x, y); // arrow tip — points UP at anchor
+    ctx.lineTo(x + pointer, bodyTop); // right side of pointer base
+    ctx.lineTo(x + w / 2, bodyTop); // top-right of body
+    ctx.lineTo(x + w / 2, bodyBottom); // bottom-right
+    ctx.lineTo(x - w / 2, bodyBottom); // bottom-left
+    ctx.lineTo(x - w / 2, bodyTop); // top-left
+    ctx.lineTo(x - pointer, bodyTop); // left side of pointer base
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('B', x, bodyTop + h / 2);
+    ctx.restore();
+}
+/**
+ * TV `shape.labeldown`: mirror of labelup — 12×12 body ABOVE the anchor with
+ * a 4px downward arrow tip touching the anchor (the break bar's `high`).
+ */
+function drawLabelDown$1(ctx, x, y, bg) {
+    var w = 12;
+    var h = 12;
+    var pointer = 4;
+    var bodyBottom = y - pointer;
+    var bodyTop = bodyBottom - h;
+    ctx.save();
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x, y); // arrow tip — points DOWN at anchor
+    ctx.lineTo(x + pointer, bodyBottom); // right side of pointer base
+    ctx.lineTo(x + w / 2, bodyBottom); // bottom-right of body
+    ctx.lineTo(x + w / 2, bodyTop); // top-right
+    ctx.lineTo(x - w / 2, bodyTop); // top-left
+    ctx.lineTo(x - w / 2, bodyBottom); // bottom-left
+    ctx.lineTo(x - pointer, bodyBottom); // left side of pointer base
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('B', x, bodyTop + h / 2);
+    ctx.restore();
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Canvas-layer tooltip data source.
+ *
+ * finpath-web renders its own React legend row for this indicator, so
+ * `styles.tooltip.showRule` is set to `'none'` on the indicator to keep
+ * the canvas tooltip suppressed. This factory is still provided for
+ * completeness and for any headless/non-web consumer.
+ *
+ * Format matches BRD §3.3 legend status-line:
+ *   `Finpath - Trendlines with Breaks  14  1  Atr   20,734   23,285`
+ *   └── name ─┘                        └ params ┘   └ values ┘
+ */
+function createTLBTooltip(params) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    var indicator = params.indicator, crosshair = params.crosshair;
+    var result = indicator.result;
+    var ext = (_a = indicator.extendData) !== null && _a !== void 0 ? _a : {};
+    var dataIndex = (_b = crosshair.dataIndex) !== null && _b !== void 0 ? _b : result.length - 1;
+    var inRange = dataIndex >= 0 && dataIndex < result.length;
+    var bar = inRange ? result[dataIndex] : null;
+    var upColor = (_c = ext.upColor) !== null && _c !== void 0 ? _c : FP_TLB_DEFAULT_UP_COLOR;
+    var dnColor = (_d = ext.dnColor) !== null && _d !== void 0 ? _d : FP_TLB_DEFAULT_DN_COLOR;
+    // Param summary: "{length} {mult} {calcMethod}" e.g. "14 1 Atr" (BRD §3.3).
+    var calcParams = indicator.calcParams;
+    var length = (_e = calcParams[0]) !== null && _e !== void 0 ? _e : 14;
+    var mult = (_f = calcParams[1]) !== null && _f !== void 0 ? _f : 1;
+    var method = (_g = ext.calcMethod) !== null && _g !== void 0 ? _g : 'Atr';
+    var fmt = function (v) {
+        return v === undefined ? '' : v.toLocaleString(undefined, { maximumFractionDigits: indicator.precision });
+    };
+    var upperText = bar === null ? '' : fmt(bar.upper);
+    var lowerText = bar === null ? '' : fmt(bar.lower);
+    return {
+        name: indicator.shortName,
+        calcParamsText: "".concat(length, " ").concat(mult, " ").concat(method),
+        features: [],
+        legends: [
+            { title: { text: '', color: upColor }, value: { text: upperText, color: upColor } },
+            { title: { text: '', color: dnColor }, value: { text: lowerText, color: dnColor } }
+        ]
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Finpath - Trendlines with Breaks (LuxAlgo port).
+ *
+ * Auto-detects swing pivots and draws down-sloping / up-sloping trend lines
+ * anchored at the most recent pivot high / pivot low, plus dashed right-edge
+ * projections and "B" breakout labels when price closes across the projected
+ * trend line.
+ *
+ * Implementation notes:
+ * - Custom-draw (`draw()` returns `true`) — no figures[] pipeline.
+ * - Hybrid settings: `calcParams=[length, mult]` + typed `extendData` for the
+ *   remaining 5 inputs. `shouldUpdate` opts into recompute only on
+ *   `calcMethod` change (numeric calcParams diff is library-handled).
+ * - Backpaint is a render-time shift (not a recompute) — matches Pine
+ *   `offset=-length` semantics.
+ * - `styles.tooltip.showRule = 'none'` suppresses the canvas tooltip so the
+ *   React legend row in finpath-web is the single source of truth.
+ * - `extendData._upperPrice` / `_lowerPrice` written after render for the
+ *   finpath-web Y-axis label layer (pattern mirrors `FP_VPFR._pocPrice`).
+ */
+var finpathTrendlinesWithBreaks = {
+    name: FP_TLB_INDICATOR_NAME,
+    shortName: FP_TLB_SHORT_NAME,
+    series: 'price',
+    precision: 2,
+    shouldOhlc: false,
+    shouldFormatBigNumber: false,
+    calcParams: [FP_TLB_DEFAULT_LENGTH, FP_TLB_DEFAULT_MULT],
+    figures: [],
+    // Suppress canvas-layer tooltip — React legend row handles display.
+    styles: {
+        tooltip: {
+            showRule: 'none'
+        }
+    },
+    // Recompute vs re-draw gating:
+    //   `calcParams` change (length / mult) is auto-handled by library → calc.
+    //   Here we only opt into recompute when `calcMethod` changes.
+    shouldUpdate: function (prev, current) {
+        var _a, _b;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var prevExt = ((_a = prev.extendData) !== null && _a !== void 0 ? _a : {});
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var currExt = ((_b = current.extendData) !== null && _b !== void 0 ? _b : {});
+        var needCalc = prevExt.calcMethod !== currExt.calcMethod;
+        if (needCalc)
+            return { calc: true, draw: true };
+        return { calc: false, draw: true };
+    },
+    // Per-bar calculation — see `compute.ts` for the state machine.
+    calc: function (dataList, indicator) {
+        var _a, _b, _c, _d;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_a = indicator.extendData) !== null && _a !== void 0 ? _a : FP_TLB_DEFAULT_EXTEND_DATA);
+        var calcParams = indicator.calcParams;
+        var length = (_b = calcParams[0]) !== null && _b !== void 0 ? _b : FP_TLB_DEFAULT_LENGTH;
+        var mult = (_c = calcParams[1]) !== null && _c !== void 0 ? _c : FP_TLB_DEFAULT_MULT;
+        return computeTLB(dataList, length, mult, (_d = ext.calcMethod) !== null && _d !== void 0 ? _d : 'Atr');
+    },
+    // Fully custom draw — returns true to suppress default figure rendering.
+    draw: function (_a) {
+        var _b, _c, _d;
+        var ctx = _a.ctx, indicator = _a.indicator, chart = _a.chart, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var result = indicator.result;
+        if (result.length === 0)
+            return true;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_b = indicator.extendData) !== null && _b !== void 0 ? _b : FP_TLB_DEFAULT_EXTEND_DATA);
+        var length = (_c = indicator.calcParams[0]) !== null && _c !== void 0 ? _c : FP_TLB_DEFAULT_LENGTH;
+        var _e = chart.getVisibleRange(), from = _e.from, to = _e.to;
+        if (from >= to)
+            return true;
+        // Single outer save/restore wrapping BOTH drawTLB and the control-point
+        // pass — matches SuperTrend's pattern. Closing the save block before
+        // applyIndicatorInteraction runs caused the blue circular border on
+        // control points to go missing (host ctx state leaked back in between
+        // fill() and stroke()).
+        ctx.save();
+        drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length);
+        // Hit-test segments + control points when selected.
+        var indexOffset = ((_d = ext.backpaint) !== null && _d !== void 0 ? _d : true) ? -length : 0;
+        applyIndicatorInteraction(ctx, indicator, result, from, to, xAxis, yAxis, ['upper', 'lower'], indexOffset, getControlPointBgColor(chart));
+        ctx.restore();
+        // Expose current values for Y-axis label layer (finpath-web consumer).
+        var extData = indicator.extendData;
+        if (extData !== null) {
+            var lastIdx = result.length - 1;
+            var last = lastIdx >= 0 ? result[lastIdx] : undefined;
+            extData._upperPrice = last === null || last === void 0 ? void 0 : last.upper;
+            extData._lowerPrice = last === null || last === void 0 ? void 0 : last.lower;
+        }
+        return true;
+    },
+    createTooltipDataSource: createTLBTooltip
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// Library indicator identifier (used by finpath-web picker / lookup).
+var FP_SRB_INDICATOR_NAME = 'FP_SR_WITH_BREAKS';
+// Display name shown in legend.
+var FP_SRB_SHORT_NAME = 'Finpath - S&R with Breaks';
+// Pine defaults
+var FP_SRB_DEFAULT_LEFT_BARS = 15;
+var FP_SRB_DEFAULT_RIGHT_BARS = 15;
+var FP_SRB_DEFAULT_VOLUME_THRESH = 20;
+// Line colors (from Pine source)
+var FP_SRB_DEFAULT_RESISTANCE_COLOR = '#FF0000';
+var FP_SRB_DEFAULT_SUPPORT_COLOR = '#233DEE';
+var FP_SRB_DEFAULT_LINE_WIDTH = 3;
+// Break-label colors (TV theme greens/reds — same as Trendlines)
+var FP_SRB_DEFAULT_GREEN = '#089981';
+var FP_SRB_DEFAULT_RED = '#F23645';
+var FP_SRB_DEFAULT_EXTEND_DATA = {
+    toggleBreaks: true,
+    resistanceColor: FP_SRB_DEFAULT_RESISTANCE_COLOR,
+    resistanceWidth: FP_SRB_DEFAULT_LINE_WIDTH,
+    resistanceVisible: true,
+    supportColor: FP_SRB_DEFAULT_SUPPORT_COLOR,
+    supportWidth: FP_SRB_DEFAULT_LINE_WIDTH,
+    supportVisible: true,
+    bUpColor: FP_SRB_DEFAULT_GREEN,
+    bUpVisible: true,
+    bDownColor: FP_SRB_DEFAULT_RED,
+    bDownVisible: true,
+    bullWickColor: FP_SRB_DEFAULT_GREEN,
+    bullWickVisible: true,
+    bearWickColor: FP_SRB_DEFAULT_RED,
+    bearWickVisible: true
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Pine `ta.pivothigh(left, right)` — returns the HIGH of bar `i - right`
+ * when it is the strict local maximum over the `left + right + 1` window,
+ * otherwise `undefined`. The pivot is "confirmed" at bar `i` (right bars
+ * after the actual pivot bar). Ties on either side disqualify (matches Pine).
+ *
+ * Copied verbatim from `fpTlb/compute.ts` — pure OHLC-based, identical
+ * semantics needed here.
+ */
+function pivotHigh(dataList, i, left, right) {
+    var mid = i - right;
+    if (mid < left || mid < 0 || i >= dataList.length)
+        return undefined;
+    var pivotVal = dataList[mid].high;
+    for (var k = mid - left; k < mid; k++) {
+        if (dataList[k].high >= pivotVal)
+            return undefined;
+    }
+    for (var k = mid + 1; k <= i; k++) {
+        if (dataList[k].high >= pivotVal)
+            return undefined;
+    }
+    return pivotVal;
+}
+function pivotLow(dataList, i, left, right) {
+    var mid = i - right;
+    if (mid < left || mid < 0 || i >= dataList.length)
+        return undefined;
+    var pivotVal = dataList[mid].low;
+    for (var k = mid - left; k < mid; k++) {
+        if (dataList[k].low <= pivotVal)
+            return undefined;
+    }
+    for (var k = mid + 1; k <= i; k++) {
+        if (dataList[k].low <= pivotVal)
+            return undefined;
+    }
+    return pivotVal;
+}
+/**
+ * Full per-bar computation of Finpath - Support and Resistance Levels with Breaks.
+ *
+ * Mirrors the LuxAlgo Pine implementation:
+ *   highUsePivot = fixnan(pivothigh(leftBars, rightBars)[1])
+ *   lowUsePivot  = fixnan(pivotlow(leftBars, rightBars)[1])
+ *   short = ema(volume, 5)
+ *   long  = ema(volume, 10)
+ *   osc   = 100 * (short - long) / long
+ *
+ *   B (red)    = crossunder(close, lowUsePivot)  && !(open - close < high - open) && osc > volumeThresh
+ *   B (green)  = crossover(close, highUsePivot)  && !(open - low > close - open)   && osc > volumeThresh
+ *   Bull Wick  = crossover(close, highUsePivot)  &&  (open - low > close - open)
+ *   Bear Wick  = crossunder(close, lowUsePivot)  &&  (open - close < high - open)
+ *
+ * We emit `undefined` for `resistance` / `support` at the FIRST bar where the
+ * value differs from the previous bar (Pine `change() ? na`) so the downstream
+ * line renderer produces the required single-bar visual gap.
+ *
+ * Backpaint is NOT applied here — it is a render-time shift of the x-index.
+ */
+function computeSRB(dataList, leftBars, rightBars, volumeThresh) {
+    var _a;
+    var len = dataList.length;
+    var out = [];
+    if (len === 0)
+        return out;
+    // ─── Volume EMA (Pine ta.ema with sma-warmup) ───────────────────────────
+    // Pine `ta.ema(src, length)` initializes via SMA over the first `length`
+    // bars (emit at bar `length - 1`), then transitions to EMA recurrence:
+    //   ema[i] = α * src[i] + (1 - α) * ema[i-1]   where α = 2 / (length + 1)
+    var SHORT_LEN = 5;
+    var LONG_LEN = 10;
+    var alphaShort = 2 / (SHORT_LEN + 1);
+    var alphaLong = 2 / (LONG_LEN + 1);
+    var emaShortBuf = new Array(len).fill(0);
+    var emaLongBuf = new Array(len).fill(0);
+    var emaShortValid = new Array(len).fill(false);
+    var emaLongValid = new Array(len).fill(false);
+    {
+        var sumShort = 0;
+        var sumLong = 0;
+        var emaShort = 0;
+        var emaLong = 0;
+        var emaShortInit = false;
+        var emaLongInit = false;
+        for (var i = 0; i < len; i++) {
+            var v = (_a = dataList[i].volume) !== null && _a !== void 0 ? _a : 0;
+            // Short EMA (length = 5)
+            if (!emaShortInit) {
+                sumShort += v;
+                if (i === SHORT_LEN - 1) {
+                    emaShort = sumShort / SHORT_LEN;
+                    emaShortInit = true;
+                    emaShortBuf[i] = emaShort;
+                    emaShortValid[i] = true;
+                }
+            }
+            else {
+                emaShort = alphaShort * v + (1 - alphaShort) * emaShort;
+                emaShortBuf[i] = emaShort;
+                emaShortValid[i] = true;
+            }
+            // Long EMA (length = 10)
+            if (!emaLongInit) {
+                sumLong += v;
+                if (i === LONG_LEN - 1) {
+                    emaLong = sumLong / LONG_LEN;
+                    emaLongInit = true;
+                    emaLongBuf[i] = emaLong;
+                    emaLongValid[i] = true;
+                }
+            }
+            else {
+                emaLong = alphaLong * v + (1 - alphaLong) * emaLong;
+                emaLongBuf[i] = emaLong;
+                emaLongValid[i] = true;
+            }
+        }
+    }
+    // ─── Per-bar state machine ──────────────────────────────────────────────
+    // `prevResistance` / `prevSupport` carry the LAST EMITTED level value
+    // (post fixnan). Pine's `[1]` shift is implicit because we use
+    // `prevResistance` (yesterday's level) for the crossover comparison —
+    // matching `crossover(close, highUsePivot)` where `highUsePivot` carries
+    // over via `fixnan` from the prior bar.
+    // eslint-disable-next-line @typescript-eslint/init-declarations -- populated at first pivot
+    var prevResistance;
+    // eslint-disable-next-line @typescript-eslint/init-declarations -- populated at first pivot
+    var prevSupport;
+    for (var i = 0; i < len; i++) {
+        var d = dataList[i];
+        var ph = pivotHigh(dataList, i, leftBars, rightBars);
+        var pl = pivotLow(dataList, i, leftBars, rightBars);
+        // fixnan — hold previous level when no new pivot confirms.
+        var currR = ph !== null && ph !== void 0 ? ph : prevResistance;
+        var currS = pl !== null && pl !== void 0 ? pl : prevSupport;
+        // Pine `change(x) ? na : x` — emit `undefined` on the FIRST bar where
+        // the value differs from the previous bar's value (creates the 1-bar
+        // visual gap at pivot transitions).
+        // Before the very first pivot confirms, both `prevResistance` and
+        // `currR` are `undefined` → emit `undefined` naturally.
+        var emitR = (prevResistance !== undefined &&
+            currR !== undefined &&
+            currR === prevResistance)
+            ? currR
+            : undefined;
+        var emitS = (prevSupport !== undefined &&
+            currS !== undefined &&
+            currS === prevSupport)
+            ? currS
+            : undefined;
+        // Volume oscillator. Both EMAs must be initialized; guard division.
+        var volOsc = 0;
+        var volOscValid = false;
+        if (emaShortValid[i] && emaLongValid[i] && emaLongBuf[i] > 0) {
+            volOsc = 100 * (emaShortBuf[i] - emaLongBuf[i]) / emaLongBuf[i];
+            volOscValid = true;
+        }
+        // Crossovers — compare yesterday's close vs PREVIOUS level (not current)
+        // to match Pine `crossover(close, highUsePivot)` where `highUsePivot`
+        // already carries the prior bar's value via fixnan.
+        var crossOverR = false;
+        var crossUnderS = false;
+        if (i > 0 && prevResistance !== undefined) {
+            var prevClose = dataList[i - 1].close;
+            crossOverR = prevClose <= prevResistance && d.close > prevResistance;
+        }
+        if (i > 0 && prevSupport !== undefined) {
+            var prevClose = dataList[i - 1].close;
+            crossUnderS = prevClose >= prevSupport && d.close < prevSupport;
+        }
+        // Wick-body conditions — implemented EXACTLY as Pine. Do NOT simplify
+        // — these are NOT logical negations of one another.
+        var bullWickBody = (d.open - d.low) > (d.close - d.open);
+        var bearWickBody = (d.open - d.close) < (d.high - d.open);
+        // 4 break events
+        var bUp = crossOverR && !bullWickBody && volOscValid && volOsc > volumeThresh;
+        var bDown = crossUnderS && !bearWickBody && volOscValid && volOsc > volumeThresh;
+        var bullWick = crossOverR && bullWickBody;
+        var bearWick = crossUnderS && bearWickBody;
+        out.push({
+            resistance: emitR,
+            support: emitS,
+            bUp: bUp,
+            bDown: bDown,
+            bullWick: bullWick,
+            bearWick: bearWick,
+            high: d.high,
+            low: d.low
+        });
+        prevResistance = currR;
+        prevSupport = currS;
+    }
+    return out;
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Top-level render entry. Draws, in z-order low → high:
+ *   1. Resistance horizontal segments (solid red, width 3)
+ *   2. Support horizontal segments (solid blue, width 3)
+ *   3. 'B' green / 'B' red labels (single-char body)
+ *   4. 'Bull Wick' / 'Bear Wick' labels (auto-width body)
+ *
+ * Backpaint is hardcoded to `-(rightBars + 1)` (S&R has no backpaint
+ * toggle in Pine source — AC-05).
+ *
+ * Labels rendered AFTER lines so they sit on top when coincident.
+ */
+function drawSRB(ctx, result, from, to, xAxis, yAxis, ext, _leftBars, rightBars) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+    var resistanceColor = (_a = ext.resistanceColor) !== null && _a !== void 0 ? _a : FP_SRB_DEFAULT_RESISTANCE_COLOR;
+    var supportColor = (_b = ext.supportColor) !== null && _b !== void 0 ? _b : FP_SRB_DEFAULT_SUPPORT_COLOR;
+    var resistanceWidth = (_c = ext.resistanceWidth) !== null && _c !== void 0 ? _c : FP_SRB_DEFAULT_LINE_WIDTH;
+    var supportWidth = (_d = ext.supportWidth) !== null && _d !== void 0 ? _d : FP_SRB_DEFAULT_LINE_WIDTH;
+    var resistanceVisible = (_e = ext.resistanceVisible) !== null && _e !== void 0 ? _e : true;
+    var supportVisible = (_f = ext.supportVisible) !== null && _f !== void 0 ? _f : true;
+    var toggleBreaks = (_g = ext.toggleBreaks) !== null && _g !== void 0 ? _g : true;
+    var bUpVisible = (_h = ext.bUpVisible) !== null && _h !== void 0 ? _h : true;
+    var bDownVisible = (_j = ext.bDownVisible) !== null && _j !== void 0 ? _j : true;
+    var bullWickVisible = (_k = ext.bullWickVisible) !== null && _k !== void 0 ? _k : true;
+    var bearWickVisible = (_l = ext.bearWickVisible) !== null && _l !== void 0 ? _l : true;
+    var bUpColor = (_m = ext.bUpColor) !== null && _m !== void 0 ? _m : FP_SRB_DEFAULT_GREEN;
+    var bDownColor = (_o = ext.bDownColor) !== null && _o !== void 0 ? _o : FP_SRB_DEFAULT_RED;
+    var bullWickColor = (_p = ext.bullWickColor) !== null && _p !== void 0 ? _p : FP_SRB_DEFAULT_GREEN;
+    var bearWickColor = (_q = ext.bearWickColor) !== null && _q !== void 0 ? _q : FP_SRB_DEFAULT_RED;
+    // Pine source: `offset=-(rightBars+1)` — always applied (no toggle).
+    var indexOffset = -(rightBars + 1);
+    // ─── Lines ──────────────────────────────────────────────────────────────
+    if (resistanceVisible) {
+        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'resistance', resistanceColor, resistanceWidth, indexOffset);
+    }
+    if (supportVisible) {
+        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'support', supportColor, supportWidth, indexOffset);
+    }
+    // ─── Labels (Pine plotshape has NO offset → labels anchored to bar i) ───
+    if (toggleBreaks) {
+        for (var i = from; i < to && i < result.length; i++) {
+            var r = result[i];
+            // 'B' green — resistance broken with volume + clean body (label below bar, arrow up)
+            if (r.bUp === true && bUpVisible) {
+                drawLabelUp(ctx, xAxis.convertToPixel(i), yAxis.convertToPixel(r.low), bUpColor, 'B');
+            }
+            // 'B' red — support broken with volume + clean body (label above bar, arrow down)
+            if (r.bDown === true && bDownVisible) {
+                drawLabelDown(ctx, xAxis.convertToPixel(i), yAxis.convertToPixel(r.high), bDownColor, 'B');
+            }
+            // 'Bull Wick' — resistance broken with bull-wick body (label below bar, arrow up)
+            if (r.bullWick === true && bullWickVisible) {
+                drawLabelUp(ctx, xAxis.convertToPixel(i), yAxis.convertToPixel(r.low), bullWickColor, 'Bull Wick');
+            }
+            // 'Bear Wick' — support broken with bear-wick body (label above bar, arrow down)
+            if (r.bearWick === true && bearWickVisible) {
+                drawLabelDown(ctx, xAxis.convertToPixel(i), yAxis.convertToPixel(r.high), bearWickColor, 'Bear Wick');
+            }
+        }
+    }
+}
+/**
+ * Step-function horizontal line draw. Each `undefined` entry breaks the
+ * current run (creates the 1-bar visual gap from `change() ? na`). A run
+ * of contiguous defined values with the SAME value is drawn as one
+ * straight horizontal segment from first-bar to last-bar of the run.
+ *
+ * In S&R levels never drift between pivots (constant value within a run),
+ * so collapsing to a single horizontal stroke is exact (no zigzag risk).
+ */
+function drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    var firstIdx = -1;
+    var firstVal = 0;
+    var lastIdx = -1;
+    var flushRun = function () {
+        if (firstIdx < 0)
+            return;
+        var x1 = xAxis.convertToPixel(firstIdx + indexOffset);
+        var y = yAxis.convertToPixel(firstVal);
+        var x2 = xAxis.convertToPixel(lastIdx + indexOffset);
+        ctx.moveTo(x1, y);
+        ctx.lineTo(x2, y);
+    };
+    for (var i = 0; i < result.length; i++) {
+        var v = result[i][key];
+        if (v === undefined) {
+            flushRun();
+            firstIdx = -1;
+            continue;
+        }
+        if (firstIdx < 0) {
+            firstIdx = i;
+            firstVal = v;
+        }
+        lastIdx = i;
+    }
+    flushRun();
+    ctx.stroke();
+}
+// Cache measured widths per text — measureText is cheap but called per draw,
+// so a small cache avoids redundant work for the few unique strings used.
+var labelTextWidthCache = new Map();
+function getLabelBodyWidth(ctx, text) {
+    // Single-char 'B' uses a fixed 12px body for visual consistency with
+    // Trendlines breakout markers. Multi-char text auto-fits with padding.
+    if (text.length <= 1)
+        return 12;
+    var cached = labelTextWidthCache.get(text);
+    if (cached !== undefined)
+        return cached;
+    ctx.save();
+    ctx.font = '9px Arial';
+    var m = ctx.measureText(text);
+    ctx.restore();
+    var w = Math.ceil(m.width) + 8; // 4px horizontal padding each side
+    labelTextWidthCache.set(text, w);
+    return w;
+}
+/**
+ * TV `shape.labelup`: body BELOW the anchor with a 4px upward arrow tip
+ * touching the anchor. Body width auto-fits text, height fixed at 12px.
+ */
+function drawLabelUp(ctx, x, y, bg, text) {
+    var w = getLabelBodyWidth(ctx, text);
+    var h = 12;
+    var pointer = 4;
+    var bodyTop = y + pointer;
+    var bodyBottom = bodyTop + h;
+    ctx.save();
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x, y); // arrow tip — points UP at anchor
+    ctx.lineTo(x + pointer, bodyTop); // right side of pointer base
+    ctx.lineTo(x + w / 2, bodyTop); // top-right of body
+    ctx.lineTo(x + w / 2, bodyBottom); // bottom-right
+    ctx.lineTo(x - w / 2, bodyBottom); // bottom-left
+    ctx.lineTo(x - w / 2, bodyTop); // top-left
+    ctx.lineTo(x - pointer, bodyTop); // left side of pointer base
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, bodyTop + h / 2);
+    ctx.restore();
+}
+/**
+ * TV `shape.labeldown`: body ABOVE the anchor with a 4px downward arrow
+ * tip touching the anchor. Body width auto-fits text, height fixed at 12px.
+ */
+function drawLabelDown(ctx, x, y, bg, text) {
+    var w = getLabelBodyWidth(ctx, text);
+    var h = 12;
+    var pointer = 4;
+    var bodyBottom = y - pointer;
+    var bodyTop = bodyBottom - h;
+    ctx.save();
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x, y); // arrow tip — points DOWN at anchor
+    ctx.lineTo(x + pointer, bodyBottom); // right side of pointer base
+    ctx.lineTo(x + w / 2, bodyBottom); // bottom-right of body
+    ctx.lineTo(x + w / 2, bodyTop); // top-right
+    ctx.lineTo(x - w / 2, bodyTop); // top-left
+    ctx.lineTo(x - w / 2, bodyBottom); // bottom-left
+    ctx.lineTo(x - pointer, bodyBottom); // left side of pointer base
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, bodyTop + h / 2);
+    ctx.restore();
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Canvas-layer tooltip data source.
+ *
+ * finpath-web renders its own React legend row for this indicator, so
+ * `styles.tooltip.showRule` is set to `'none'` on the indicator to keep
+ * the canvas tooltip suppressed. This factory is still provided for
+ * completeness and for any headless/non-web consumer.
+ *
+ * Format matches BRD §10 legend status-line:
+ *   `Finpath - S&R with Breaks  15  15  20   25,150.00   23,800.00`
+ *   └── name ─────────────────┘  └ params ┘   └ resistance / support ┘
+ */
+function createSRBTooltip(params) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    var indicator = params.indicator, crosshair = params.crosshair;
+    var result = indicator.result;
+    var ext = (_a = indicator.extendData) !== null && _a !== void 0 ? _a : {};
+    var dataIndex = (_b = crosshair.dataIndex) !== null && _b !== void 0 ? _b : result.length - 1;
+    var inRange = dataIndex >= 0 && dataIndex < result.length;
+    var bar = inRange ? result[dataIndex] : null;
+    var resistanceColor = (_c = ext.resistanceColor) !== null && _c !== void 0 ? _c : FP_SRB_DEFAULT_RESISTANCE_COLOR;
+    var supportColor = (_d = ext.supportColor) !== null && _d !== void 0 ? _d : FP_SRB_DEFAULT_SUPPORT_COLOR;
+    var calcParams = indicator.calcParams;
+    var leftBars = (_e = calcParams[0]) !== null && _e !== void 0 ? _e : FP_SRB_DEFAULT_LEFT_BARS;
+    var rightBars = (_f = calcParams[1]) !== null && _f !== void 0 ? _f : FP_SRB_DEFAULT_RIGHT_BARS;
+    var volumeThresh = (_g = calcParams[2]) !== null && _g !== void 0 ? _g : FP_SRB_DEFAULT_VOLUME_THRESH;
+    var fmt = function (v) {
+        return v === undefined ? '' : v.toLocaleString(undefined, { maximumFractionDigits: indicator.precision });
+    };
+    var resistanceText = bar === null ? '' : fmt(bar.resistance);
+    var supportText = bar === null ? '' : fmt(bar.support);
+    return {
+        name: indicator.shortName,
+        calcParamsText: "".concat(leftBars, " ").concat(rightBars, " ").concat(volumeThresh),
+        features: [],
+        legends: [
+            { title: { text: '', color: resistanceColor }, value: { text: resistanceText, color: resistanceColor } },
+            { title: { text: '', color: supportColor }, value: { text: supportText, color: supportColor } }
+        ]
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Finpath - Support and Resistance Levels with Breaks (LuxAlgo port).
+ *
+ * Auto-detects pivot highs and pivot lows; draws horizontal step-function
+ * resistance / support lines anchored at the most recent confirmed pivot.
+ * Each new pivot resets the line with a 1-bar visible gap. When the close
+ * crosses through the current level, a break label is plotted at the
+ * break bar, classified into 4 types based on volume oscillator strength
+ * (vs `volumeThresh`) and candle-body wick shape.
+ *
+ * Implementation notes:
+ * - Custom-draw (`draw()` returns `true`) — no figures[] pipeline.
+ * - `calcParams=[leftBars, rightBars, volumeThresh]` + typed `extendData`
+ *   for color / visibility / `toggleBreaks` (extendData-only changes
+ *   trigger re-draw without recompute).
+ * - Backpaint is hardcoded `-(rightBars + 1)` (Pine source has no toggle).
+ * - `styles.tooltip.showRule = 'none'` suppresses the canvas tooltip so the
+ *   React legend row in finpath-web is the single source of truth.
+ * - NO control points / NO hit-testing — lines are computed from pivots,
+ *   not user-editable (BRD §2.3, AC-15). Unlike Trendlines, we do NOT
+ *   call `applyIndicatorInteraction`.
+ * - `extendData._resistancePrice` / `_supportPrice` written after render
+ *   for the finpath-web Y-axis label layer (pattern mirrors Trendlines
+ *   `_upperPrice` / `_lowerPrice`).
+ */
+var finpathSupportResistanceWithBreaks = {
+    name: FP_SRB_INDICATOR_NAME,
+    shortName: FP_SRB_SHORT_NAME,
+    series: 'price',
+    precision: 2,
+    shouldOhlc: false,
+    shouldFormatBigNumber: false,
+    calcParams: [FP_SRB_DEFAULT_LEFT_BARS, FP_SRB_DEFAULT_RIGHT_BARS, FP_SRB_DEFAULT_VOLUME_THRESH],
+    figures: [],
+    // Suppress canvas-layer tooltip — React legend row handles display.
+    styles: {
+        tooltip: {
+            showRule: 'none'
+        }
+    },
+    // Recompute vs re-draw gating:
+    //   `calcParams` change (leftBars / rightBars / volumeThresh) is auto-handled
+    //   by library → calc.
+    //   All extendData-only changes (colors, visibility flags, toggleBreaks)
+    //   trigger draw-only.
+    shouldUpdate: function () { return ({ calc: false, draw: true }); },
+    // Per-bar calculation — see `compute.ts` for the state machine.
+    calc: function (dataList, indicator) {
+        var _a, _b, _c;
+        var calcParams = indicator.calcParams;
+        var leftBars = (_a = calcParams[0]) !== null && _a !== void 0 ? _a : FP_SRB_DEFAULT_LEFT_BARS;
+        var rightBars = (_b = calcParams[1]) !== null && _b !== void 0 ? _b : FP_SRB_DEFAULT_RIGHT_BARS;
+        var volumeThresh = (_c = calcParams[2]) !== null && _c !== void 0 ? _c : FP_SRB_DEFAULT_VOLUME_THRESH;
+        return computeSRB(dataList, leftBars, rightBars, volumeThresh);
+    },
+    // Fully custom draw — returns true to suppress default figure rendering.
+    draw: function (_a) {
+        var _b, _c, _d;
+        var ctx = _a.ctx, indicator = _a.indicator, chart = _a.chart, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var result = indicator.result;
+        if (result.length === 0)
+            return true;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
+        var ext = ((_b = indicator.extendData) !== null && _b !== void 0 ? _b : FP_SRB_DEFAULT_EXTEND_DATA);
+        var leftBars = (_c = indicator.calcParams[0]) !== null && _c !== void 0 ? _c : FP_SRB_DEFAULT_LEFT_BARS;
+        var rightBars = (_d = indicator.calcParams[1]) !== null && _d !== void 0 ? _d : FP_SRB_DEFAULT_RIGHT_BARS;
+        var _e = chart.getVisibleRange(), from = _e.from, to = _e.to;
+        if (from >= to)
+            return true;
+        // Single outer save/restore wrapping all draws (mirror Trendlines pattern).
+        ctx.save();
+        drawSRB(ctx, result, from, to, xAxis, yAxis, ext, leftBars, rightBars);
+        ctx.restore();
+        // Expose current values for Y-axis label layer (finpath-web consumer).
+        // Walk backward to find the last NON-undefined level (skip pivot-change
+        // gap bars where emit is undefined).
+        var extData = indicator.extendData;
+        if (extData !== null) {
+            // eslint-disable-next-line @typescript-eslint/init-declarations -- assigned conditionally in loop
+            var lastResistance 
+            // eslint-disable-next-line @typescript-eslint/init-declarations -- assigned conditionally in loop
+            = void 0;
+            // eslint-disable-next-line @typescript-eslint/init-declarations -- assigned conditionally in loop
+            var lastSupport = void 0;
+            for (var i = result.length - 1; i >= 0; i--) {
+                if (lastResistance === undefined && result[i].resistance !== undefined) {
+                    lastResistance = result[i].resistance;
+                }
+                if (lastSupport === undefined && result[i].support !== undefined) {
+                    lastSupport = result[i].support;
+                }
+                if (lastResistance !== undefined && lastSupport !== undefined)
+                    break;
+            }
+            extData._resistancePrice = lastResistance;
+            extData._supportPrice = lastSupport;
+        }
+        return true;
+    },
+    createTooltipDataSource: createSRBTooltip
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * WR
  * 公式 WR(N) = 100 * [ C - HIGH(N) ] / [ HIGH(N)-LOW(N) ]
@@ -5556,7 +6797,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, volumeRatio, williamsR
+    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, volumeRatio, williamsR
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
