@@ -68,16 +68,20 @@ const finpathTrendlinesWithBreaks: IndicatorTemplate<TLBData, number, TLBExtendD
   },
 
   // Recompute vs re-draw gating:
-  //   `calcParams` change (length / mult) is auto-handled by library → calc.
-  //   Here we only opt into recompute when `calcMethod` changes.
+  //   `calcParams` change (length / mult) OR `calcMethod` change → calc.
+  //   Other extendData changes (colors, backpaint, showExt) → draw-only.
+  // Custom shouldUpdate REPLACES library default detection, so calcParams
+  // diff must be compared explicitly here.
   shouldUpdate: (prev, current) => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
     const prevExt = (prev.extendData ?? {}) as TLBExtendData
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
     const currExt = (current.extendData ?? {}) as TLBExtendData
-    const needCalc = prevExt.calcMethod !== currExt.calcMethod
-    if (needCalc) return { calc: true, draw: true }
-    return { calc: false, draw: true }
+    const calcParamsChanged =
+      JSON.stringify(prev.calcParams) !== JSON.stringify(current.calcParams)
+    const calcMethodChanged = prevExt.calcMethod !== currExt.calcMethod
+    const calc = calcParamsChanged || calcMethodChanged
+    return { calc, draw: true }
   },
 
   // Per-bar calculation — see `compute.ts` for the state machine.

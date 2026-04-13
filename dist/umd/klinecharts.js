@@ -6064,18 +6064,20 @@ var finpathTrendlinesWithBreaks = {
         }
     },
     // Recompute vs re-draw gating:
-    //   `calcParams` change (length / mult) is auto-handled by library → calc.
-    //   Here we only opt into recompute when `calcMethod` changes.
+    //   `calcParams` change (length / mult) OR `calcMethod` change → calc.
+    //   Other extendData changes (colors, backpaint, showExt) → draw-only.
+    // Custom shouldUpdate REPLACES library default detection, so calcParams
+    // diff must be compared explicitly here.
     shouldUpdate: function (prev, current) {
         var _a, _b;
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
         var prevExt = ((_a = prev.extendData) !== null && _a !== void 0 ? _a : {});
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime
         var currExt = ((_b = current.extendData) !== null && _b !== void 0 ? _b : {});
-        var needCalc = prevExt.calcMethod !== currExt.calcMethod;
-        if (needCalc)
-            return { calc: true, draw: true };
-        return { calc: false, draw: true };
+        var calcParamsChanged = JSON.stringify(prev.calcParams) !== JSON.stringify(current.calcParams);
+        var calcMethodChanged = prevExt.calcMethod !== currExt.calcMethod;
+        var calc = calcParamsChanged || calcMethodChanged;
+        return { calc: calc, draw: true };
     },
     // Per-bar calculation — see `compute.ts` for the state machine.
     calc: function (dataList, indicator) {
@@ -6690,11 +6692,15 @@ var finpathSupportResistanceWithBreaks = {
         }
     },
     // Recompute vs re-draw gating:
-    //   `calcParams` change (leftBars / rightBars / volumeThresh) is auto-handled
-    //   by library → calc.
+    //   `calcParams` change (leftBars / rightBars / volumeThresh) → calc.
     //   All extendData-only changes (colors, visibility flags, toggleBreaks)
-    //   trigger draw-only.
-    shouldUpdate: function () { return ({ calc: false, draw: true }); },
+    //   → draw-only.
+    // Custom shouldUpdate REPLACES library default detection, so calcParams
+    // diff must be compared explicitly here.
+    shouldUpdate: function (prev, current) {
+        var calc = JSON.stringify(prev.calcParams) !== JSON.stringify(current.calcParams);
+        return { calc: calc, draw: true };
+    },
     // Per-bar calculation — see `compute.ts` for the state machine.
     calc: function (dataList, indicator) {
         var _a, _b, _c;

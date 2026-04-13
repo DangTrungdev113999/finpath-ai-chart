@@ -70,11 +70,15 @@ const finpathSupportResistanceWithBreaks: IndicatorTemplate<SRBData, number, SRB
   },
 
   // Recompute vs re-draw gating:
-  //   `calcParams` change (leftBars / rightBars / volumeThresh) is auto-handled
-  //   by library → calc.
+  //   `calcParams` change (leftBars / rightBars / volumeThresh) → calc.
   //   All extendData-only changes (colors, visibility flags, toggleBreaks)
-  //   trigger draw-only.
-  shouldUpdate: () => ({ calc: false, draw: true }),
+  //   → draw-only.
+  // Custom shouldUpdate REPLACES library default detection, so calcParams
+  // diff must be compared explicitly here.
+  shouldUpdate: (prev, current) => {
+    const calc = JSON.stringify(prev.calcParams) !== JSON.stringify(current.calcParams)
+    return { calc, draw: true }
+  },
 
   // Per-bar calculation — see `compute.ts` for the state machine.
   calc: (dataList, indicator) => {
