@@ -5773,6 +5773,9 @@ function computeTLB(dataList, length, mult, calcMethod) {
  *
  * Backpaint is applied exclusively here via `indexOffset` so toggling it
  * triggers only a re-draw (not a recompute).
+ *
+ * Populates `ext._hitSegments` so the library's click handler can fire
+ * `onIndicatorShapeClick` when user clicks near a line (6px tolerance).
  */
 function drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length) {
     var _a, _b, _c, _d;
@@ -5781,8 +5784,10 @@ function drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length) {
     var showExt = (_c = ext.showExt) !== null && _c !== void 0 ? _c : true;
     var backpaint = (_d = ext.backpaint) !== null && _d !== void 0 ? _d : true;
     var indexOffset = backpaint ? -length : 0;
-    drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset);
-    drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset);
+    var segments = [];
+    drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset, segments);
+    drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset, segments);
+    ext._hitSegments = segments;
     if (showExt) {
         drawDashedExtension(ctx, result, xAxis, yAxis, 'upper', upColor, length, indexOffset);
         drawDashedExtension(ctx, result, xAxis, yAxis, 'lower', dnColor, length, indexOffset);
@@ -5805,7 +5810,7 @@ function drawTLB(ctx, result, from, to, xAxis, yAxis, ext, length) {
  * (backpaint) a run's endpoints may sit outside the visible data-index window
  * while still being on-screen in pixel space.
  */
-function drawSegmentedLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset) {
+function drawSegmentedLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset, hitSegments) {
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.setLineDash([]);
@@ -5823,6 +5828,9 @@ function drawSegmentedLine(ctx, result, xAxis, yAxis, key, color, width, indexOf
         var y2 = yAxis.convertToPixel(lastVal);
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
+        if (hitSegments !== undefined && lastIdx !== firstIdx) {
+            hitSegments.push({ x1: x1, y1: y1, x2: x2, y2: y2 });
+        }
     };
     for (var i = 0; i < result.length; i++) {
         var v = result[i][key];
@@ -6395,6 +6403,9 @@ function computeSRB(dataList, leftBars, rightBars, volumeThresh) {
  * toggle in Pine source — AC-05).
  *
  * Labels rendered AFTER lines so they sit on top when coincident.
+ *
+ * Populates `ext._hitSegments` so the library's click handler can fire
+ * `onIndicatorShapeClick` when user clicks near a horizontal level.
  */
 function drawSRB(ctx, result, from, to, xAxis, yAxis, ext, _leftBars, rightBars) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
@@ -6416,12 +6427,14 @@ function drawSRB(ctx, result, from, to, xAxis, yAxis, ext, _leftBars, rightBars)
     // Pine source: `offset=-(rightBars+1)` — always applied (no toggle).
     var indexOffset = -(rightBars + 1);
     // ─── Lines ──────────────────────────────────────────────────────────────
+    var segments = [];
     if (resistanceVisible) {
-        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'resistance', resistanceColor, resistanceWidth, indexOffset);
+        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'resistance', resistanceColor, resistanceWidth, indexOffset, segments);
     }
     if (supportVisible) {
-        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'support', supportColor, supportWidth, indexOffset);
+        drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'support', supportColor, supportWidth, indexOffset, segments);
     }
+    ext._hitSegments = segments;
     // ─── Labels (Pine plotshape has NO offset → labels anchored to bar i) ───
     if (toggleBreaks) {
         for (var i = from; i < to && i < result.length; i++) {
@@ -6454,7 +6467,7 @@ function drawSRB(ctx, result, from, to, xAxis, yAxis, ext, _leftBars, rightBars)
  * In S&R levels never drift between pivots (constant value within a run),
  * so collapsing to a single horizontal stroke is exact (no zigzag risk).
  */
-function drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset) {
+function drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, key, color, width, indexOffset, hitSegments) {
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.setLineDash([]);
@@ -6470,6 +6483,9 @@ function drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, key, color, widt
         var x2 = xAxis.convertToPixel(lastIdx + indexOffset);
         ctx.moveTo(x1, y);
         ctx.lineTo(x2, y);
+        if (hitSegments !== undefined && lastIdx !== firstIdx) {
+            hitSegments.push({ x1: x1, y1: y, x2: x2, y2: y });
+        }
     };
     for (var i = 0; i < result.length; i++) {
         var v = result[i][key];

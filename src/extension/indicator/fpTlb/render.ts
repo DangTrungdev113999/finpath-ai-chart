@@ -20,6 +20,8 @@ import {
 
 interface AxisConv { convertToPixel: (v: number) => number }
 
+interface HitSegment { x1: number, y1: number, x2: number, y2: number }
+
 /**
  * Top-level render entry. Draws, in z-order low → high:
  *   1. Main solid segments (upper, lower)
@@ -28,6 +30,9 @@ interface AxisConv { convertToPixel: (v: number) => number }
  *
  * Backpaint is applied exclusively here via `indexOffset` so toggling it
  * triggers only a re-draw (not a recompute).
+ *
+ * Populates `ext._hitSegments` so the library's click handler can fire
+ * `onIndicatorShapeClick` when user clicks near a line (6px tolerance).
  */
 export function drawTLB (
   ctx: CanvasRenderingContext2D,
@@ -45,8 +50,10 @@ export function drawTLB (
   const backpaint = ext.backpaint ?? true
   const indexOffset = backpaint ? -length : 0
 
-  drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset)
-  drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset)
+  const segments: HitSegment[] = []
+  drawSegmentedLine(ctx, result, xAxis, yAxis, 'upper', upColor, 1, indexOffset, segments)
+  drawSegmentedLine(ctx, result, xAxis, yAxis, 'lower', dnColor, 1, indexOffset, segments)
+  ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = segments
 
   if (showExt) {
     drawDashedExtension(ctx, result, xAxis, yAxis, 'upper', upColor, length, indexOffset)
@@ -80,7 +87,8 @@ function drawSegmentedLine (
   key: 'upper' | 'lower',
   color: string,
   width: number,
-  indexOffset: number
+  indexOffset: number,
+  hitSegments?: HitSegment[]
 ): void {
   ctx.strokeStyle = color
   ctx.lineWidth = width
@@ -100,6 +108,9 @@ function drawSegmentedLine (
     const y2 = yAxis.convertToPixel(lastVal)
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
+    if (hitSegments !== undefined && lastIdx !== firstIdx) {
+      hitSegments.push({ x1, y1, x2, y2 })
+    }
   }
 
   for (let i = 0; i < result.length; i++) {

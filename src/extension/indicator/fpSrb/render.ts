@@ -23,6 +23,8 @@ import {
 
 interface AxisConv { convertToPixel: (v: number) => number }
 
+interface HitSegment { x1: number, y1: number, x2: number, y2: number }
+
 /**
  * Top-level render entry. Draws, in z-order low → high:
  *   1. Resistance horizontal segments (solid red, width 3)
@@ -34,6 +36,9 @@ interface AxisConv { convertToPixel: (v: number) => number }
  * toggle in Pine source — AC-05).
  *
  * Labels rendered AFTER lines so they sit on top when coincident.
+ *
+ * Populates `ext._hitSegments` so the library's click handler can fire
+ * `onIndicatorShapeClick` when user clicks near a horizontal level.
  */
 export function drawSRB (
   ctx: CanvasRenderingContext2D,
@@ -67,12 +72,14 @@ export function drawSRB (
   const indexOffset = -(rightBars + 1)
 
   // ─── Lines ──────────────────────────────────────────────────────────────
+  const segments: HitSegment[] = []
   if (resistanceVisible) {
-    drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'resistance', resistanceColor, resistanceWidth, indexOffset)
+    drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'resistance', resistanceColor, resistanceWidth, indexOffset, segments)
   }
   if (supportVisible) {
-    drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'support', supportColor, supportWidth, indexOffset)
+    drawSegmentedHorizontalLine(ctx, result, xAxis, yAxis, 'support', supportColor, supportWidth, indexOffset, segments)
   }
+  ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = segments
 
   // ─── Labels (Pine plotshape has NO offset → labels anchored to bar i) ───
   if (toggleBreaks) {
@@ -139,7 +146,8 @@ function drawSegmentedHorizontalLine (
   key: 'resistance' | 'support',
   color: string,
   width: number,
-  indexOffset: number
+  indexOffset: number,
+  hitSegments?: HitSegment[]
 ): void {
   ctx.strokeStyle = color
   ctx.lineWidth = width
@@ -157,6 +165,9 @@ function drawSegmentedHorizontalLine (
     const x2 = xAxis.convertToPixel(lastIdx + indexOffset)
     ctx.moveTo(x1, y)
     ctx.lineTo(x2, y)
+    if (hitSegments !== undefined && lastIdx !== firstIdx) {
+      hitSegments.push({ x1, y1: y, x2, y2: y })
+    }
   }
 
   for (let i = 0; i < result.length; i++) {
