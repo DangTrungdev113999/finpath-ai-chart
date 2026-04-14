@@ -381,17 +381,17 @@ const finpathMovingAverageConvergenceDivergence: IndicatorTemplate<FPMACDResult,
           }
         }
 
-        // ─── Markers — legacy steps 9 & 10 ─────────────────────────────
+        // ─── Markers — sell/buy at MACD×Signal crossover ───────────────
+        // Place the marker at the intersection point of the two lines,
+        // approximated by the midpoint of MACD and Signal at the crossover
+        // bar: (macd + signal) / 2.
         // Sell: prev MACD > prev Signal  AND  now MACD < Signal  AND  MACD > 0
         if (prevMacd > prevSignal && macd < macdSignal && macd > 0) {
-          bar.sellMarker = (0.1 * macd > 3) ? (macd + 3) : (1.1 * macd)
+          bar.sellMarker = (macd + macdSignal) / 2
         }
         // Buy: prev MACD < prev Signal  AND  now MACD > Signal  AND  MACD < 0
-        //
-        // NOTE: when macd < 0, `0.1 * macd` is always negative → never > 3 →
-        // always `1.1 * macd` branch. Ternary preserved for 1:1 legacy parity (AC-08).
         if (prevMacd < prevSignal && macd > macdSignal && macd < 0) {
-          bar.buyMarker = (0.1 * macd > 3) ? (macd - 3) : (1.1 * macd)
+          bar.buyMarker = (macd + macdSignal) / 2
         }
 
         bar.macd = macd
