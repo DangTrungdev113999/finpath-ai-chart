@@ -7062,17 +7062,17 @@ var finpathMovingAverageConvergenceDivergence = {
                         bar.histNegLightening = histogram;
                     }
                 }
-                // ─── Markers — legacy steps 9 & 10 ─────────────────────────────
+                // ─── Markers — sell/buy at MACD×Signal crossover ───────────────
+                // Place the marker at the intersection point of the two lines,
+                // approximated by the midpoint of MACD and Signal at the crossover
+                // bar: (macd + signal) / 2.
                 // Sell: prev MACD > prev Signal  AND  now MACD < Signal  AND  MACD > 0
                 if (prevMacd > prevSignal && macd < macdSignal && macd > 0) {
-                    bar.sellMarker = (0.1 * macd > 3) ? (macd + 3) : (1.1 * macd);
+                    bar.sellMarker = (macd + macdSignal) / 2;
                 }
                 // Buy: prev MACD < prev Signal  AND  now MACD > Signal  AND  MACD < 0
-                //
-                // NOTE: when macd < 0, `0.1 * macd` is always negative → never > 3 →
-                // always `1.1 * macd` branch. Ternary preserved for 1:1 legacy parity (AC-08).
                 if (prevMacd < prevSignal && macd > macdSignal && macd < 0) {
-                    bar.buyMarker = (0.1 * macd > 3) ? (macd - 3) : (1.1 * macd);
+                    bar.buyMarker = (macd + macdSignal) / 2;
                 }
                 bar.macd = macd;
                 bar.signal = macdSignal;
@@ -7113,6 +7113,657 @@ var finpathMovingAverageConvergenceDivergence = {
         }
         return false;
     }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/** Library indicator name — consumer must use this exact string. */
+var FP_AM_INDICATOR_NAME = 'FP_AM';
+var FP_AM_SHORT_NAME = 'Analogue Matcher';
+// ── Pine defaults ──────────────────────────────────────────────────────────
+var FP_AM_DEFAULT_MODE = 'Dual Mode';
+var FP_AM_DEFAULT_WINDOW = 50;
+var FP_AM_DEFAULT_LOOKBACK = 500;
+var FP_AM_DEFAULT_TOLERANCE = 0.004;
+var FP_AM_DEFAULT_CALC_PARAMS = [
+    FP_AM_DEFAULT_MODE,
+    FP_AM_DEFAULT_WINDOW,
+    FP_AM_DEFAULT_LOOKBACK,
+    FP_AM_DEFAULT_TOLERANCE
+];
+// ── Pine colour constants (→ rgba) ─────────────────────────────────────────
+// Pine `color.new(color.green, 60)` ⇒ 60% transparency ⇒ alpha = 0.40.
+var FP_AM_BULL_FILL = 'rgba(0, 128, 0, 0.40)';
+var FP_AM_BULL_WICK = 'rgba(0, 128, 0, 0.40)';
+var FP_AM_BEAR_FILL = 'rgba(255, 0, 0, 0.40)';
+var FP_AM_BEAR_WICK = 'rgba(255, 0, 0, 0.40)';
+// Label text (table "Bull"/"Bear" colours) — lime / red, full opacity.
+var FP_AM_BULL_LABEL = '#00FF00';
+var FP_AM_BEAR_LABEL = '#FF0000';
+// Stats-table palette (Pine: color.new(color.black, 70) = 30% opacity bg).
+var FP_AM_TABLE_BG = 'rgba(0, 0, 0, 0.30)';
+var FP_AM_TABLE_BORDER = '#808080';
+var FP_AM_TABLE_HEADER_BG = '#808080';
+var FP_AM_TABLE_TEXT = '#FFFFFF';
+var FP_AM_DEFAULT_EXTEND_DATA = {
+    showBoxes: true,
+    showLines: true,
+    showTable: true,
+    bullFill: FP_AM_BULL_FILL,
+    bearFill: FP_AM_BEAR_FILL,
+    bullLabel: FP_AM_BULL_LABEL,
+    bearLabel: FP_AM_BEAR_LABEL,
+    tableBg: FP_AM_TABLE_BG,
+    tableBorder: FP_AM_TABLE_BORDER,
+    tableHeaderBg: FP_AM_TABLE_HEADER_BG,
+    tableText: FP_AM_TABLE_TEXT
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Pine parity — slope-similarity × R²-similarity, scaled 0..100.
+ *  slopeSim = max(0, 1 - diff / tolerance)    // 0 when diff ≥ tolerance
+ *  r2Sim    = 1 - |currR2 - anchorR2|          // always 0..1 (both ∈ [0,1])
+ */
+function confidence(diff, anchorR2, currR2, tolerance) {
+    if (!Number.isFinite(diff) || !Number.isFinite(anchorR2) || !Number.isFinite(currR2) || tolerance <= 0) {
+        return 0;
+    }
+    var slopeSim = Math.max(0, 1 - diff / tolerance);
+    var r2Sim = 1 - Math.abs(currR2 - anchorR2);
+    return Math.max(0, slopeSim * r2Sim * 100);
+}
+/**
+ * Main entry point — one AMData object per bar. Every index except `last` is
+ * an empty object (no per-bar plot data). All matching state lives on the
+ * final bar.
+ *
+ * Complexity: O(n) regression (incremental sums) + O(min(lookback, n))
+ * search = O(n) overall.
+ */
+function computeAM(dataList, indicator) {
+    var n = dataList.length;
+    var out = [];
+    for (var i = 0; i < n; i++)
+        out.push({});
+    // ── Resolve calc params with defaults ───────────────────────────────────
+    var params = indicator.calcParams;
+    var rawMode = params[0];
+    var mode = (rawMode === 'Single Mode' || rawMode === 'Dual Mode')
+        ? rawMode
+        : FP_AM_DEFAULT_MODE;
+    var rawWindow = params[1];
+    var window = typeof rawWindow === 'number' && rawWindow > 0
+        ? Math.floor(rawWindow)
+        : FP_AM_DEFAULT_WINDOW;
+    var rawLookback = params[2];
+    var lookback = typeof rawLookback === 'number' && rawLookback > 0
+        ? Math.floor(rawLookback)
+        : FP_AM_DEFAULT_LOOKBACK;
+    var rawTol = params[3];
+    var tolerance = typeof rawTol === 'number' && rawTol > 0
+        ? rawTol
+        : FP_AM_DEFAULT_TOLERANCE;
+    // Need at least two full windows + 1 so that slope[last-1] is defined AND
+    // the search has at least one candidate (i = window, aIdx = last - window,
+    // fIdx = last, which requires last ≥ window). With slope[last-1] we need
+    // last - 1 ≥ window - 1 ⇒ last ≥ window. Combined with the aIdx ≥ 0 lookup
+    // we require n ≥ window * 2 + 1 to reliably produce a match.
+    if (n < window * 2 + 1)
+        return out;
+    // ── Rolling linear regression: close vs time, fixed window length. ──────
+    // Incremental rolling sums → O(n), not O(n*window).
+    //
+    // Pine: ta.linreg(close, window) + ta.correlation(close, n, window).
+    // We compute slope & r² for each bar `i` over bars [i - window + 1 .. i].
+    //
+    // Note: time deltas between bars can be huge (timestamps in ms), so sums of
+    // x*x may be large but still safe within Float64 for reasonable dataset
+    // sizes (< 10^9 bars).
+    var slope = new Float64Array(n);
+    var rsq = new Float64Array(n);
+    slope.fill(NaN);
+    rsq.fill(NaN);
+    var sX = 0;
+    var sY = 0;
+    var sXY = 0;
+    var sXX = 0;
+    var sYY = 0;
+    for (var i = 0; i < n; i++) {
+        var x = dataList[i].timestamp;
+        var y = dataList[i].close;
+        sX += x;
+        sY += y;
+        sXY += x * y;
+        sXX += x * x;
+        sYY += y * y;
+        if (i >= window) {
+            var k = i - window;
+            var px = dataList[k].timestamp;
+            var py = dataList[k].close;
+            sX -= px;
+            sY -= py;
+            sXY -= px * py;
+            sXX -= px * px;
+            sYY -= py * py;
+        }
+        if (i >= window - 1) {
+            var N = window;
+            var mX = sX / N;
+            var mY = sY / N;
+            var cov = sXY / N - mX * mY;
+            var varX = sXX / N - mX * mX;
+            var varY = sYY / N - mY * mY;
+            var sd = Math.sqrt(Math.max(0, varX) * Math.max(0, varY));
+            slope[i] = varX > 0 ? cov / varX : 0;
+            var r = sd > 0 ? cov / sd : 0;
+            rsq[i] = r * r;
+        }
+    }
+    // ── Best-match search ───────────────────────────────────────────────────
+    // Pine uses `slope[1]` / `rsq[1]` — i.e. one-back — to reduce noise from
+    // the in-progress bar. We do the same by reading slope[last - 1].
+    var last = n - 1;
+    var currSlope = slope[last - 1];
+    var currR2 = rsq[last - 1];
+    if (!Number.isFinite(currSlope) || !Number.isFinite(currR2))
+        return out;
+    // Pine's `for i = window to lookback` iterates back-indices i = [window..lookback].
+    // Clamp so aIdx = last - i ≥ 0 AND aIdx + window ≤ last (fIdx within data).
+    // That last constraint ⇒ i ≥ window, so the effective upper bound is
+    // min(lookback, last - window).
+    var upperI = Math.min(lookback, last - window);
+    var bullIdx = -1;
+    var bullDiff = Infinity;
+    var bullR2 = 0;
+    var bullTm = -1;
+    var bearIdx = -1;
+    var bearDiff = Infinity;
+    var bearR2 = 0;
+    var bearTm = -1;
+    var bestIdx = -1;
+    var bestDiff = Infinity;
+    var bestR2 = 0;
+    var bestTm = -1;
+    var bestDir = 'Bull';
+    for (var i = window; i <= upperI; i++) {
+        var aIdx = last - i;
+        if (aIdx < 0)
+            break;
+        var anchorSlope = slope[aIdx];
+        if (!Number.isFinite(anchorSlope))
+            continue;
+        var diff = Math.abs(currSlope - anchorSlope);
+        if (diff > tolerance)
+            continue;
+        // Pine back-index: p_change = close[i - window] - close[i]
+        // Forward indexing (aIdx = last - i, fIdx = aIdx + window = last - i + window):
+        var fIdx = aIdx + window;
+        if (fIdx > last)
+            continue;
+        var pChange = dataList[fIdx].close - dataList[aIdx].close;
+        var anchorR2 = rsq[aIdx];
+        var anchorTm = dataList[aIdx].timestamp;
+        if (mode === 'Dual Mode') {
+            if (pChange > 0 && diff < bullDiff) {
+                bullDiff = diff;
+                bullIdx = aIdx;
+                bullTm = anchorTm;
+                bullR2 = anchorR2;
+            }
+            else if (pChange < 0 && diff < bearDiff) {
+                bearDiff = diff;
+                bearIdx = aIdx;
+                bearTm = anchorTm;
+                bearR2 = anchorR2;
+            }
+        }
+        else {
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestIdx = aIdx;
+                bestTm = anchorTm;
+                bestR2 = anchorR2;
+                bestDir = pChange > 0 ? 'Bull' : 'Bear';
+            }
+        }
+    }
+    // ── Build projection geometry (scaled OHLC, 1 per projected bar) ────────
+    var buildProjection = function (anchorIdx) {
+        if (anchorIdx < 0)
+            return null;
+        var anchorClose = dataList[anchorIdx].close;
+        if (!Number.isFinite(anchorClose) || anchorClose === 0)
+            return null;
+        var scale = dataList[last].close / anchorClose;
+        var bars = [];
+        for (var j = 0; j <= window; j++) {
+            var src = anchorIdx + j;
+            if (src > last)
+                break;
+            var k = dataList[src];
+            bars.push({
+                o: k.open * scale,
+                h: k.high * scale,
+                l: k.low * scale,
+                c: k.close * scale
+            });
+        }
+        return {
+            anchorIdx: anchorIdx,
+            anchorTime: dataList[anchorIdx].timestamp,
+            scale: scale,
+            bars: bars
+        };
+    };
+    var makeMatch = function (idx, diff, anchorR2, anchorTm, direction) {
+        if (idx < 0)
+            return null;
+        return __assign({ anchorIdx: idx, anchorTime: anchorTm, anchorR2: anchorR2, diff: diff, confidence: confidence(diff, anchorR2, currR2, tolerance), projection: buildProjection(idx) }, (direction !== undefined ? { direction: direction } : {}));
+    };
+    var lastBar = out[last];
+    lastBar.lastIdx = last;
+    lastBar.currSlope = currSlope;
+    lastBar.currR2 = currR2;
+    lastBar.mode = mode;
+    lastBar.window = window;
+    lastBar.tolerance = tolerance;
+    if (mode === 'Dual Mode') {
+        lastBar.bullMatch = makeMatch(bullIdx, bullDiff, bullR2, bullTm);
+        lastBar.bearMatch = makeMatch(bearIdx, bearDiff, bearR2, bearTm);
+    }
+    else {
+        lastBar.bestMatch = makeMatch(bestIdx, bestDiff, bestR2, bestTm, bestDir);
+    }
+    return out;
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// ── Stats-table layout constants (Pine parity; see tad-specifics.md §2). ──
+var COL_WIDTHS = [48, 72, 96, 72];
+var TABLE_WIDTH = COL_WIDTHS.reduce(function (a, b) { return a + b; }, 0);
+var ROW_HEIGHT = 18;
+var TABLE_FONT = '12px Arial';
+var TABLE_MARGIN = 8;
+// ── Time formatting (Pine "MM-dd HH:mm") ──────────────────────────────────
+function pad2(n) {
+    return n < 10 ? "0".concat(n) : String(n);
+}
+function formatAnchorTime(ts) {
+    if (!Number.isFinite(ts) || ts <= 0)
+        return 'N/A';
+    var d = new Date(ts);
+    var MM = pad2(d.getMonth() + 1);
+    var dd = pad2(d.getDate());
+    var HH = pad2(d.getHours());
+    var mm = pad2(d.getMinutes());
+    return "".concat(MM, "-").concat(dd, " ").concat(HH, ":").concat(mm);
+}
+// ── Projected-candle primitives ───────────────────────────────────────────
+function drawProjectedBody(ctx, xL, xR, yTop, yBot, fill) {
+    var x = Math.round(Math.min(xL, xR));
+    var w = Math.max(1, Math.round(Math.abs(xR - xL)) - 1); // 1-px gutter between candles
+    var y = Math.round(Math.min(yTop, yBot));
+    var h = Math.max(1, Math.round(Math.abs(yBot - yTop))); // doji → h=1
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+}
+function drawProjectedWick(ctx, xC, yHigh, yLow, stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    // +0.5 on X only — crisp 1-px vertical stroke aligned to pixel grid.
+    var x = Math.round(xC) + 0.5;
+    ctx.moveTo(x, Math.round(yHigh));
+    ctx.lineTo(x, Math.round(yLow));
+    ctx.stroke();
+}
+function drawProjection(ctx, proj, lastIdx, bodyColor, wickColor, showBoxes, showLines, xAxis, yAxis, bounding) {
+    if (!showBoxes && !showLines)
+        return;
+    var bars = proj.bars;
+    if (bars.length === 0)
+        return;
+    // Viewport cull — skip entire projection if fully off-screen.
+    var firstX = xAxis.convertToPixel(lastIdx);
+    var lastX = xAxis.convertToPixel(lastIdx + bars.length);
+    var left = bounding.left;
+    var right = bounding.left + bounding.width;
+    if (lastX < left || firstX > right)
+        return;
+    for (var j = 0; j < bars.length; j++) {
+        var bar = bars[j];
+        var xL = xAxis.convertToPixel(lastIdx + j - 0.5);
+        var xR = xAxis.convertToPixel(lastIdx + j + 0.5);
+        var xC = xAxis.convertToPixel(lastIdx + j);
+        if (showBoxes) {
+            var yTop = yAxis.convertToPixel(Math.max(bar.o, bar.c));
+            var yBot = yAxis.convertToPixel(Math.min(bar.o, bar.c));
+            drawProjectedBody(ctx, xL, xR, yTop, yBot, bodyColor);
+        }
+        if (showLines) {
+            var yHigh = yAxis.convertToPixel(bar.h);
+            var yLow = yAxis.convertToPixel(bar.l);
+            drawProjectedWick(ctx, xC, yHigh, yLow, wickColor);
+        }
+    }
+}
+function naRow(dirLabel, dirColor, textColor) {
+    return {
+        cells: [
+            { text: dirLabel, color: dirColor },
+            { text: 'N/A', color: textColor },
+            { text: 'N/A', color: textColor },
+            { text: '0.00%', color: textColor }
+        ]
+    };
+}
+function matchRow(dirLabel, dirColor, match, textColor) {
+    return {
+        cells: [
+            { text: dirLabel, color: dirColor },
+            { text: String(match.anchorIdx), color: textColor },
+            { text: formatAnchorTime(match.anchorTime), color: textColor },
+            { text: match.confidence.toFixed(2) + '%', color: textColor }
+        ]
+    };
+}
+function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY) {
+    var _a, _b, _c;
+    if (rows.length === 0)
+        return;
+    var bgColor = (_a = ext.tableBg) !== null && _a !== void 0 ? _a : FP_AM_TABLE_BG;
+    var borderColor = (_b = ext.tableBorder) !== null && _b !== void 0 ? _b : FP_AM_TABLE_BORDER;
+    var headerBgColor = (_c = ext.tableHeaderBg) !== null && _c !== void 0 ? _c : FP_AM_TABLE_HEADER_BG;
+    var tableH = ROW_HEIGHT * rows.length;
+    var anchorX = Math.round(bounding.left + bounding.width - TABLE_WIDTH - TABLE_MARGIN);
+    var anchorY = Math.round(bounding.top + TABLE_MARGIN + tableOffsetY);
+    // 1. Background fill (entire table).
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(anchorX, anchorY, TABLE_WIDTH, tableH);
+    // 2. Header row fill (gray).
+    ctx.fillStyle = headerBgColor;
+    ctx.fillRect(anchorX, anchorY, TABLE_WIDTH, ROW_HEIGHT);
+    // 3. Outer 1-px border.
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, TABLE_WIDTH - 1, tableH - 1);
+    // 4. Row separators (horizontal).
+    ctx.beginPath();
+    for (var r = 1; r < rows.length; r++) {
+        var y = anchorY + r * ROW_HEIGHT + 0.5;
+        ctx.moveTo(anchorX, y);
+        ctx.lineTo(anchorX + TABLE_WIDTH, y);
+    }
+    ctx.stroke();
+    // 5. Column separators (vertical).
+    ctx.beginPath();
+    var xAcc = anchorX;
+    for (var c = 0; c < COL_WIDTHS.length - 1; c++) {
+        xAcc += COL_WIDTHS[c];
+        var x = xAcc + 0.5;
+        ctx.moveTo(x, anchorY);
+        ctx.lineTo(x, anchorY + tableH);
+    }
+    ctx.stroke();
+    // 6. Cell text (last — always on top).
+    ctx.font = TABLE_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (var r = 0; r < rows.length; r++) {
+        var y = anchorY + r * ROW_HEIGHT + ROW_HEIGHT / 2;
+        var x = anchorX;
+        for (var c = 0; c < 4; c++) {
+            var cell = rows[r].cells[c];
+            ctx.fillStyle = cell.color;
+            ctx.fillText(cell.text, x + COL_WIDTHS[c] / 2, y);
+            x += COL_WIDTHS[c];
+        }
+    }
+}
+// ── Multi-instance stacking offset (Pine AC-32) ───────────────────────────
+function resolveInstanceOffsetY(chart, indicatorId, paneId, name, tableH) {
+    if (chart === undefined || indicatorId === undefined || paneId === undefined)
+        return 0;
+    try {
+        var siblings = chart.getIndicators({ paneId: paneId, name: name });
+        var siblingIdx = siblings.findIndex(function (i) { return i.id === indicatorId; });
+        if (siblingIdx <= 0)
+            return 0;
+        return siblingIdx * (tableH + 4);
+    }
+    catch (_a) {
+        return 0;
+    }
+}
+// ── Public entry point ────────────────────────────────────────────────────
+/**
+ * Render analogue-matcher projection(s) + stats table.
+ *
+ * Render order (back → front) guarantees wicks / text are never clipped:
+ *   1. Bull projection bodies
+ *   2. Bear projection bodies
+ *   3. Bull projection wicks
+ *   4. Bear projection wicks
+ *   5. Stats-table bg + header + border + separators
+ *   6. Stats-table text
+ */
+function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, indicatorPaneId, indicatorName) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+    if (result.length === 0)
+        return;
+    var last = result[result.length - 1];
+    var lastIdx = last.lastIdx;
+    if (lastIdx === undefined)
+        return;
+    var showBoxes = (_a = ext.showBoxes) !== null && _a !== void 0 ? _a : true;
+    var showLines = (_b = ext.showLines) !== null && _b !== void 0 ? _b : true;
+    var showTable = (_c = ext.showTable) !== null && _c !== void 0 ? _c : true;
+    var bullFill = (_d = ext.bullFill) !== null && _d !== void 0 ? _d : FP_AM_BULL_FILL;
+    var bearFill = (_e = ext.bearFill) !== null && _e !== void 0 ? _e : FP_AM_BEAR_FILL;
+    var bullWick = (_f = ext.bullFill) !== null && _f !== void 0 ? _f : FP_AM_BULL_WICK;
+    var bearWick = (_g = ext.bearFill) !== null && _g !== void 0 ? _g : FP_AM_BEAR_WICK;
+    var bullLabel = (_h = ext.bullLabel) !== null && _h !== void 0 ? _h : FP_AM_BULL_LABEL;
+    var bearLabel = (_j = ext.bearLabel) !== null && _j !== void 0 ? _j : FP_AM_BEAR_LABEL;
+    var textColor = (_k = ext.tableText) !== null && _k !== void 0 ? _k : FP_AM_TABLE_TEXT;
+    var isDual = last.mode === 'Dual Mode';
+    // ── 1. Bull bodies ──────────────────────────────────────────────────────
+    if (isDual) {
+        var bull = (_l = last.bullMatch) !== null && _l !== void 0 ? _l : null;
+        if ((bull === null || bull === void 0 ? void 0 : bull.projection) != null) {
+            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, showBoxes, false, xAxis, yAxis, bounding);
+        }
+        var bear = (_m = last.bearMatch) !== null && _m !== void 0 ? _m : null;
+        // 2. Bear bodies
+        if ((bear === null || bear === void 0 ? void 0 : bear.projection) != null) {
+            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, showBoxes, false, xAxis, yAxis, bounding);
+        }
+        // 3. Bull wicks
+        if ((bull === null || bull === void 0 ? void 0 : bull.projection) != null) {
+            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, false, showLines, xAxis, yAxis, bounding);
+        }
+        // 4. Bear wicks
+        if ((bear === null || bear === void 0 ? void 0 : bear.projection) != null) {
+            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, false, showLines, xAxis, yAxis, bounding);
+        }
+    }
+    else {
+        var best = (_o = last.bestMatch) !== null && _o !== void 0 ? _o : null;
+        if ((best === null || best === void 0 ? void 0 : best.projection) != null) {
+            var dir = (_p = best.direction) !== null && _p !== void 0 ? _p : 'Bull';
+            var bodyColor = dir === 'Bull' ? bullFill : bearFill;
+            var wickColor = dir === 'Bull' ? bullWick : bearWick;
+            // Single projection: draw bodies then wicks (no cross-candle ordering needed).
+            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, showBoxes, false, xAxis, yAxis, bounding);
+            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, false, showLines, xAxis, yAxis, bounding);
+        }
+    }
+    // ── 5 + 6. Stats table ─────────────────────────────────────────────────
+    if (!showTable)
+        return;
+    var headerRow = {
+        cells: [
+            { text: 'Dir', color: textColor },
+            { text: 'Bar', color: textColor },
+            { text: 'Time', color: textColor },
+            { text: 'Conf (R\u00B2)', color: textColor }
+        ]
+    };
+    var rows = [headerRow];
+    if (isDual) {
+        var bull = (_q = last.bullMatch) !== null && _q !== void 0 ? _q : null;
+        var bear = (_r = last.bearMatch) !== null && _r !== void 0 ? _r : null;
+        rows.push(bull != null
+            ? matchRow('Bull', bullLabel, bull, textColor)
+            : naRow('Bull', bullLabel, textColor));
+        rows.push(bear != null
+            ? matchRow('Bear', bearLabel, bear, textColor)
+            : naRow('Bear', bearLabel, textColor));
+    }
+    else {
+        var best = (_s = last.bestMatch) !== null && _s !== void 0 ? _s : null;
+        if (best != null) {
+            var dir = (_t = best.direction) !== null && _t !== void 0 ? _t : 'Bull';
+            var dirColor = dir === 'Bull' ? bullLabel : bearLabel;
+            rows.push(matchRow(dir, dirColor, best, textColor));
+        }
+        else {
+            // No match in Single Mode → render a neutral N/A row (default to Bull tint).
+            rows.push(naRow('Bull', bullLabel, textColor));
+        }
+    }
+    var tableH = ROW_HEIGHT * rows.length;
+    var offsetY = resolveInstanceOffsetY(chart, indicatorId, indicatorPaneId, indicatorName !== null && indicatorName !== void 0 ? indicatorName : '', tableH);
+    drawStatsTable(ctx, bounding, rows, ext, offsetY);
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * FP-AM exposes no per-bar values — canvas tooltip is suppressed both here
+ * (empty TooltipData) AND via `styles.tooltip.showRule: 'none'` at the
+ * template level. Mirrors fpVpfr/tooltip.ts.
+ */
+function createFPAMTooltip(_params) {
+    return {
+        name: '',
+        calcParamsText: '',
+        features: [],
+        legends: []
+    };
+}
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Finpath — Analogue Matcher (FP-AM)
+ *
+ * Main-pane overlay ("price" series). Finds the window in recent history whose
+ * regression slope best matches the current window, then projects that
+ * sequence `window` bars into the future (scaled by lastClose / anchorClose).
+ *
+ * - Dual Mode ⇒ renders BOTH the best-bullish and best-bearish analogue.
+ * - Single Mode ⇒ renders the single closest analogue (coloured by its
+ *   realised direction).
+ *
+ * Rendering uses `xAxis.convertToPixel(lastIdx + j)` for j ≥ 0 — same
+ * mechanism ichimokuCloud uses for senkou-span displacement (see
+ * ichimokuCloud.ts:121 where offset = 25). `dataIndexToCoordinate` in
+ * Store.ts accepts any dataIndex, including beyond `dataList.length - 1`.
+ *
+ * All visuals are drawn inside `draw()` (projected candles + stats table).
+ * `figures: []` so the native figure pipeline is suppressed.
+ */
+var finpathAnalogueMatcher = {
+    name: FP_AM_INDICATOR_NAME,
+    shortName: FP_AM_SHORT_NAME,
+    series: 'price',
+    precision: 2,
+    shouldOhlc: false,
+    shouldFormatBigNumber: false,
+    zLevel: 0,
+    // Heterogeneous tuple: [mode, window, lookback, tolerance] — see types.ts.
+    calcParams: __spreadArray([], __read(FP_AM_DEFAULT_CALC_PARAMS), false),
+    figures: [],
+    extendData: __assign({}, FP_AM_DEFAULT_EXTEND_DATA),
+    // Suppress canvas-layer library tooltip — zero per-bar values.
+    styles: { tooltip: { showRule: 'none' } },
+    // Recalc only when calcParams change; extendData-only changes (visibility
+    // toggles, colour overrides) trigger redraw without recompute.
+    shouldUpdate: function (prev, curr) {
+        var calc = JSON.stringify(prev.calcParams) !== JSON.stringify(curr.calcParams);
+        return { calc: calc, draw: true };
+    },
+    calc: function (dataList, indicator) { return computeAM(dataList, indicator); },
+    draw: function (_a) {
+        var ctx = _a.ctx, indicator = _a.indicator, chart = _a.chart, bounding = _a.bounding, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var result = indicator.result;
+        if (result.length === 0)
+            return true;
+        var ext = indicator.extendData;
+        ctx.save();
+        drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicator.id, indicator.paneId, indicator.name);
+        ctx.restore();
+        return true;
+    },
+    createTooltipDataSource: createFPAMTooltip
 };
 
 /**
@@ -7182,7 +7833,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, volumeRatio, williamsR
+    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, finpathAnalogueMatcher, volumeRatio, williamsR
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
