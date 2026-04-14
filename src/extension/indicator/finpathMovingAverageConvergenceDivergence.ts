@@ -195,45 +195,12 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
       ) as string
       return { style: 'fill', color, borderColor: color }
     }
-  },
-
-  // plot_6 — Sell marker (circle, #FF0000)
-  // `title: undefined` → auto-omitted from legend by `IndicatorTooltipView.ts:349`
-  // `isString(title)` gate. Renders on canvas regardless.
-  {
-    key: 'sellMarker',
-    type: 'circle',
-    attrs: ({ coordinate }) => ({
-      x: coordinate.current.x,
-      y: coordinate.current.sellMarker,
-      r: MARKER_RADIUS
-    }),
-    styles: ({ indicator }) => {
-      const color = formatValue(
-        indicator.styles, 'circles[0].downColor',
-        FP_MACD_DEFAULTS.sellColor
-      ) as string
-      return { style: 'fill', color, borderColor: color }
-    }
-  },
-
-  // plot_7 — Buy marker (circle, #00FF00)
-  {
-    key: 'buyMarker',
-    type: 'circle',
-    attrs: ({ coordinate }) => ({
-      x: coordinate.current.x,
-      y: coordinate.current.buyMarker,
-      r: MARKER_RADIUS
-    }),
-    styles: ({ indicator }) => {
-      const color = formatValue(
-        indicator.styles, 'circles[1].upColor',
-        FP_MACD_DEFAULTS.buyColor
-      ) as string
-      return { style: 'fill', color, borderColor: color }
-    }
   }
+
+  // plot_6 (sellMarker) and plot_7 (buyMarker) are rendered in `postDraw`
+  // instead of as figures — so they draw AFTER all line segments and are
+  // not covered by the next bar's MACD/Signal segment. Data fields remain
+  // in result[] for the React tooltip loader to read.
 ]
 
 const finpathMovingAverageConvergenceDivergence: IndicatorTemplate<FPMACDResult, FPMACDParam> = {
@@ -437,6 +404,51 @@ const finpathMovingAverageConvergenceDivergence: IndicatorTemplate<FPMACDResult,
       const cpBg = getControlPointBgColor(chart)
       drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['macd', 'signal'], 0, cpBg)
     }
+
+    return false
+  },
+
+  // Render buy/sell crossover markers AFTER figures so they sit on top of
+  // the MACD/Signal line segments (the figure pipeline draws segments
+  // bar-by-bar — the next bar's segment would otherwise cover a circle
+  // drawn on the previous bar).
+  postDraw: ({ ctx, indicator, chart, xAxis, yAxis }) => {
+    const result = indicator.result
+    if (result.length === 0) return false
+    const { from, to } = chart.getVisibleRange()
+    if (from >= to) return false
+
+    const sellColor = formatValue(
+      indicator.styles, 'circles[0].downColor',
+      FP_MACD_DEFAULTS.sellColor
+    ) as string
+    const buyColor = formatValue(
+      indicator.styles, 'circles[1].upColor',
+      FP_MACD_DEFAULTS.buyColor
+    ) as string
+
+    ctx.save()
+    for (let i = from; i < to && i < result.length; i++) {
+      const bar = result[i]
+
+      if (bar.sellMarker !== undefined) {
+        const x = xAxis.convertToPixel(i)
+        const y = yAxis.convertToPixel(bar.sellMarker)
+        ctx.fillStyle = sellColor
+        ctx.beginPath()
+        ctx.arc(x, y, MARKER_RADIUS, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      if (bar.buyMarker !== undefined) {
+        const x = xAxis.convertToPixel(i)
+        const y = yAxis.convertToPixel(bar.buyMarker)
+        ctx.fillStyle = buyColor
+        ctx.beginPath()
+        ctx.arc(x, y, MARKER_RADIUS, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+    ctx.restore()
 
     return false
   }
