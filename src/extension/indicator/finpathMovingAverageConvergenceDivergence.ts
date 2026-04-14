@@ -15,6 +15,7 @@
 import { formatValue } from '../../common/utils/format'
 
 import type { IndicatorFigure, IndicatorTemplate } from '../../component/Indicator'
+import { collectLineSegments, drawSparseControlPoints, getControlPointBgColor, type HitSegment } from './indicatorInteractionUtils'
 
 /**
  * Finpath - Moving Average Convergence Divergence (FP-MACD).
@@ -406,6 +407,38 @@ const finpathMovingAverageConvergenceDivergence: IndicatorTemplate<FPMACDResult,
     }
 
     return out
+  },
+
+  // Populate _hitSegments so Event.ts fires onIndicatorShapeClick and
+  // onIndicatorShapeDoubleClick within 6px of MACD or Signal line.
+  // We do NOT render — default figure pipeline draws all 8 plots.
+  // Return false to keep default figures rendering.
+  draw: ({ ctx, chart, indicator, xAxis, yAxis }) => {
+    const result = indicator.result
+    if (result.length === 0) return false
+    const visibleRange = chart.getVisibleRange()
+    const from = visibleRange.from
+    const to = visibleRange.to
+    if (from >= to) return false
+
+    const extData = (indicator.extendData as Record<string, unknown> | null) ?? {}
+    if (indicator.extendData == null) {
+      ;(indicator as unknown as { extendData: Record<string, unknown> }).extendData = extData
+    }
+
+    const resultRec = result as unknown as Array<Record<string, unknown>>
+    const segs: HitSegment[] = [
+      ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'macd'),
+      ...collectLineSegments(resultRec, from, to, xAxis, yAxis, 'signal')
+    ]
+    extData._hitSegments = segs
+
+    if (extData._selected === true) {
+      const cpBg = getControlPointBgColor(chart)
+      drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['macd', 'signal'], 0, cpBg)
+    }
+
+    return false
   }
 }
 

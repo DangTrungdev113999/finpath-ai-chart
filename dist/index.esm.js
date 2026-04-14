@@ -7079,6 +7079,34 @@ var finpathMovingAverageConvergenceDivergence = {
             out.push(bar);
         }
         return out;
+    },
+    // Populate _hitSegments so Event.ts fires onIndicatorShapeClick and
+    // onIndicatorShapeDoubleClick within 6px of MACD or Signal line.
+    // We do NOT render — default figure pipeline draws all 8 plots.
+    // Return false to keep default figures rendering.
+    draw: function (_a) {
+        var _b;
+        var ctx = _a.ctx, chart = _a.chart, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from;
+        var to = visibleRange.to;
+        if (from >= to)
+            return false;
+        var extData = (_b = indicator.extendData) !== null && _b !== void 0 ? _b : {};
+        if (indicator.extendData == null) {
+            indicator.extendData = extData;
+        }
+        var resultRec = result;
+        var segs = __spreadArray(__spreadArray([], __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'macd')), false), __read(collectLineSegments(resultRec, from, to, xAxis, yAxis, 'signal')), false);
+        extData._hitSegments = segs;
+        if (extData._selected === true) {
+            var cpBg = getControlPointBgColor(chart);
+            drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['macd', 'signal'], 0, cpBg);
+        }
+        return false;
     }
 };
 
