@@ -181,7 +181,7 @@ function drawStatsTable (
   const headerBgColor = ext.tableHeaderBg ?? FP_AM_TABLE_HEADER_BG
 
   const tableH = ROW_HEIGHT * rows.length
-  const anchorX = Math.round(bounding.right - TABLE_WIDTH - TABLE_MARGIN)
+  const anchorX = Math.round(bounding.left + bounding.width - TABLE_WIDTH - TABLE_MARGIN)
   const anchorY = Math.round(bounding.top + TABLE_MARGIN + tableOffsetY)
 
   // 1. Background fill (entire table).
