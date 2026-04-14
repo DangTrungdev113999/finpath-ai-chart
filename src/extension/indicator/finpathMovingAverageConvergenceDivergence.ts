@@ -72,7 +72,7 @@ const FP_MACD_DEFAULTS = {
   buyColor: '#00FF00'
 } as const
 
-const MARKER_RADIUS = 6
+const MARKER_RADIUS = 4
 
 /**
  * Recursive EMA with seed — matches legacy helper `t(e, t, n, r)`.
@@ -148,7 +148,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'bars[0].upColor',
         FP_MACD_DEFAULTS.histPosRisingColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   },
 
@@ -163,7 +163,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'bars[1].downColor',
         FP_MACD_DEFAULTS.histNegDeepeningColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   },
 
@@ -178,7 +178,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'bars[2].upColor',
         FP_MACD_DEFAULTS.histPosFallingColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   },
 
@@ -193,7 +193,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'bars[3].downColor',
         FP_MACD_DEFAULTS.histNegLighteningColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   },
 
@@ -213,7 +213,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'circles[0].downColor',
         FP_MACD_DEFAULTS.sellColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   },
 
@@ -231,7 +231,7 @@ const figures: Array<IndicatorFigure<FPMACDResult>> = [
         indicator.styles, 'circles[1].upColor',
         FP_MACD_DEFAULTS.buyColor
       ) as string
-      return { style: 'stroke_fill', color, borderColor: '#FFFFFF', borderSize: 1.5 }
+      return { style: 'fill', color, borderColor: color }
     }
   }
 ]
