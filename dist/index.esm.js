@@ -7510,10 +7510,10 @@ function matchRow(dirLabel, dirColor, match, textColor) {
         ]
     };
 }
-function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY, selected, hitSegments) {
+function drawStatsTable(ctx, bounding, rows, rowTimestamps, ext, tableOffsetY, selected) {
     var _a, _b, _c;
     if (rows.length === 0)
-        return;
+        return null;
     var bgColor = (_a = ext.tableBg) !== null && _a !== void 0 ? _a : FP_AM_TABLE_BG;
     var borderColor = selected ? '#2962FF' : ((_b = ext.tableBorder) !== null && _b !== void 0 ? _b : FP_AM_TABLE_BORDER);
     var headerBgColor = (_c = ext.tableHeaderBg) !== null && _c !== void 0 ? _c : FP_AM_TABLE_HEADER_BG;
@@ -7530,15 +7530,31 @@ function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY, selected, hitSeg
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = selected ? 1.5 : 1;
     ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, TABLE_WIDTH - 1, tableH - 1);
-    // Hit segments for the 4 border edges of the table (allows clicking on the
-    // table itself to select the indicator).
-    if (hitSegments !== undefined) {
-        var x2 = anchorX + TABLE_WIDTH;
-        var y2 = anchorY + tableH;
-        hitSegments.push({ x1: anchorX, y1: anchorY, x2: x2, y2: anchorY });
-        hitSegments.push({ x1: anchorX, y1: y2, x2: x2, y2: y2 });
-        hitSegments.push({ x1: anchorX, y1: anchorY, x2: anchorX, y2: y2 });
-        hitSegments.push({ x1: x2, y1: anchorY, x2: x2, y2: y2 });
+    // Build the hit area (full table rect) + per-row Time cell rects so the
+    // consumer can detect clicks on the Time column and scroll the chart.
+    var hitArea = {
+        left: anchorX,
+        top: anchorY,
+        right: anchorX + TABLE_WIDTH,
+        bottom: anchorY + tableH
+    };
+    var timeCells = [];
+    // Column 2 is the Time column: x starts after col 0 (Dir) + col 1 (Bar).
+    var timeColX = anchorX + COL_WIDTHS[0] + COL_WIDTHS[1];
+    var timeColW = COL_WIDTHS[2];
+    // Rows 1..N are data rows (row 0 is the header). Only populate when
+    // rowTimestamps[r] is a finite number (skip N/A rows).
+    for (var r = 1; r < rows.length; r++) {
+        var ts = rowTimestamps[r];
+        if (ts === null || !Number.isFinite(ts))
+            continue;
+        timeCells.push({
+            x: timeColX,
+            y: anchorY + r * ROW_HEIGHT,
+            w: timeColW,
+            h: ROW_HEIGHT,
+            timestamp: ts
+        });
     }
     // 4. Row separators (horizontal).
     ctx.beginPath();
@@ -7572,6 +7588,7 @@ function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY, selected, hitSeg
             x += COL_WIDTHS[c];
         }
     }
+    return { hitArea: hitArea, timeCells: timeCells };
 }
 // ── Multi-instance stacking offset (Pine AC-32) ───────────────────────────
 function resolveInstanceOffsetY(chart, indicatorId, paneId, name, tableH) {
@@ -7601,7 +7618,7 @@ function resolveInstanceOffsetY(chart, indicatorId, paneId, name, tableH) {
  *   6. Stats-table text
  */
 function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, indicatorPaneId, indicatorName) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
     if (result.length === 0)
         return;
     var last = result[result.length - 1];
@@ -7656,7 +7673,11 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
     }
     // ── 5 + 6. Stats table ─────────────────────────────────────────────────
     if (!showTable) {
-        ext._hitSegments = hitSegments;
+        // Still persist hit segments even if table is hidden. Clear AABB + time cells.
+        var extMut_1 = ext;
+        extMut_1._hitSegments = hitSegments;
+        extMut_1._hitArea = undefined;
+        extMut_1._timeCells = undefined;
         return;
     }
     var headerRow = {
@@ -7668,32 +7689,50 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
         ]
     };
     var rows = [headerRow];
+    var rowTimestamps = [null]; // header has no timestamp
     if (isDual) {
         var bull = (_q = last.bullMatch) !== null && _q !== void 0 ? _q : null;
         var bear = (_r = last.bearMatch) !== null && _r !== void 0 ? _r : null;
         rows.push(bull != null
             ? matchRow('Bull', bullLabel, bull, textColor)
             : naRow('Bull', bullLabel, textColor));
+        rowTimestamps.push((_s = bull === null || bull === void 0 ? void 0 : bull.anchorTime) !== null && _s !== void 0 ? _s : null);
         rows.push(bear != null
             ? matchRow('Bear', bearLabel, bear, textColor)
             : naRow('Bear', bearLabel, textColor));
+        rowTimestamps.push((_t = bear === null || bear === void 0 ? void 0 : bear.anchorTime) !== null && _t !== void 0 ? _t : null);
     }
     else {
-        var best = (_s = last.bestMatch) !== null && _s !== void 0 ? _s : null;
+        var best = (_u = last.bestMatch) !== null && _u !== void 0 ? _u : null;
         if (best != null) {
-            var dir = (_t = best.direction) !== null && _t !== void 0 ? _t : 'Bull';
+            var dir = (_v = best.direction) !== null && _v !== void 0 ? _v : 'Bull';
             var dirColor = dir === 'Bull' ? bullLabel : bearLabel;
             rows.push(matchRow(dir, dirColor, best, textColor));
+            rowTimestamps.push(best.anchorTime);
         }
         else {
             // No match in Single Mode → render a neutral N/A row (default to Bull tint).
             rows.push(naRow('Bull', bullLabel, textColor));
+            rowTimestamps.push(null);
         }
     }
     var tableH = ROW_HEIGHT * rows.length;
     var offsetY = resolveInstanceOffsetY(chart, indicatorId, indicatorPaneId, indicatorName !== null && indicatorName !== void 0 ? indicatorName : '', tableH);
-    drawStatsTable(ctx, bounding, rows, ext, offsetY, selected, hitSegments);
-    ext._hitSegments = hitSegments;
+    var tableLayout = drawStatsTable(ctx, bounding, rows, rowTimestamps, ext, offsetY, selected);
+    // Persist hit info on extendData so Event.ts can detect clicks:
+    //   _hitSegments — line segments for projected candles (6px tolerance)
+    //   _hitArea    — AABB rect for the stats table (entire table clickable)
+    //   _timeCells  — per-row Time column bounds + timestamp (consumer scrolls chart)
+    var extMut = ext;
+    extMut._hitSegments = hitSegments;
+    if (tableLayout !== null) {
+        extMut._hitArea = tableLayout.hitArea;
+        extMut._timeCells = tableLayout.timeCells;
+    }
+    else {
+        extMut._hitArea = undefined;
+        extMut._timeCells = undefined;
+    }
 }
 
 /**
@@ -21307,7 +21346,7 @@ var Event = /** @class */ (function () {
                         for (var hitSegments_1 = (e_2 = void 0, __values(hitSegments)), hitSegments_1_1 = hitSegments_1.next(); !hitSegments_1_1.done; hitSegments_1_1 = hitSegments_1.next()) {
                             var seg = hitSegments_1_1.value;
                             if (pointToSegmentDistanceSq(x, y, seg.x1, seg.y1, seg.x2, seg.y2) <= HIT_TOLERANCE * HIT_TOLERANCE) {
-                                return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator };
+                                return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator, x: x, y: y };
                             }
                         }
                     }
@@ -21323,7 +21362,7 @@ var Event = /** @class */ (function () {
                 var hitArea = extData._hitArea;
                 if (hitArea != null && isNumber(hitArea.left)) {
                     if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
-                        return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator };
+                        return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator: indicator, x: x, y: y };
                     }
                 }
             }
