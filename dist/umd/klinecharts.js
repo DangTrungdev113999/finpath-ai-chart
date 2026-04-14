@@ -6885,45 +6885,11 @@ var figures$1 = [
             var color = formatValue(indicator.styles, 'bars[3].downColor', FP_MACD_DEFAULTS.histNegLighteningColor);
             return { style: 'fill', color: color, borderColor: color };
         }
-    },
-    // plot_6 — Sell marker (circle, #FF0000)
-    // `title: undefined` → auto-omitted from legend by `IndicatorTooltipView.ts:349`
-    // `isString(title)` gate. Renders on canvas regardless.
-    {
-        key: 'sellMarker',
-        type: 'circle',
-        attrs: function (_a) {
-            var coordinate = _a.coordinate;
-            return ({
-                x: coordinate.current.x,
-                y: coordinate.current.sellMarker,
-                r: MARKER_RADIUS
-            });
-        },
-        styles: function (_a) {
-            var indicator = _a.indicator;
-            var color = formatValue(indicator.styles, 'circles[0].downColor', FP_MACD_DEFAULTS.sellColor);
-            return { style: 'fill', color: color, borderColor: color };
-        }
-    },
-    // plot_7 — Buy marker (circle, #00FF00)
-    {
-        key: 'buyMarker',
-        type: 'circle',
-        attrs: function (_a) {
-            var coordinate = _a.coordinate;
-            return ({
-                x: coordinate.current.x,
-                y: coordinate.current.buyMarker,
-                r: MARKER_RADIUS
-            });
-        },
-        styles: function (_a) {
-            var indicator = _a.indicator;
-            var color = formatValue(indicator.styles, 'circles[1].upColor', FP_MACD_DEFAULTS.buyColor);
-            return { style: 'fill', color: color, borderColor: color };
-        }
     }
+    // plot_6 (sellMarker) and plot_7 (buyMarker) are rendered in `postDraw`
+    // instead of as figures — so they draw AFTER all line segments and are
+    // not covered by the next bar's MACD/Signal segment. Data fields remain
+    // in result[] for the React tooltip loader to read.
 ];
 var finpathMovingAverageConvergenceDivergence = {
     name: 'FP-MACD',
@@ -7111,6 +7077,43 @@ var finpathMovingAverageConvergenceDivergence = {
             var cpBg = getControlPointBgColor(chart);
             drawSparseControlPoints(ctx, resultRec, from, to, xAxis, yAxis, ['macd', 'signal'], 0, cpBg);
         }
+        return false;
+    },
+    // Render buy/sell crossover markers AFTER figures so they sit on top of
+    // the MACD/Signal line segments (the figure pipeline draws segments
+    // bar-by-bar — the next bar's segment would otherwise cover a circle
+    // drawn on the previous bar).
+    postDraw: function (_a) {
+        var ctx = _a.ctx, indicator = _a.indicator, chart = _a.chart, xAxis = _a.xAxis, yAxis = _a.yAxis;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var _b = chart.getVisibleRange(), from = _b.from, to = _b.to;
+        if (from >= to)
+            return false;
+        var sellColor = formatValue(indicator.styles, 'circles[0].downColor', FP_MACD_DEFAULTS.sellColor);
+        var buyColor = formatValue(indicator.styles, 'circles[1].upColor', FP_MACD_DEFAULTS.buyColor);
+        ctx.save();
+        for (var i = from; i < to && i < result.length; i++) {
+            var bar = result[i];
+            if (bar.sellMarker !== undefined) {
+                var x = xAxis.convertToPixel(i);
+                var y = yAxis.convertToPixel(bar.sellMarker);
+                ctx.fillStyle = sellColor;
+                ctx.beginPath();
+                ctx.arc(x, y, MARKER_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            if (bar.buyMarker !== undefined) {
+                var x = xAxis.convertToPixel(i);
+                var y = yAxis.convertToPixel(bar.buyMarker);
+                ctx.fillStyle = buyColor;
+                ctx.beginPath();
+                ctx.arc(x, y, MARKER_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
         return false;
     }
 };
@@ -7453,7 +7456,7 @@ function drawProjectedWick(ctx, xC, yHigh, yLow, stroke) {
     ctx.lineTo(x, Math.round(yLow));
     ctx.stroke();
 }
-function drawProjection(ctx, proj, lastIdx, bodyColor, wickColor, showBoxes, showLines, xAxis, yAxis, bounding) {
+function drawProjection(ctx, proj, lastIdx, bodyColor, wickColor, showBoxes, showLines, xAxis, yAxis, bounding, hitSegments) {
     if (!showBoxes && !showLines)
         return;
     var bars = proj.bars;
@@ -7475,11 +7478,20 @@ function drawProjection(ctx, proj, lastIdx, bodyColor, wickColor, showBoxes, sho
             var yTop = yAxis.convertToPixel(Math.max(bar.o, bar.c));
             var yBot = yAxis.convertToPixel(Math.min(bar.o, bar.c));
             drawProjectedBody(ctx, xL, xR, yTop, yBot, bodyColor);
+            // Hit segments: top + bottom body edges — cover horizontal click area.
+            if (hitSegments !== undefined) {
+                hitSegments.push({ x1: xL, y1: yTop, x2: xR, y2: yTop });
+                hitSegments.push({ x1: xL, y1: yBot, x2: xR, y2: yBot });
+            }
         }
         if (showLines) {
             var yHigh = yAxis.convertToPixel(bar.h);
             var yLow = yAxis.convertToPixel(bar.l);
             drawProjectedWick(ctx, xC, yHigh, yLow, wickColor);
+            // Hit segment: full wick — covers vertical click area of the candle.
+            if (hitSegments !== undefined) {
+                hitSegments.push({ x1: xC, y1: yHigh, x2: xC, y2: yLow });
+            }
         }
     }
 }
@@ -7503,12 +7515,12 @@ function matchRow(dirLabel, dirColor, match, textColor) {
         ]
     };
 }
-function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY) {
+function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY, selected, hitSegments) {
     var _a, _b, _c;
     if (rows.length === 0)
         return;
     var bgColor = (_a = ext.tableBg) !== null && _a !== void 0 ? _a : FP_AM_TABLE_BG;
-    var borderColor = (_b = ext.tableBorder) !== null && _b !== void 0 ? _b : FP_AM_TABLE_BORDER;
+    var borderColor = selected ? '#2962FF' : ((_b = ext.tableBorder) !== null && _b !== void 0 ? _b : FP_AM_TABLE_BORDER);
     var headerBgColor = (_c = ext.tableHeaderBg) !== null && _c !== void 0 ? _c : FP_AM_TABLE_HEADER_BG;
     var tableH = ROW_HEIGHT * rows.length;
     var anchorX = Math.round(bounding.left + bounding.width - TABLE_WIDTH - TABLE_MARGIN);
@@ -7519,10 +7531,20 @@ function drawStatsTable(ctx, bounding, rows, ext, tableOffsetY) {
     // 2. Header row fill (gray).
     ctx.fillStyle = headerBgColor;
     ctx.fillRect(anchorX, anchorY, TABLE_WIDTH, ROW_HEIGHT);
-    // 3. Outer 1-px border.
+    // 3. Outer 1-px border (blue when selected).
     ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = selected ? 1.5 : 1;
     ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, TABLE_WIDTH - 1, tableH - 1);
+    // Hit segments for the 4 border edges of the table (allows clicking on the
+    // table itself to select the indicator).
+    if (hitSegments !== undefined) {
+        var x2 = anchorX + TABLE_WIDTH;
+        var y2 = anchorY + tableH;
+        hitSegments.push({ x1: anchorX, y1: anchorY, x2: x2, y2: anchorY });
+        hitSegments.push({ x1: anchorX, y1: y2, x2: x2, y2: y2 });
+        hitSegments.push({ x1: anchorX, y1: anchorY, x2: anchorX, y2: y2 });
+        hitSegments.push({ x1: x2, y1: anchorY, x2: x2, y2: y2 });
+    }
     // 4. Row separators (horizontal).
     ctx.beginPath();
     for (var r = 1; r < rows.length; r++) {
@@ -7594,6 +7616,10 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
     var showBoxes = (_a = ext.showBoxes) !== null && _a !== void 0 ? _a : true;
     var showLines = (_b = ext.showLines) !== null && _b !== void 0 ? _b : true;
     var showTable = (_c = ext.showTable) !== null && _c !== void 0 ? _c : true;
+    var selected = ext._selected === true;
+    // Hit segments — library uses these for click-near-line detection (6px tolerance).
+    // Covers projected wicks, body top/bottom edges, and stats-table border.
+    var hitSegments = [];
     var bullFill = (_d = ext.bullFill) !== null && _d !== void 0 ? _d : FP_AM_BULL_FILL;
     var bearFill = (_e = ext.bearFill) !== null && _e !== void 0 ? _e : FP_AM_BEAR_FILL;
     var bullWick = (_f = ext.bullFill) !== null && _f !== void 0 ? _f : FP_AM_BULL_WICK;
@@ -7606,20 +7632,20 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
     if (isDual) {
         var bull = (_l = last.bullMatch) !== null && _l !== void 0 ? _l : null;
         if ((bull === null || bull === void 0 ? void 0 : bull.projection) != null) {
-            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, showBoxes, false, xAxis, yAxis, bounding);
+            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, showBoxes, false, xAxis, yAxis, bounding, hitSegments);
         }
         var bear = (_m = last.bearMatch) !== null && _m !== void 0 ? _m : null;
         // 2. Bear bodies
         if ((bear === null || bear === void 0 ? void 0 : bear.projection) != null) {
-            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, showBoxes, false, xAxis, yAxis, bounding);
+            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, showBoxes, false, xAxis, yAxis, bounding, hitSegments);
         }
         // 3. Bull wicks
         if ((bull === null || bull === void 0 ? void 0 : bull.projection) != null) {
-            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, false, showLines, xAxis, yAxis, bounding);
+            drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, false, showLines, xAxis, yAxis, bounding, hitSegments);
         }
         // 4. Bear wicks
         if ((bear === null || bear === void 0 ? void 0 : bear.projection) != null) {
-            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, false, showLines, xAxis, yAxis, bounding);
+            drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, false, showLines, xAxis, yAxis, bounding, hitSegments);
         }
     }
     else {
@@ -7629,13 +7655,15 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
             var bodyColor = dir === 'Bull' ? bullFill : bearFill;
             var wickColor = dir === 'Bull' ? bullWick : bearWick;
             // Single projection: draw bodies then wicks (no cross-candle ordering needed).
-            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, showBoxes, false, xAxis, yAxis, bounding);
-            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, false, showLines, xAxis, yAxis, bounding);
+            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, showBoxes, false, xAxis, yAxis, bounding, hitSegments);
+            drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, false, showLines, xAxis, yAxis, bounding, hitSegments);
         }
     }
     // ── 5 + 6. Stats table ─────────────────────────────────────────────────
-    if (!showTable)
+    if (!showTable) {
+        ext._hitSegments = hitSegments;
         return;
+    }
     var headerRow = {
         cells: [
             { text: 'Dir', color: textColor },
@@ -7669,7 +7697,8 @@ function drawAM(ctx, result, ext, bounding, xAxis, yAxis, chart, indicatorId, in
     }
     var tableH = ROW_HEIGHT * rows.length;
     var offsetY = resolveInstanceOffsetY(chart, indicatorId, indicatorPaneId, indicatorName !== null && indicatorName !== void 0 ? indicatorName : '', tableH);
-    drawStatsTable(ctx, bounding, rows, ext, offsetY);
+    drawStatsTable(ctx, bounding, rows, ext, offsetY, selected, hitSegments);
+    ext._hitSegments = hitSegments;
 }
 
 /**
