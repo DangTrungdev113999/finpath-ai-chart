@@ -17,6 +17,7 @@ import type { XAxis } from '../../../component/XAxis'
 import type { YAxis } from '../../../component/YAxis'
 import type { Chart } from '../../../Chart'
 
+import type { HitSegment } from '../indicatorInteractionUtils'
 import type { AMData, AMExtendData, AMMatch, ProjectionGeometry } from './types'
 import {
   FP_AM_BEAR_FILL,
@@ -98,7 +99,8 @@ function drawProjection (
   showLines: boolean,
   xAxis: XAxis,
   yAxis: YAxis,
-  bounding: Bounding
+  bounding: Bounding,
+  hitSegments?: HitSegment[]
 ): void {
   if (!showBoxes && !showLines) return
   const bars = proj.bars
@@ -121,11 +123,20 @@ function drawProjection (
       const yTop = yAxis.convertToPixel(Math.max(bar.o, bar.c))
       const yBot = yAxis.convertToPixel(Math.min(bar.o, bar.c))
       drawProjectedBody(ctx, xL, xR, yTop, yBot, bodyColor)
+      // Hit segments: top + bottom body edges — cover horizontal click area.
+      if (hitSegments !== undefined) {
+        hitSegments.push({ x1: xL, y1: yTop, x2: xR, y2: yTop })
+        hitSegments.push({ x1: xL, y1: yBot, x2: xR, y2: yBot })
+      }
     }
     if (showLines) {
       const yHigh = yAxis.convertToPixel(bar.h)
       const yLow = yAxis.convertToPixel(bar.l)
       drawProjectedWick(ctx, xC, yHigh, yLow, wickColor)
+      // Hit segment: full wick — covers vertical click area of the candle.
+      if (hitSegments !== undefined) {
+        hitSegments.push({ x1: xC, y1: yHigh, x2: xC, y2: yLow })
+      }
     }
   }
 }
@@ -172,12 +183,14 @@ function drawStatsTable (
   bounding: Bounding,
   rows: Row[],
   ext: AMExtendData,
-  tableOffsetY: number
+  tableOffsetY: number,
+  selected: boolean,
+  hitSegments?: HitSegment[]
 ): void {
   if (rows.length === 0) return
 
   const bgColor = ext.tableBg ?? FP_AM_TABLE_BG
-  const borderColor = ext.tableBorder ?? FP_AM_TABLE_BORDER
+  const borderColor = selected ? '#2962FF' : (ext.tableBorder ?? FP_AM_TABLE_BORDER)
   const headerBgColor = ext.tableHeaderBg ?? FP_AM_TABLE_HEADER_BG
 
   const tableH = ROW_HEIGHT * rows.length
@@ -192,10 +205,21 @@ function drawStatsTable (
   ctx.fillStyle = headerBgColor
   ctx.fillRect(anchorX, anchorY, TABLE_WIDTH, ROW_HEIGHT)
 
-  // 3. Outer 1-px border.
+  // 3. Outer 1-px border (blue when selected).
   ctx.strokeStyle = borderColor
-  ctx.lineWidth = 1
+  ctx.lineWidth = selected ? 1.5 : 1
   ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, TABLE_WIDTH - 1, tableH - 1)
+
+  // Hit segments for the 4 border edges of the table (allows clicking on the
+  // table itself to select the indicator).
+  if (hitSegments !== undefined) {
+    const x2 = anchorX + TABLE_WIDTH
+    const y2 = anchorY + tableH
+    hitSegments.push({ x1: anchorX, y1: anchorY, x2: x2, y2: anchorY })
+    hitSegments.push({ x1: anchorX, y1: y2, x2: x2, y2: y2 })
+    hitSegments.push({ x1: anchorX, y1: anchorY, x2: anchorX, y2: y2 })
+    hitSegments.push({ x1: x2, y1: anchorY, x2: x2, y2: y2 })
+  }
 
   // 4. Row separators (horizontal).
   ctx.beginPath()
@@ -285,6 +309,11 @@ export function drawAM (
   const showBoxes = ext.showBoxes ?? true
   const showLines = ext.showLines ?? true
   const showTable = ext.showTable ?? true
+  const selected = (ext as unknown as { _selected?: boolean })._selected === true
+
+  // Hit segments — library uses these for click-near-line detection (6px tolerance).
+  // Covers projected wicks, body top/bottom edges, and stats-table border.
+  const hitSegments: HitSegment[] = []
 
   const bullFill = ext.bullFill ?? FP_AM_BULL_FILL
   const bearFill = ext.bearFill ?? FP_AM_BEAR_FILL
@@ -300,20 +329,20 @@ export function drawAM (
   if (isDual) {
     const bull = last.bullMatch ?? null
     if (bull?.projection != null) {
-      drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, showBoxes, false, xAxis, yAxis, bounding)
+      drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, showBoxes, false, xAxis, yAxis, bounding, hitSegments)
     }
     const bear = last.bearMatch ?? null
     // 2. Bear bodies
     if (bear?.projection != null) {
-      drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, showBoxes, false, xAxis, yAxis, bounding)
+      drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, showBoxes, false, xAxis, yAxis, bounding, hitSegments)
     }
     // 3. Bull wicks
     if (bull?.projection != null) {
-      drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, false, showLines, xAxis, yAxis, bounding)
+      drawProjection(ctx, bull.projection, lastIdx, bullFill, bullWick, false, showLines, xAxis, yAxis, bounding, hitSegments)
     }
     // 4. Bear wicks
     if (bear?.projection != null) {
-      drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, false, showLines, xAxis, yAxis, bounding)
+      drawProjection(ctx, bear.projection, lastIdx, bearFill, bearWick, false, showLines, xAxis, yAxis, bounding, hitSegments)
     }
   } else {
     const best = last.bestMatch ?? null
@@ -322,13 +351,17 @@ export function drawAM (
       const bodyColor = dir === 'Bull' ? bullFill : bearFill
       const wickColor = dir === 'Bull' ? bullWick : bearWick
       // Single projection: draw bodies then wicks (no cross-candle ordering needed).
-      drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, showBoxes, false, xAxis, yAxis, bounding)
-      drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, false, showLines, xAxis, yAxis, bounding)
+      drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, showBoxes, false, xAxis, yAxis, bounding, hitSegments)
+      drawProjection(ctx, best.projection, lastIdx, bodyColor, wickColor, false, showLines, xAxis, yAxis, bounding, hitSegments)
     }
   }
 
   // ── 5 + 6. Stats table ─────────────────────────────────────────────────
-  if (!showTable) return
+  if (!showTable) {
+    // Still persist hit segments even if table is hidden.
+    ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = hitSegments
+    return
+  }
 
   const headerRow: Row = {
     cells: [
@@ -363,5 +396,9 @@ export function drawAM (
 
   const tableH = ROW_HEIGHT * rows.length
   const offsetY = resolveInstanceOffsetY(chart, indicatorId, indicatorPaneId, indicatorName ?? '', tableH)
-  drawStatsTable(ctx, bounding, rows, ext, offsetY)
+  drawStatsTable(ctx, bounding, rows, ext, offsetY, selected, hitSegments)
+
+  // Persist hit segments on extendData — library's Event handler reads them
+  // to fire onIndicatorShapeClick / onIndicatorShapeDoubleClick (6px tolerance).
+  ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = hitSegments
 }
