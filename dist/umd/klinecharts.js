@@ -7894,6 +7894,277 @@ var williamsR = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** Fallback histogram colors when user has not overridden styles.bars[*]. */
+var FALLBACK_HIST_COLORS = [
+    '#00FF00', // 0 risingPositive (lime)
+    '#008000', // 1 fallingPositive (green)
+    '#FF0000', // 2 fallingNegative (red)
+    '#800000' // 3 risingNegative (maroon)
+];
+/** Fallback marker colors when user has not overridden styles.circles[*]. */
+var FALLBACK_MARKER_COLORS = [
+    '#0000FF', // 0 noSqz (blue)
+    '#000000', // 1 sqzOn (black)
+    '#808080' // 2 sqzOff (gray)
+];
+/** Half-arm length (px) for the synthesized zero-line cross marker. */
+var MARKER_ARM = 3;
+/**
+ * Population stdev of close[endIdx - length + 1 .. endIdx] around `mean`.
+ * Mirrors `getBollMd` in bollingerBands.ts (divides by N, not N-1) — Pine `stdev()` is also population.
+ */
+function stdevPopulation(dataList, endIdx, length, mean) {
+    var sum = 0;
+    for (var j = endIdx - length + 1; j <= endIdx; j++) {
+        var d = dataList[j].close - mean;
+        sum += d * d;
+    }
+    return Math.sqrt(Math.abs(sum) / length);
+}
+/**
+ * Closed-form OLS linreg endpoint — equivalent to Pine `linreg(source, length, 0)`.
+ *
+ * Pine convention: x = 0 for OLDEST bar in the window, x = n - 1 for NEWEST.
+ * Evaluates the fitted line at x = n - 1 (the most recent point).
+ *
+ * For SQZMOM:
+ *   y_k = dataList[endIdx - (n - 1) + k].close - midAtCurrentBar
+ *
+ * Sanity: linreg([1,2,3,4,5], 5) → 5.
+ */
+function linregEndpoint(dataList, endIdx, length, midAtCurrentBar) {
+    var n = length;
+    var xBar = (n - 1) / 2;
+    // Pass 1: y mean
+    var ySum = 0;
+    for (var k = 0; k < n; k++) {
+        var close_1 = dataList[endIdx - (n - 1) + k].close;
+        ySum += (close_1 - midAtCurrentBar);
+    }
+    var yBar = ySum / n;
+    // Pass 2: numerator & denominator
+    var sxy = 0;
+    var sxx = 0;
+    for (var k = 0; k < n; k++) {
+        var close_2 = dataList[endIdx - (n - 1) + k].close;
+        var y = (close_2 - midAtCurrentBar) - yBar;
+        var x = k - xBar;
+        sxy += x * y;
+        sxx += x * x;
+    }
+    // sxx = n*(n^2 - 1)/12 — zero only for n === 1 (degenerate).
+    if (sxx === 0)
+        return ySum;
+    var slope = sxy / sxx;
+    var intercept = yBar - slope * xBar;
+    return intercept + slope * (n - 1);
+}
+/**
+ * Squeeze Momentum Indicator (LazyBear) — verbatim Pine port.
+ *
+ * Pine source: see docs/ai-chart/squeeze-momentum-indicator/exploration/PINE-SCRIPT.pine
+ *
+ * Two rendering layers in the sub-pane:
+ *   1. Histogram bar (figures[0]) — 4-state color via histSlot
+ *   2. Zero-line cross markers — synthesized in postDraw, 3-state color via markerSlot
+ */
+var squeezeMomentum = {
+    name: 'SQZMOM',
+    shortName: 'SQZMOM_LB',
+    series: 'normal',
+    // [bbLength, bbMult, kcLength, kcMult, useTrueRange]
+    calcParams: [20, 2, 20, 1.5, true],
+    precision: 4,
+    shouldOhlc: false,
+    shouldFormatBigNumber: false,
+    figures: [
+        {
+            key: 'val',
+            title: 'SQZMOM: ',
+            type: 'bar',
+            baseValue: 0,
+            styles: function (_a) {
+                var _b, _c, _d;
+                var data = _a.data, indicator = _a.indicator, defaultStyles = _a.defaultStyles;
+                var slot = (_b = data.current) === null || _b === void 0 ? void 0 : _b.histSlot;
+                if (slot == null) {
+                    return { color: 'transparent', borderColor: 'transparent' };
+                }
+                var barStyles = formatValue(indicator.styles, 'bars', defaultStyles.bars);
+                var color = (_d = (_c = barStyles[slot]) === null || _c === void 0 ? void 0 : _c.upColor) !== null && _d !== void 0 ? _d : FALLBACK_HIST_COLORS[slot];
+                return {
+                    style: 'fill',
+                    color: color,
+                    borderColor: color
+                };
+            }
+        }
+    ],
+    calc: function (dataList, indicator) {
+        // Defensive cast — UI layer may pass numeric strings.
+        var params = indicator.calcParams;
+        var bbLength = Math.max(1, Math.floor(Number(params[0])));
+        // bbMult intentionally unread — verbatim Pine quirk; changing breaks 1:1 TV parity.
+        // LazyBear's Pine reuses multKC for BOTH the BB deviation AND the KC bandwidth.
+        // const bbMult = Number(params[1])
+        var kcLength = Math.max(1, Math.floor(Number(params[2])));
+        var kcMult = Number(params[3]);
+        var useTrueRange = Boolean(params[4]);
+        var n = dataList.length;
+        var result = new Array(n);
+        // Precompute range series once, branched on useTrueRange.
+        var rangeSeries = new Float64Array(n);
+        if (useTrueRange) {
+            for (var i = 0; i < n; i++) {
+                var k = dataList[i];
+                // First-bar TR: prevClose = close → tr = high - low (matches DMI.ts pattern).
+                var prevClose = i > 0 ? dataList[i - 1].close : k.close;
+                var hl = k.high - k.low;
+                var hcy = Math.abs(k.high - prevClose);
+                var lcy = Math.abs(prevClose - k.low);
+                rangeSeries[i] = Math.max(hl, hcy, lcy);
+            }
+        }
+        else {
+            for (var i = 0; i < n; i++) {
+                var k = dataList[i];
+                rangeSeries[i] = k.high - k.low;
+            }
+        }
+        // Rolling sums for three SMAs.
+        var closeSumBB = 0;
+        var closeSumKC = 0;
+        var rangeSumKC = 0;
+        // First emitted bar index — max of both lookbacks.
+        var warmup = Math.max(bbLength, kcLength) - 1;
+        // Pine nz(val[1]) = 0 on first emitted bar.
+        var prevVal = 0;
+        for (var i = 0; i < n; i++) {
+            var k = dataList[i];
+            closeSumBB += k.close;
+            closeSumKC += k.close;
+            rangeSumKC += rangeSeries[i];
+            // Drop bars that fell out of the rolling window.
+            if (i >= bbLength)
+                closeSumBB -= dataList[i - bbLength].close;
+            if (i >= kcLength) {
+                closeSumKC -= dataList[i - kcLength].close;
+                rangeSumKC -= rangeSeries[i - kcLength];
+            }
+            if (i < warmup) {
+                result[i] = {};
+                continue;
+            }
+            // ── Bollinger Bands ──────────────────────────────────────────────────
+            var basis = closeSumBB / bbLength;
+            var stdevBB = stdevPopulation(dataList, i, bbLength, basis);
+            // LazyBear quirk: BB deviation uses kcMult, NOT bbMult. Verbatim Pine.
+            var dev = kcMult * stdevBB;
+            var upperBB = basis + dev;
+            var lowerBB = basis - dev;
+            // ── Keltner Channels ─────────────────────────────────────────────────
+            var ma = closeSumKC / kcLength;
+            var rangema = rangeSumKC / kcLength;
+            var upperKC = ma + rangema * kcMult;
+            var lowerKC = ma - rangema * kcMult;
+            // ── Squeeze states (mutually exclusive) ──────────────────────────────
+            var sqzOn = lowerBB > lowerKC && upperBB < upperKC;
+            var sqzOff = lowerBB < lowerKC && upperBB > upperKC;
+            var noSqz = !sqzOn && !sqzOff;
+            // ── Momentum value (linreg endpoint of close - mid over kcLength) ────
+            var hh = -Infinity;
+            var ll = Infinity;
+            for (var j = i - kcLength + 1; j <= i; j++) {
+                if (dataList[j].high > hh)
+                    hh = dataList[j].high;
+                if (dataList[j].low < ll)
+                    ll = dataList[j].low;
+            }
+            var mid = ((hh + ll) / 2 + ma) / 2;
+            var val = linregEndpoint(dataList, i, kcLength, mid);
+            // ── Histogram color slot (Pine bcolor, iff tie semantics) ───────────
+            // val > 0 AND val > prevVal → slot 0 (lime/rising positive)
+            // val > 0 AND val <= prevVal → slot 1 (green/falling positive)  [tie falls here]
+            // val <= 0 AND val < prevVal → slot 2 (red/falling negative)
+            // val <= 0 AND val >= prevVal → slot 3 (maroon/rising negative) [tie falls here]
+            // eslint-disable-next-line @typescript-eslint/init-declarations -- branch assigned below
+            var histSlot = void 0;
+            if (val > 0) {
+                histSlot = val > prevVal ? 0 : 1;
+            }
+            else {
+                histSlot = val < prevVal ? 2 : 3;
+            }
+            // ── Marker color slot (Pine scolor) ─────────────────────────────────
+            var markerSlot = noSqz ? 0 : sqzOn ? 1 : 2;
+            result[i] = { val: val, sqzOn: sqzOn, sqzOff: sqzOff, noSqz: noSqz, histSlot: histSlot, markerSlot: markerSlot };
+            prevVal = val;
+        }
+        return result;
+    },
+    postDraw: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var ctx = _a.ctx, indicator = _a.indicator, xAxis = _a.xAxis, yAxis = _a.yAxis, chart = _a.chart;
+        var result = indicator.result;
+        if (result.length === 0)
+            return false;
+        var visibleRange = chart.getVisibleRange();
+        var from = visibleRange.from;
+        var to = visibleRange.to;
+        if (from >= to)
+            return false;
+        // Cache y=0 pixel outside the loop.
+        var yZero = yAxis.convertToPixel(0);
+        // Resolve the 3 marker colors from style overrides → defaults.
+        var circleStyles = formatValue(indicator.styles, 'circles', []);
+        var colorBySlot = [
+            (_c = (_b = circleStyles[0]) === null || _b === void 0 ? void 0 : _b.noChangeColor) !== null && _c !== void 0 ? _c : FALLBACK_MARKER_COLORS[0],
+            (_e = (_d = circleStyles[1]) === null || _d === void 0 ? void 0 : _d.upColor) !== null && _e !== void 0 ? _e : FALLBACK_MARKER_COLORS[1],
+            (_g = (_f = circleStyles[2]) === null || _f === void 0 ? void 0 : _f.downColor) !== null && _g !== void 0 ? _g : FALLBACK_MARKER_COLORS[2]
+        ];
+        ctx.save();
+        ctx.lineWidth = 2;
+        for (var i = from; i < to && i < result.length; i++) {
+            var slot = result[i].markerSlot;
+            if (slot == null)
+                continue;
+            var x = xAxis.convertToPixel(i);
+            ctx.strokeStyle = colorBySlot[slot];
+            ctx.beginPath();
+            // Horizontal arm
+            ctx.moveTo(x - MARKER_ARM, yZero);
+            ctx.lineTo(x + MARKER_ARM, yZero);
+            // Vertical arm
+            ctx.moveTo(x, yZero - MARKER_ARM);
+            ctx.lineTo(x, yZero + MARKER_ARM);
+            ctx.stroke();
+        }
+        ctx.restore();
+        // Keep native figure rendering (histogram bars) intact.
+        return false;
+    },
+    createTooltipDataSource: function () { return ({
+        // Surface layer renders its own React tooltip; suppress canvas tooltip.
+        name: '',
+        calcParamsText: '',
+        features: [],
+        legends: []
+    }); }
+};
+
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+
+ * http://www.apache.org/licenses/LICENSE-2.0
+
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 var indicators = {};
 var extensions$2 = [
     averagePrice, awesomeOscillator, bias, bollingerBands, brar,
@@ -7901,7 +8172,7 @@ var extensions$2 = [
     directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
     movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
     psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, finpathAnalogueMatcher, volumeRatio, williamsR
+    stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, finpathAnalogueMatcher, volumeRatio, williamsR, squeezeMomentum
 ];
 extensions$2.forEach(function (indicator) {
     indicators[indicator.name] = IndicatorImp.extend(indicator);
