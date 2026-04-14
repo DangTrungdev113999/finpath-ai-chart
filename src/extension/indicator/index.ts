@@ -51,6 +51,7 @@ import finpathSupportResistanceWithBreaks from './finpathSupportResistanceWithBr
 import finpathMovingAverageConvergenceDivergence from './finpathMovingAverageConvergenceDivergence'
 import finpathAnalogueMatcher from './finpathAnalogueMatcher'
 import williamsR from './williamsR'
+import squeezeMomentum from './squeezeMomentum'
 
 const indicators: Record<string, IndicatorConstructor> = {}
 
@@ -60,7 +61,7 @@ const extensions = [
   directionalMovementIndex, easeOfMovementValue, exponentialMovingAverage, ichimokuCloud, momentum,
   movingAverage, movingAverageConvergenceDivergence, onBalanceVolume, priceAndVolumeTrend,
   psychologicalLine, rateOfChange, relativeStrengthIndex, simpleMovingAverage,
-  stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, finpathAnalogueMatcher, volumeRatio, williamsR
+  stoch, stopAndReverse, superTrend, tripleExponentiallySmoothedAverage, volume, volumeProfileVisibleRange, fpVolumeProfileFixedRange, finpathTrendlinesWithBreaks, finpathSupportResistanceWithBreaks, finpathMovingAverageConvergenceDivergence, finpathAnalogueMatcher, volumeRatio, williamsR, squeezeMomentum
 ]
 
 extensions.forEach((indicator: IndicatorTemplate) => {
