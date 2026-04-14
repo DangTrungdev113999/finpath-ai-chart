@@ -1775,9 +1775,9 @@ var bias = {
 // ═══════════════════════════════════════════════════════════════
 // Control point constants (matches trendline style but smaller)
 // ═══════════════════════════════════════════════════════════════
-var CP_RADIUS$4 = 3.5;
-var CP_BORDER$2 = 1.5;
-var CP_COLOR$4 = '#1592E6';
+var CP_RADIUS$3 = 3.5;
+var CP_BORDER$1 = 1.5;
+var CP_COLOR$3 = '#1592E6';
 // ═══════════════════════════════════════════════════════════════
 // Theme-aware background color for control points
 // ═══════════════════════════════════════════════════════════════
@@ -1822,8 +1822,8 @@ function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, inde
     if (indexOffset === void 0) { indexOffset = 0; }
     if (bgColor === void 0) { bgColor = '#131722'; }
     // Visible pixel bounds (with margin for points near edges)
-    var visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS$4 * 2;
-    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS$4 * 2;
+    var visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS$3 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS$3 * 2;
     var points = [];
     var _loop_1 = function (key) {
         // Scan FULL data range to find fixed segment boundaries
@@ -1878,10 +1878,10 @@ function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, inde
                 continue;
             ctx.fillStyle = bgColor;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, CP_RADIUS$4, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$4;
-            ctx.lineWidth = CP_BORDER$2;
+            ctx.strokeStyle = CP_COLOR$3;
+            ctx.lineWidth = CP_BORDER$1;
             ctx.stroke();
         }
     }
@@ -3968,14 +3968,14 @@ function collectStepLineSegments(result, from, to, xAxis, yAxis, key) {
 // Control points: small circles at step-line vertices when selected
 // Style: similar to trendline but smaller
 // ═══════════════════════════════════════════════════════════════
-var CP_RADIUS$3 = 3.5;
-var CP_BORDER$1 = 1.5;
-var CP_COLOR$3 = '#1592E6';
+var CP_RADIUS$2 = 3.5;
+var CP_BORDER = 1.5;
+var CP_COLOR$2 = '#1592E6';
 function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
     var e_1, _a;
     // Visible pixel bounds (with margin for points near edges)
-    var visLeft = xAxis.convertToPixel(from) - CP_RADIUS$3 * 2;
-    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS$3 * 2;
+    var visLeft = xAxis.convertToPixel(from) - CP_RADIUS$2 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS$2 * 2;
     // Collect sparse control points: start, middle, end of each continuous segment.
     // Scan FULL data range so points stay fixed when scrolling.
     var points = [];
@@ -4032,10 +4032,10 @@ function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
                 continue;
             ctx.fillStyle = bgColor;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, CP_RADIUS$2, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$3;
-            ctx.lineWidth = CP_BORDER$1;
+            ctx.strokeStyle = CP_COLOR$2;
+            ctx.lineWidth = CP_BORDER;
             ctx.stroke();
         }
     }
@@ -8901,8 +8901,8 @@ function isLightColor$5(hex) {
     return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 // Control point constants (match rect overlay)
-var CP_COLOR$2 = '#1592E6';
-var CP_RADIUS$2 = 5;
+var CP_COLOR$1 = '#1592E6';
+var CP_RADIUS$1 = 5;
 var CP_CIRCLE_BORDER$1 = 1.5;
 // Arrow head constants
 var ARROW_LENGTH = 14;
@@ -9098,11 +9098,11 @@ var segment = {
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
-                    attrs: { x: midX, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                     styles: {
                         style: 'stroke_fill',
                         color: cpBg,
-                        borderColor: CP_COLOR$2,
+                        borderColor: CP_COLOR$1,
                         borderSize: CP_CIRCLE_BORDER$1
                     },
                     pointIndex: 0,
@@ -9117,11 +9117,11 @@ var segment = {
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 0,
@@ -9130,11 +9130,11 @@ var segment = {
             figures.push({
                 key: 'seg_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 1,
@@ -10629,9 +10629,9 @@ var vpfr = {
  * CP fill color is detected from chart theme (dark → black, light → white)
  */
 // CP border color (always blue)
-var CP_COLOR$1 = '#1592E6';
+var CP_COLOR = '#1592E6';
 // Corner control points (circles)
-var CP_RADIUS$1 = 5;
+var CP_RADIUS = 5;
 var CP_CIRCLE_BORDER = 1.5;
 // Midpoint control points (rounded squares)
 var CP_MID_SIZE = 12;
@@ -10806,12 +10806,12 @@ var rect$1 = {
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
             var cpBg_1 = isLightColor$3(tickTextColor) ? '#131722' : '#ffffff';
-            var cpColor_1 = CP_COLOR$1;
+            var cpColor_1 = CP_COLOR;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
                 key: key,
                 type: 'circle',
-                attrs: { x: x, y: y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
+                attrs: { x: x, y: y, r: CP_RADIUS + CP_CIRCLE_BORDER },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg_1,
@@ -11027,11 +11027,11 @@ var circle$1 = {
             figures.push({
                 key: 'circle_cp_center',
                 type: 'circle',
-                attrs: { x: center.x, y: center.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
+                attrs: { x: center.x, y: center.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 0,
@@ -11041,11 +11041,11 @@ var circle$1 = {
             figures.push({
                 key: 'circle_cp_edge',
                 type: 'circle',
-                attrs: { x: edge.x, y: edge.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
+                attrs: { x: edge.x, y: edge.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 1,
@@ -11101,12 +11101,12 @@ var LONG_POSITION_DEFAULTS = {
     pricePrecision: 2
 };
 // Label layout
-var LABEL_PADDING_H$2 = 10;
-var LABEL_PADDING_V$2 = 5;
-var LABEL_BORDER_RADIUS$2 = 6;
+var LABEL_PADDING_H$1 = 10;
+var LABEL_PADDING_V$1 = 5;
+var LABEL_BORDER_RADIUS$1 = 6;
 var LABEL_BORDER_SIZE$1 = 1.5;
 var LABEL_GAP$1 = 10; // gap between label and zone edge
-var ENTRY_LABEL_LINE_GAP$2 = 2; // gap between 2 lines of entry label
+var ENTRY_LABEL_LINE_GAP$1 = 2; // gap between 2 lines of entry label
 
 /**
  * Long Position utility functions — calculations and label formatting
@@ -11196,7 +11196,7 @@ function rgbaToSolid$1(rgba) {
     }
     return rgba;
 }
-function getExt$2(extendData) {
+function getExt$1(extendData) {
     if (extendData == null)
         return __assign({}, LONG_POSITION_DEFAULTS);
     return __assign(__assign({}, LONG_POSITION_DEFAULTS), extendData);
@@ -11213,7 +11213,7 @@ var longPosition = {
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
-        var ext = getExt$2(overlay.extendData);
+        var ext = getExt$1(overlay.extendData);
         // ── Missing points: show minimal preview ──
         if (coordinates.length < 1)
             return [];
@@ -11482,14 +11482,14 @@ var longPosition = {
             {
                 var tpText = formatTpLabel$1(stats, ext.compact, precision);
                 var tpTextW = calcTextWidth(tpText, fontSize);
-                var tpLabelW = tpTextW + 2 * LABEL_PADDING_H$2;
-                var tpLabelH = fontSize + 2 * LABEL_PADDING_V$2;
+                var tpLabelW = tpTextW + 2 * LABEL_PADDING_H$1;
+                var tpLabelH = fontSize + 2 * LABEL_PADDING_V$1;
                 var tpLabelY = Math.min(targetY, entryY) - tpLabelH - LABEL_GAP$1;
                 figures.push({
                     key: 'lp_tp_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - tpLabelW / 2, y: tpLabelY, width: tpLabelW, height: tpLabelH },
-                    styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$2 },
+                    styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$1 },
                     ignoreEvent: true
                 });
                 figures.push({
@@ -11504,14 +11504,14 @@ var longPosition = {
             {
                 var slText = formatSlLabel$1(stats, ext.compact, precision);
                 var slTextW = calcTextWidth(slText, fontSize);
-                var slLabelW = slTextW + 2 * LABEL_PADDING_H$2;
-                var slLabelH = fontSize + 2 * LABEL_PADDING_V$2;
+                var slLabelW = slTextW + 2 * LABEL_PADDING_H$1;
+                var slLabelH = fontSize + 2 * LABEL_PADDING_V$1;
                 var slLabelY = Math.max(stopY, entryY) + LABEL_GAP$1;
                 figures.push({
                     key: 'lp_sl_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - slLabelW / 2, y: slLabelY, width: slLabelW, height: slLabelH },
-                    styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$2 },
+                    styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$1 },
                     ignoreEvent: true
                 });
                 figures.push({
@@ -11530,10 +11530,10 @@ var longPosition = {
                 var line1W = calcTextWidth(line1, fontSize);
                 var line2W = hasLine2 ? calcTextWidth(line2, fontSize) : 0;
                 var maxTextW = Math.max(line1W, line2W);
-                var entryLabelW = maxTextW + 2 * LABEL_PADDING_H$2;
+                var entryLabelW = maxTextW + 2 * LABEL_PADDING_H$1;
                 var entryLabelH = hasLine2
-                    ? 2 * fontSize + ENTRY_LABEL_LINE_GAP$2 + 2 * LABEL_PADDING_V$2
-                    : fontSize + 2 * LABEL_PADDING_V$2;
+                    ? 2 * fontSize + ENTRY_LABEL_LINE_GAP$1 + 2 * LABEL_PADDING_V$1
+                    : fontSize + 2 * LABEL_PADDING_V$1;
                 // Smart Y positioning:
                 // Default: centered on entry line
                 // If label is wider than zone → move to the taller zone area
@@ -11552,12 +11552,12 @@ var longPosition = {
                     key: 'lp_entry_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
-                    styles: { style: 'stroke_fill', color: entryBgColor, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$2 },
+                    styles: { style: 'stroke_fill', color: entryBgColor, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE$1, borderRadius: LABEL_BORDER_RADIUS$1 },
                     ignoreEvent: true
                 });
                 // Line 1
                 var line1Y = hasLine2
-                    ? entryLabelY + LABEL_PADDING_V$2 + fontSize / 2
+                    ? entryLabelY + LABEL_PADDING_V$1 + fontSize / 2
                     : entryLabelY + entryLabelH / 2;
                 figures.push({
                     key: 'lp_entry_label_text1',
@@ -11568,7 +11568,7 @@ var longPosition = {
                 });
                 // Line 2 (if not compact)
                 if (hasLine2) {
-                    var line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP$2;
+                    var line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP$1;
                     figures.push({
                         key: 'lp_entry_label_text2',
                         type: 'text',
@@ -11587,11 +11587,11 @@ var longPosition = {
             figures.push({
                 key: 'lp_cp_entry',
                 type: 'circle',
-                attrs: { x: leftX, y: entryY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
+                attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 0,
@@ -11610,7 +11610,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11630,7 +11630,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11650,7 +11650,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11663,7 +11663,7 @@ var longPosition = {
     createYAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
-        var ext = getExt$2(overlay.extendData);
+        var ext = getExt$1(overlay.extendData);
         if (!ext.showPriceLabels)
             return [];
         if (coordinates.length < 3)
@@ -11894,12 +11894,12 @@ var SHORT_POSITION_DEFAULTS = {
     pricePrecision: 2
 };
 // Label layout
-var LABEL_PADDING_H$1 = 10;
-var LABEL_PADDING_V$1 = 5;
-var LABEL_BORDER_RADIUS$1 = 6;
+var LABEL_PADDING_H = 10;
+var LABEL_PADDING_V = 5;
+var LABEL_BORDER_RADIUS = 6;
 var LABEL_BORDER_SIZE = 1.5;
 var LABEL_GAP = 10; // gap between label and zone edge
-var ENTRY_LABEL_LINE_GAP$1 = 2; // gap between 2 lines of entry label
+var ENTRY_LABEL_LINE_GAP = 2; // gap between 2 lines of entry label
 
 /**
  * Short Position utility functions — calculations and label formatting
@@ -11987,7 +11987,7 @@ function rgbaToSolid(rgba) {
     }
     return rgba;
 }
-function getExt$1(extendData) {
+function getExt(extendData) {
     if (extendData == null)
         return __assign({}, SHORT_POSITION_DEFAULTS);
     return __assign(__assign({}, SHORT_POSITION_DEFAULTS), extendData);
@@ -12004,7 +12004,7 @@ var shortPosition = {
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
-        var ext = getExt$1(overlay.extendData);
+        var ext = getExt(overlay.extendData);
         if (coordinates.length < 1)
             return [];
         if (coordinates.length < 4) {
@@ -12195,14 +12195,14 @@ var shortPosition = {
             {
                 var tpText = formatTpLabel(stats, ext.compact, precision);
                 var tpTextW = calcTextWidth(tpText, fontSize);
-                var tpLabelW = tpTextW + 2 * LABEL_PADDING_H$1;
-                var tpLabelH = fontSize + 2 * LABEL_PADDING_V$1;
+                var tpLabelW = tpTextW + 2 * LABEL_PADDING_H;
+                var tpLabelH = fontSize + 2 * LABEL_PADDING_V;
                 var tpLabelY = Math.max(targetY, entryY) + LABEL_GAP;
                 figures.push({
                     key: 'sp_tp_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - tpLabelW / 2, y: tpLabelY, width: tpLabelW, height: tpLabelH },
-                    styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS$1 },
+                    styles: { style: 'stroke_fill', color: tpSolid, borderColor: tpSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
                 figures.push({
@@ -12217,14 +12217,14 @@ var shortPosition = {
             {
                 var slText = formatSlLabel(stats, ext.compact, precision);
                 var slTextW = calcTextWidth(slText, fontSize);
-                var slLabelW = slTextW + 2 * LABEL_PADDING_H$1;
-                var slLabelH = fontSize + 2 * LABEL_PADDING_V$1;
+                var slLabelW = slTextW + 2 * LABEL_PADDING_H;
+                var slLabelH = fontSize + 2 * LABEL_PADDING_V;
                 var slLabelY = Math.min(stopY, entryY) - slLabelH - LABEL_GAP;
                 figures.push({
                     key: 'sp_sl_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - slLabelW / 2, y: slLabelY, width: slLabelW, height: slLabelH },
-                    styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS$1 },
+                    styles: { style: 'stroke_fill', color: slSolid, borderColor: slSolid, borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
                 figures.push({
@@ -12243,8 +12243,8 @@ var shortPosition = {
                 var line1W = calcTextWidth(line1, fontSize);
                 var line2W = hasLine2 ? calcTextWidth(line2, fontSize) : 0;
                 var maxTextW = Math.max(line1W, line2W);
-                var entryLabelW = maxTextW + 2 * LABEL_PADDING_H$1;
-                var entryLabelH = hasLine2 ? 2 * fontSize + ENTRY_LABEL_LINE_GAP$1 + 2 * LABEL_PADDING_V$1 : fontSize + 2 * LABEL_PADDING_V$1;
+                var entryLabelW = maxTextW + 2 * LABEL_PADDING_H;
+                var entryLabelH = hasLine2 ? 2 * fontSize + ENTRY_LABEL_LINE_GAP + 2 * LABEL_PADDING_V : fontSize + 2 * LABEL_PADDING_V;
                 var entryLabelY = entryY - entryLabelH / 2;
                 if (entryLabelW > zoneWidth) {
                     if (tpZoneHeight >= slZoneHeight) {
@@ -12259,10 +12259,10 @@ var shortPosition = {
                     key: 'sp_entry_label_bg',
                     type: 'rect',
                     attrs: { x: centerX - entryLabelW / 2, y: entryLabelY, width: entryLabelW, height: entryLabelH },
-                    styles: { style: 'stroke_fill', color: entryBgColor, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS$1 },
+                    styles: { style: 'stroke_fill', color: entryBgColor, borderColor: '#ffffff', borderSize: LABEL_BORDER_SIZE, borderRadius: LABEL_BORDER_RADIUS },
                     ignoreEvent: true
                 });
-                var line1Y = hasLine2 ? entryLabelY + LABEL_PADDING_V$1 + fontSize / 2 : entryLabelY + entryLabelH / 2;
+                var line1Y = hasLine2 ? entryLabelY + LABEL_PADDING_V + fontSize / 2 : entryLabelY + entryLabelH / 2;
                 figures.push({
                     key: 'sp_entry_label_text1',
                     type: 'text',
@@ -12271,7 +12271,7 @@ var shortPosition = {
                     ignoreEvent: true
                 });
                 if (hasLine2) {
-                    var line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP$1;
+                    var line2Y = line1Y + fontSize + ENTRY_LABEL_LINE_GAP;
                     figures.push({
                         key: 'sp_entry_label_text2',
                         type: 'text',
@@ -12289,8 +12289,8 @@ var shortPosition = {
             figures.push({
                 key: 'sp_cp_entry',
                 type: 'circle',
-                attrs: { x: leftX, y: entryY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_CIRCLE_BORDER },
+                attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_CIRCLE_BORDER },
                 pointIndex: 0,
                 cursor: 'move'
             });
@@ -12298,7 +12298,7 @@ var shortPosition = {
                 key: 'sp_cp_tp',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: targetY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 1,
                 cursor: 'ns-resize'
             });
@@ -12306,7 +12306,7 @@ var shortPosition = {
                 key: 'sp_cp_sl',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: stopY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 2,
                 cursor: 'ns-resize'
             });
@@ -12314,7 +12314,7 @@ var shortPosition = {
                 key: 'sp_cp_width',
                 type: 'rect',
                 attrs: { x: rightX - CP_MID_SIZE / 2, y: entryY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 3,
                 cursor: 'ew-resize'
             });
@@ -12324,7 +12324,7 @@ var shortPosition = {
     createYAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
-        var ext = getExt$1(overlay.extendData);
+        var ext = getExt(overlay.extendData);
         if (!ext.showPriceLabels)
             return [];
         if (coordinates.length < 3)
@@ -12467,508 +12467,6 @@ var shortPosition = {
 };
 
 /**
- * Forecast overlay constants — TradingView-style prediction tool
- * 13 color fields + transparency + linewidth + pricePrecision + fontSize
- */
-var FORECAST_DEFAULTS = {
-    linecolor: '#2962FF',
-    linewidth: 1,
-    sourceBackColor: '#2962FF',
-    sourceTextColor: '#FFFFFF',
-    sourceStrokeColor: '#2962FF',
-    targetBackColor: '#2962FF',
-    targetTextColor: '#FFFFFF',
-    targetStrokeColor: '#2962FF',
-    successBackground: '#4CAF50',
-    successTextColor: '#FFFFFF',
-    failureBackground: '#F23645',
-    failureTextColor: '#FFFFFF',
-    intermediateBackColor: '#EAD289',
-    intermediateTextColor: '#6D4D22',
-    centersColor: '#202020',
-    transparency: 10,
-    pricePrecision: 2,
-    fontSize: 11
-};
-// ═══════════════════════════════════════
-// Label layout
-// ═══════════════════════════════════════
-var LABEL_PADDING_H = 8;
-var LABEL_PADDING_V = 4;
-var LABEL_BORDER_RADIUS = 3;
-// Gap between outcome and delta pill
-var LABEL_STACK_GAP = 4;
-// Gap between stacked pills and zone top
-var LABEL_TO_ZONE_GAP = 6;
-// Gap below entry bar
-var ENTRY_PILL_OFFSET_Y = 8;
-// Gap between price + date lines inside entry pill
-var ENTRY_LABEL_LINE_GAP = 2;
-var EXTENSION_RIGHT_MARGIN = 10;
-// ═══════════════════════════════════════
-// Control points
-// ═══════════════════════════════════════
-var CP_COLOR = '#2962FF';
-var CP_RADIUS = 5;
-var CP_BORDER = 2;
-var CP_BORDER_COLOR = '#FFFFFF';
-// ═══════════════════════════════════════
-// Point 2 marker
-// ═══════════════════════════════════════
-var P2_MARKER_RADIUS = 2;
-var OUTCOME_LABELS = {
-    success: 'TH\u00C0NH C\u00D4NG',
-    failure: 'TH\u1EA4T B\u1EA0I',
-    intermediate: '\u0110ANG CH\u1EDC'
-};
-
-/**
- * Forecast utility functions — outcome evaluation, stats, color alpha
- */
-function calculateForecastStats(entryPrice, targetPrice, entryIndex, targetIndex, dataList) {
-    var deltaPrice = targetPrice - entryPrice;
-    var deltaPct = entryPrice !== 0 ? (deltaPrice / entryPrice) * 100 : 0;
-    var barCount = Math.abs(targetIndex - entryIndex);
-    var outcome = evaluateOutcome(entryPrice, targetPrice, entryIndex, targetIndex, dataList);
-    return { deltaPrice: deltaPrice, deltaPct: deltaPct, barCount: barCount, outcome: outcome };
-}
-// Outcome evaluation
-function evaluateOutcome(entryPrice, targetPrice, entryIndex, targetIndex, dataList) {
-    var isBullish = targetPrice > entryPrice;
-    var startIdx = Math.max(0, Math.min(entryIndex, targetIndex));
-    var endIdx = Math.min(dataList.length - 1, Math.max(entryIndex, targetIndex));
-    var currentIdx = dataList.length - 1;
-    if (targetIndex > currentIdx) {
-        var scanEnd = Math.min(currentIdx, endIdx);
-        for (var i = startIdx; i <= scanEnd; i++) {
-            var bar = dataList[i];
-            if (isBullish && bar.high >= targetPrice)
-                return 'success';
-            if (!isBullish && bar.low <= targetPrice)
-                return 'success';
-        }
-        return 'intermediate';
-    }
-    for (var i = startIdx; i <= endIdx; i++) {
-        var bar = dataList[i];
-        if (isBullish && bar.high >= targetPrice)
-            return 'success';
-        if (!isBullish && bar.low <= targetPrice)
-            return 'success';
-    }
-    return 'failure';
-}
-// Label formatting
-function formatDeltaLabel(stats, precision) {
-    var priceSign = stats.deltaPrice >= 0 ? '+' : '';
-    var pctSign = stats.deltaPct >= 0 ? '+' : '';
-    var priceStr = "".concat(priceSign).concat(formatPrecision(stats.deltaPrice, precision));
-    var pctStr = "".concat(pctSign).concat(stats.deltaPct.toFixed(2), "%");
-    return "".concat(priceStr, " (").concat(pctStr, ") trong ").concat(stats.barCount, "n");
-}
-function formatEntryPrice(price, precision) {
-    return formatPrecision(price, precision);
-}
-function formatEntryDate(timestamp) {
-    if (timestamp == null || !isFinite(timestamp))
-        return '';
-    var d = new Date(timestamp);
-    var y = d.getFullYear();
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return "".concat(y, "-").concat(m, "-").concat(day);
-}
-// Color alpha — apply transparency (0=opaque, 100=invisible)
-function applyAlpha(hex, transparencyPct) {
-    var alpha = Math.max(0, Math.min(1, 1 - transparencyPct / 100));
-    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
-    if (match == null)
-        return hex;
-    var r = parseInt(match[1], 16);
-    var g = parseInt(match[2], 16);
-    var b = parseInt(match[3], 16);
-    return "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(alpha.toFixed(3), ")");
-}
-
-/**
- * Forecast overlay — TradingView-style prediction tool
- *
- * Data points: 2 (P1 entry, P2 target)
- * Control points: P1 circle + P2 circle (blue fill, white 2px border)
- * 8 visual elements: x-axis markers, horizontal extension, curve, zone fill,
- * zone border, point-2 marker, entry pill, delta/outcome stacked pills.
- */
-// ═══════════════════════════════════════
-// Helpers
-// ═══════════════════════════════════════
-function getExt(extendData) {
-    if (extendData == null)
-        return __assign({}, FORECAST_DEFAULTS);
-    return __assign(__assign({}, FORECAST_DEFAULTS), extendData);
-}
-/**
- * Sample a quadratic Bezier curve from P1 → P2 with control point at
- * (p2.x, p1.y) — matches TV's "arc" shape.
- */
-function sampleBezier(p1x, p1y, cpx, cpy, p2x, p2y, segments) {
-    var pts = [];
-    for (var i = 0; i <= segments; i++) {
-        var t = i / segments;
-        var mt = 1 - t;
-        var x = mt * mt * p1x + 2 * mt * t * cpx + t * t * p2x;
-        var y = mt * mt * p1y + 2 * mt * t * cpy + t * t * p2y;
-        pts.push({ x: Math.round(x), y: Math.round(y) });
-    }
-    return pts;
-}
-// ═══════════════════════════════════════
-// OVERLAY
-// ═══════════════════════════════════════
-var forecast = {
-    name: 'forecast',
-    totalStep: 2,
-    needDefaultPointFigure: false,
-    needDefaultXAxisFigure: false,
-    needDefaultYAxisFigure: false,
-    createPointFigures: function (_a) {
-        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay, bounding = _a.bounding;
-        var ext = getExt(overlay.extendData);
-        if (coordinates.length < 2)
-            return [];
-        var _o = __read(coordinates, 2), p1 = _o[0], p2 = _o[1];
-        var leftX = Math.min(p1.x, p2.x);
-        var rightX = Math.max(p1.x, p2.x);
-        var topY = Math.min(p1.y, p2.y);
-        var bottomY = Math.max(p1.y, p2.y);
-        var zoneWidth = rightX - leftX;
-        var zoneHeight = bottomY - topY;
-        var figures = [];
-        // ── Stats for delta + outcome ──
-        var dataList = chart.getDataList();
-        var entryPrice = (_c = (_b = overlay.points[0]) === null || _b === void 0 ? void 0 : _b.value) !== null && _c !== void 0 ? _c : 0;
-        var targetPrice = (_e = (_d = overlay.points[1]) === null || _d === void 0 ? void 0 : _d.value) !== null && _e !== void 0 ? _e : 0;
-        var entryIndex = (_g = (_f = overlay.points[0]) === null || _f === void 0 ? void 0 : _f.dataIndex) !== null && _g !== void 0 ? _g : 0;
-        var targetIndex = (_j = (_h = overlay.points[1]) === null || _h === void 0 ? void 0 : _h.dataIndex) !== null && _j !== void 0 ? _j : 0;
-        var stats = calculateForecastStats(entryPrice, targetPrice, entryIndex, targetIndex, dataList);
-        var zoneFill = applyAlpha(ext.targetBackColor, ext.transparency);
-        // ── 1. Horizontal extension dashed line from (p2.x, p2.y) → right edge ──
-        var extEndX = Math.max(p2.x + 1, bounding.width - EXTENSION_RIGHT_MARGIN);
-        figures.push({
-            key: 'fc_ext_line',
-            type: 'line',
-            attrs: {
-                coordinates: [
-                    { x: p2.x, y: p2.y },
-                    { x: extEndX, y: p2.y }
-                ]
-            },
-            styles: {
-                style: 'dashed',
-                color: ext.linecolor,
-                size: 1,
-                dashedValue: [4, 3]
-            },
-            ignoreEvent: true
-        });
-        // ── 2. Quadratic Bezier curve P1 → P2 ──
-        var bezierPts = sampleBezier(p1.x, p1.y, p2.x, p1.y, p2.x, p2.y, 25);
-        for (var i = 0; i < bezierPts.length - 1; i++) {
-            figures.push({
-                key: "fc_curve_".concat(i),
-                type: 'line',
-                attrs: {
-                    coordinates: [bezierPts[i], bezierPts[i + 1]]
-                },
-                styles: {
-                    style: 'solid',
-                    color: ext.linecolor,
-                    size: ext.linewidth
-                },
-                ignoreEvent: true
-            });
-        }
-        // ── 3. Zone rectangle fill ──
-        if (zoneWidth > 0 && zoneHeight > 0) {
-            figures.push({
-                key: 'fc_zone_fill',
-                type: 'rect',
-                attrs: {
-                    x: leftX,
-                    y: topY,
-                    width: zoneWidth,
-                    height: zoneHeight
-                },
-                styles: {
-                    style: 'fill',
-                    color: zoneFill
-                },
-                ignoreEvent: false
-            });
-            // ── 4. Zone rectangle border ──
-            figures.push({
-                key: 'fc_zone_border',
-                type: 'rect',
-                attrs: {
-                    x: leftX,
-                    y: topY,
-                    width: zoneWidth,
-                    height: zoneHeight
-                },
-                styles: {
-                    style: 'stroke',
-                    borderColor: ext.targetStrokeColor,
-                    borderSize: 1
-                },
-                ignoreEvent: true
-            });
-        }
-        // ── 5. Point 2 marker (small dot at current bar) ──
-        var currentIdx = dataList.length - 1;
-        if (currentIdx > entryIndex) {
-            var convertResult = chart.convertToPixel([{ dataIndex: currentIdx, value: (_l = (_k = dataList[currentIdx]) === null || _k === void 0 ? void 0 : _k.close) !== null && _l !== void 0 ? _l : entryPrice }], { paneId: overlay.paneId, absolute: false });
-            var markerPt = convertResult[0];
-            var mx = markerPt.x;
-            var my = markerPt.y;
-            if (mx != null && my != null) {
-                figures.push({
-                    key: 'fc_p2_marker',
-                    type: 'circle',
-                    attrs: { x: mx, y: my, r: P2_MARKER_RADIUS },
-                    styles: {
-                        style: 'fill',
-                        color: ext.centersColor
-                    },
-                    ignoreEvent: true
-                });
-            }
-        }
-        // ── 6. Entry pill (price + date, below entry bar, outside zone) ──
-        var fontSize = ext.fontSize;
-        var priceText = formatEntryPrice(entryPrice, ext.pricePrecision);
-        var dateText = formatEntryDate((_m = overlay.points[0]) === null || _m === void 0 ? void 0 : _m.timestamp);
-        var hasDate = dateText.length > 0;
-        var priceTextW = calcTextWidth(priceText, fontSize);
-        var dateTextW = hasDate ? calcTextWidth(dateText, fontSize) : 0;
-        var entryPillTextW = Math.max(priceTextW, dateTextW);
-        var entryPillW = entryPillTextW + 2 * LABEL_PADDING_H;
-        var entryPillH = hasDate
-            ? 2 * fontSize + ENTRY_LABEL_LINE_GAP + 2 * LABEL_PADDING_V
-            : fontSize + 2 * LABEL_PADDING_V;
-        var entryPillX = Math.round(p1.x - entryPillW / 2);
-        var entryPillY = Math.max(p1.y + ENTRY_PILL_OFFSET_Y, bottomY + 4);
-        figures.push({
-            key: 'fc_entry_pill_bg',
-            type: 'rect',
-            attrs: {
-                x: entryPillX,
-                y: entryPillY,
-                width: entryPillW,
-                height: entryPillH
-            },
-            styles: {
-                style: 'stroke_fill',
-                color: applyAlpha(ext.sourceBackColor, ext.transparency),
-                borderColor: ext.sourceStrokeColor,
-                borderSize: 1,
-                borderRadius: LABEL_BORDER_RADIUS
-            },
-            ignoreEvent: true
-        });
-        var priceLineY = hasDate
-            ? entryPillY + LABEL_PADDING_V + fontSize / 2
-            : entryPillY + entryPillH / 2;
-        figures.push({
-            key: 'fc_entry_pill_price',
-            type: 'text',
-            attrs: {
-                x: p1.x,
-                y: priceLineY,
-                text: priceText,
-                align: 'center',
-                baseline: 'middle'
-            },
-            styles: {
-                color: ext.sourceTextColor,
-                size: fontSize,
-                backgroundColor: 'transparent'
-            },
-            ignoreEvent: true
-        });
-        if (hasDate) {
-            var dateLineY = priceLineY + fontSize + ENTRY_LABEL_LINE_GAP;
-            figures.push({
-                key: 'fc_entry_pill_date',
-                type: 'text',
-                attrs: {
-                    x: p1.x,
-                    y: dateLineY,
-                    text: dateText,
-                    align: 'center',
-                    baseline: 'middle'
-                },
-                styles: {
-                    color: ext.sourceTextColor,
-                    size: fontSize,
-                    backgroundColor: 'transparent'
-                },
-                ignoreEvent: true
-            });
-        }
-        // ── 7-8. Delta + Outcome stacked pills (right-aligned, above zone top) ──
-        var deltaText = formatDeltaLabel(stats, ext.pricePrecision);
-        var outcomeText = OUTCOME_LABELS[stats.outcome];
-        var deltaTextW = calcTextWidth(deltaText, fontSize);
-        var outcomeTextW = calcTextWidth(outcomeText, fontSize);
-        var deltaPillW = deltaTextW + 2 * LABEL_PADDING_H;
-        var outcomePillW = outcomeTextW + 2 * LABEL_PADDING_H;
-        var pillH = fontSize + 2 * LABEL_PADDING_V;
-        var deltaPillY = topY - LABEL_TO_ZONE_GAP - pillH;
-        var outcomePillY = deltaPillY - LABEL_STACK_GAP - pillH;
-        var deltaPillX = rightX - deltaPillW;
-        var outcomePillX = rightX - outcomePillW;
-        // Delta pill (targetBackColor)
-        figures.push({
-            key: 'fc_delta_pill_bg',
-            type: 'rect',
-            attrs: {
-                x: deltaPillX,
-                y: deltaPillY,
-                width: deltaPillW,
-                height: pillH
-            },
-            styles: {
-                style: 'fill',
-                color: applyAlpha(ext.targetBackColor, ext.transparency),
-                borderRadius: LABEL_BORDER_RADIUS
-            },
-            ignoreEvent: true
-        });
-        figures.push({
-            key: 'fc_delta_pill_text',
-            type: 'text',
-            attrs: {
-                x: deltaPillX + deltaPillW / 2,
-                y: deltaPillY + pillH / 2,
-                text: deltaText,
-                align: 'center',
-                baseline: 'middle'
-            },
-            styles: {
-                color: ext.targetTextColor,
-                size: fontSize,
-                backgroundColor: 'transparent'
-            },
-            ignoreEvent: true
-        });
-        // Outcome pill (success/failure/intermediate)
-        var outcomeBg = ext.intermediateBackColor;
-        var outcomeText2 = ext.intermediateTextColor;
-        if (stats.outcome === 'success') {
-            outcomeBg = ext.successBackground;
-            outcomeText2 = ext.successTextColor;
-        }
-        else if (stats.outcome === 'failure') {
-            outcomeBg = ext.failureBackground;
-            outcomeText2 = ext.failureTextColor;
-        }
-        figures.push({
-            key: 'fc_outcome_pill_bg',
-            type: 'rect',
-            attrs: {
-                x: outcomePillX,
-                y: outcomePillY,
-                width: outcomePillW,
-                height: pillH
-            },
-            styles: {
-                style: 'fill',
-                color: applyAlpha(outcomeBg, ext.transparency),
-                borderRadius: LABEL_BORDER_RADIUS
-            },
-            ignoreEvent: true
-        });
-        figures.push({
-            key: 'fc_outcome_pill_text',
-            type: 'text',
-            attrs: {
-                x: outcomePillX + outcomePillW / 2,
-                y: outcomePillY + pillH / 2,
-                text: outcomeText,
-                align: 'center',
-                baseline: 'middle'
-            },
-            styles: {
-                color: outcomeText2,
-                size: fontSize,
-                backgroundColor: 'transparent'
-            },
-            ignoreEvent: true
-        });
-        // ── 9. Control point handles (always rendered; klinecharts skips default) ──
-        figures.push({
-            key: 'fc_cp_p1',
-            type: 'circle',
-            attrs: { x: p1.x, y: p1.y, r: CP_RADIUS + CP_BORDER },
-            styles: {
-                style: 'stroke_fill',
-                color: CP_COLOR,
-                borderColor: CP_BORDER_COLOR,
-                borderSize: CP_BORDER
-            },
-            pointIndex: 0,
-            cursor: 'move'
-        });
-        figures.push({
-            key: 'fc_cp_p2',
-            type: 'circle',
-            attrs: { x: p2.x, y: p2.y, r: CP_RADIUS + CP_BORDER },
-            styles: {
-                style: 'stroke_fill',
-                color: CP_COLOR,
-                borderColor: CP_BORDER_COLOR,
-                borderSize: CP_BORDER
-            },
-            pointIndex: 1,
-            cursor: 'move'
-        });
-        return figures;
-    },
-    createXAxisFigures: function (_a) {
-        var coordinates = _a.coordinates;
-        if (coordinates.length < 2)
-            return [];
-        var _b = __read(coordinates, 2), p1 = _b[0], p2 = _b[1];
-        return [
-            {
-                key: 'fc_xaxis_p1',
-                type: 'line',
-                attrs: {
-                    coordinates: [
-                        { x: p1.x, y: 0 },
-                        { x: p1.x, y: 6 }
-                    ]
-                },
-                styles: { style: 'solid', color: '#2962FF', size: 2 },
-                ignoreEvent: true
-            },
-            {
-                key: 'fc_xaxis_p2',
-                type: 'line',
-                attrs: {
-                    coordinates: [
-                        { x: p2.x, y: 0 },
-                        { x: p2.x, y: 6 }
-                    ]
-                },
-                styles: { style: 'solid', color: '#2962FF', size: 2 },
-                ignoreEvent: true
-            }
-        ];
-    }
-};
-
-/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12986,7 +12484,7 @@ var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition, shortPosition, forecast
+    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition, shortPosition
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
