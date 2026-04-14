@@ -93,7 +93,7 @@ export default class Event implements EventHandler {
    *   2. _hitSegments (line segments with distance tolerance) — used by SuperTrend
    * Returns the indicator info if hit, null otherwise.
    */
-  private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string; indicator: unknown } | null {
+  private _findIndicatorAtPoint (pane: Nullable<Pane>, x: number, y: number): { indicatorId: string; indicatorName: string; paneId: string; indicator: unknown; x: number; y: number } | null {
     if (pane === null) return null
     const chartStore = this._chart.getChartStore()
     const indicators = chartStore.getIndicatorsByPaneId(pane.getId())
@@ -108,7 +108,7 @@ export default class Event implements EventHandler {
         const HIT_TOLERANCE = 6
         for (const seg of hitSegments) {
           if (pointToSegmentDistanceSq(x, y, seg.x1, seg.y1, seg.x2, seg.y2) <= HIT_TOLERANCE * HIT_TOLERANCE) {
-            return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator }
+            return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator, x, y }
           }
         }
       }
@@ -117,7 +117,7 @@ export default class Event implements EventHandler {
       const hitArea = extData._hitArea as { left: number; top: number; right: number; bottom: number } | undefined
       if (hitArea != null && isNumber(hitArea.left)) {
         if (x >= hitArea.left && x <= hitArea.right && y >= hitArea.top && y <= hitArea.bottom) {
-          return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator }
+          return { indicatorId: indicator.id, indicatorName: indicator.name, paneId: pane.getId(), indicator, x, y }
         }
       }
     }

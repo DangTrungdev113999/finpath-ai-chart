@@ -178,16 +178,29 @@ function matchRow (
   }
 }
 
+interface TimeCell {
+  x: number
+  y: number
+  w: number
+  h: number
+  timestamp: number
+}
+
+interface TableLayout {
+  hitArea: { left: number; top: number; right: number; bottom: number }
+  timeCells: TimeCell[]
+}
+
 function drawStatsTable (
   ctx: CanvasRenderingContext2D,
   bounding: Bounding,
   rows: Row[],
+  rowTimestamps: Array<number | null>,
   ext: AMExtendData,
   tableOffsetY: number,
-  selected: boolean,
-  hitSegments?: HitSegment[]
-): void {
-  if (rows.length === 0) return
+  selected: boolean
+): TableLayout | null {
+  if (rows.length === 0) return null
 
   const bgColor = ext.tableBg ?? FP_AM_TABLE_BG
   const borderColor = selected ? '#2962FF' : (ext.tableBorder ?? FP_AM_TABLE_BORDER)
@@ -210,15 +223,30 @@ function drawStatsTable (
   ctx.lineWidth = selected ? 1.5 : 1
   ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, TABLE_WIDTH - 1, tableH - 1)
 
-  // Hit segments for the 4 border edges of the table (allows clicking on the
-  // table itself to select the indicator).
-  if (hitSegments !== undefined) {
-    const x2 = anchorX + TABLE_WIDTH
-    const y2 = anchorY + tableH
-    hitSegments.push({ x1: anchorX, y1: anchorY, x2: x2, y2: anchorY })
-    hitSegments.push({ x1: anchorX, y1: y2, x2: x2, y2: y2 })
-    hitSegments.push({ x1: anchorX, y1: anchorY, x2: anchorX, y2: y2 })
-    hitSegments.push({ x1: x2, y1: anchorY, x2: x2, y2: y2 })
+  // Build the hit area (full table rect) + per-row Time cell rects so the
+  // consumer can detect clicks on the Time column and scroll the chart.
+  const hitArea = {
+    left: anchorX,
+    top: anchorY,
+    right: anchorX + TABLE_WIDTH,
+    bottom: anchorY + tableH
+  }
+  const timeCells: TimeCell[] = []
+  // Column 2 is the Time column: x starts after col 0 (Dir) + col 1 (Bar).
+  const timeColX = anchorX + COL_WIDTHS[0] + COL_WIDTHS[1]
+  const timeColW = COL_WIDTHS[2]
+  // Rows 1..N are data rows (row 0 is the header). Only populate when
+  // rowTimestamps[r] is a finite number (skip N/A rows).
+  for (let r = 1; r < rows.length; r++) {
+    const ts = rowTimestamps[r]
+    if (ts === null || !Number.isFinite(ts)) continue
+    timeCells.push({
+      x: timeColX,
+      y: anchorY + r * ROW_HEIGHT,
+      w: timeColW,
+      h: ROW_HEIGHT,
+      timestamp: ts
+    })
   }
 
   // 4. Row separators (horizontal).
@@ -255,6 +283,8 @@ function drawStatsTable (
       x += COL_WIDTHS[c]
     }
   }
+
+  return { hitArea, timeCells }
 }
 
 // ── Multi-instance stacking offset (Pine AC-32) ───────────────────────────
@@ -358,8 +388,15 @@ export function drawAM (
 
   // ── 5 + 6. Stats table ─────────────────────────────────────────────────
   if (!showTable) {
-    // Still persist hit segments even if table is hidden.
-    ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = hitSegments
+    // Still persist hit segments even if table is hidden. Clear AABB + time cells.
+    const extMut = ext as unknown as {
+      _hitSegments: HitSegment[]
+      _hitArea?: unknown
+      _timeCells?: unknown
+    }
+    extMut._hitSegments = hitSegments
+    extMut._hitArea = undefined
+    extMut._timeCells = undefined
     return
   }
 
@@ -373,32 +410,51 @@ export function drawAM (
   }
 
   const rows: Row[] = [headerRow]
+  const rowTimestamps: Array<number | null> = [null] // header has no timestamp
   if (isDual) {
     const bull = last.bullMatch ?? null
     const bear = last.bearMatch ?? null
     rows.push(bull != null
       ? matchRow('Bull', bullLabel, bull, textColor)
       : naRow('Bull', bullLabel, textColor))
+    rowTimestamps.push(bull?.anchorTime ?? null)
     rows.push(bear != null
       ? matchRow('Bear', bearLabel, bear, textColor)
       : naRow('Bear', bearLabel, textColor))
+    rowTimestamps.push(bear?.anchorTime ?? null)
   } else {
     const best = last.bestMatch ?? null
     if (best != null) {
       const dir = best.direction ?? 'Bull'
       const dirColor = dir === 'Bull' ? bullLabel : bearLabel
       rows.push(matchRow(dir, dirColor, best, textColor))
+      rowTimestamps.push(best.anchorTime)
     } else {
       // No match in Single Mode → render a neutral N/A row (default to Bull tint).
       rows.push(naRow('Bull', bullLabel, textColor))
+      rowTimestamps.push(null)
     }
   }
 
   const tableH = ROW_HEIGHT * rows.length
   const offsetY = resolveInstanceOffsetY(chart, indicatorId, indicatorPaneId, indicatorName ?? '', tableH)
-  drawStatsTable(ctx, bounding, rows, ext, offsetY, selected, hitSegments)
+  const tableLayout = drawStatsTable(ctx, bounding, rows, rowTimestamps, ext, offsetY, selected)
 
-  // Persist hit segments on extendData — library's Event handler reads them
-  // to fire onIndicatorShapeClick / onIndicatorShapeDoubleClick (6px tolerance).
-  ;(ext as unknown as { _hitSegments: HitSegment[] })._hitSegments = hitSegments
+  // Persist hit info on extendData so Event.ts can detect clicks:
+  //   _hitSegments — line segments for projected candles (6px tolerance)
+  //   _hitArea    — AABB rect for the stats table (entire table clickable)
+  //   _timeCells  — per-row Time column bounds + timestamp (consumer scrolls chart)
+  const extMut = ext as unknown as {
+    _hitSegments: HitSegment[]
+    _hitArea?: { left: number; top: number; right: number; bottom: number }
+    _timeCells?: TimeCell[]
+  }
+  extMut._hitSegments = hitSegments
+  if (tableLayout !== null) {
+    extMut._hitArea = tableLayout.hitArea
+    extMut._timeCells = tableLayout.timeCells
+  } else {
+    extMut._hitArea = undefined
+    extMut._timeCells = undefined
+  }
 }
