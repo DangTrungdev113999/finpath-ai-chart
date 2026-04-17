@@ -31,11 +31,13 @@ import {
   BADGE_GAP, BADGE_PADDING_H, BADGE_PADDING_V, BADGE_FONT_SIZE,
   CP_COLOR, CP_INACTIVE_RADIUS, CP_ACTIVE_RADIUS, CP_ACTIVE_BORDER,
   FOOTER_COLOR, FOOTER_Y, FOOTER_RADIUS, FOOTER_BORDER_SIZE, FOOTER_FONT_SIZE,
-  CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES
+  CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES,
+  ARROW_LENGTH, ARROW_HALF_WIDTH
 } from './constants'
 import {
   evaluateStatus, resolveBarIndex,
-  computeBezierControlPoint, buildCurveHitbox,
+  computeBezierControlPoint, buildCurveHitbox, buildArrowPolygon,
+  quadBezierTangent,
   alpha, formatISO, formatViDatePill,
   formatPrecision, signedPrecision
 } from './utils'
@@ -338,6 +340,23 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
           color: alpha(badgeTextHex, badgeTextOpacity),
           size: BADGE_FONT_SIZE,
           backgroundColor: 'transparent'
+        },
+        ignoreEvent: true
+      })
+    }
+
+    // ─── 5b. P2 arrow tip (small filled triangle pointing along curve tangent) ───
+    // Hidden when selected/hovered — hollow control-point circle covers this area.
+    if (!isActive) {
+      const tanAtP2 = quadBezierTangent(c1, cp, c2, 1)
+      const arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH)
+      figures.push({
+        key: 'fc_arrow',
+        type: 'polygon',
+        attrs: { coordinates: arrowPoly },
+        styles: {
+          style: 'fill',
+          color: lineColorAlpha
         },
         ignoreEvent: true
       })

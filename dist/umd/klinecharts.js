@@ -9176,7 +9176,7 @@ var CP_COLOR$2 = '#1592E6';
 var CP_RADIUS$1 = 5;
 var CP_CIRCLE_BORDER$1 = 1.5;
 // Arrow head constants
-var ARROW_LENGTH = 14;
+var ARROW_LENGTH$1 = 14;
 var ARROW_WIDTH = 6;
 /**
  * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
@@ -9194,8 +9194,8 @@ function getArrowCoordinates(from, tip) {
     var px = -uy;
     var py = ux;
     // Base of the arrowhead
-    var bx = tip.x - ux * ARROW_LENGTH;
-    var by = tip.y - uy * ARROW_LENGTH;
+    var bx = tip.x - ux * ARROW_LENGTH$1;
+    var by = tip.y - uy * ARROW_LENGTH$1;
     return [
         { x: tip.x, y: tip.y },
         { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
@@ -12805,8 +12805,11 @@ var FOOTER_FONT_SIZE = 9;
 var CURVE_HITBOX_HALF_WIDTH = 6;
 var CURVE_SAMPLES = 30;
 // Bézier curvature
-var BEZIER_ARC_FACTOR = 0.3;
-var BEZIER_ARC_CAP = 120;
+var BEZIER_ARC_FACTOR = 0.45;
+var BEZIER_ARC_CAP = 140;
+// P2 arrow tip (small filled triangle at curve endpoint, matches TV)
+var ARROW_LENGTH = 8;
+var ARROW_HALF_WIDTH = 5;
 
 /**
  * Forecast overlay utility functions
@@ -12866,8 +12869,8 @@ function resolveBarIndex(dataList, timestamp) {
 /**
  * Compute a single quadratic Bezier control point perpendicular to the P1-P2 chord.
  *
- * Arc height = min(chordLen * 0.3, 120). Direction is chosen so bullish curves
- * bow UP (toward smaller canvas-Y) and bearish curves bow DOWN.
+ * Always bows AWAY from the candles (toward smaller canvas-Y = visually up)
+ * regardless of direction — matches TradingView LineToolPrediction.
  */
 function computeBezierControlPoint(c1, c2) {
     var mx = (c1.x + c2.x) / 2;
@@ -12877,15 +12880,19 @@ function computeBezierControlPoint(c1, c2) {
     var len = Math.hypot(dx, dy);
     if (len === 0)
         return { x: mx, y: my };
-    // Perpendicular unit vector (rotate 90 deg CCW)
+    // Perpendicular unit vector (90° CCW rotation of chord direction)
     var px = -dy / len;
     var py = dx / len;
+    // Force the perpendicular to point upward (negative canvas-Y) so the curve
+    // always bows away from the candles.
+    if (py > 0) {
+        px = -px;
+        py = -py;
+    }
     var arc = Math.min(len * BEZIER_ARC_FACTOR, BEZIER_ARC_CAP);
-    // When dy < 0 (P2 above P1, i.e., bullish), bow upward (toward smaller canvas-Y).
-    var sign = dy < 0 ? 1 : -1;
     return {
-        x: mx + px * arc * sign,
-        y: my + py * arc * sign
+        x: mx + px * arc,
+        y: my + py * arc
     };
 }
 /**
@@ -12906,6 +12913,29 @@ function quadBezierTangent(c1, cp, c2, t) {
         x: 2 * (1 - t) * (cp.x - c1.x) + 2 * t * (c2.x - cp.x),
         y: 2 * (1 - t) * (cp.y - c1.y) + 2 * t * (c2.y - cp.y)
     };
+}
+/**
+ * Build a closed triangle polygon for the P2 arrow tip.
+ * Tip sits at `tip`; base extends `length` pixels back along the opposite of
+ * `tangent`. Base width = 2 * halfWidth.
+ */
+function buildArrowPolygon(tip, tangent, length, halfWidth) {
+    var tanLen = Math.hypot(tangent.x, tangent.y);
+    if (tanLen === 0) {
+        return [{ x: tip.x, y: tip.y }, { x: tip.x, y: tip.y }, { x: tip.x, y: tip.y }];
+    }
+    var tx = tangent.x / tanLen;
+    var ty = tangent.y / tanLen;
+    // Perpendicular to tangent
+    var nx = -ty;
+    var ny = tx;
+    var baseCx = tip.x - tx * length;
+    var baseCy = tip.y - ty * length;
+    return [
+        { x: tip.x, y: tip.y },
+        { x: baseCx + nx * halfWidth, y: baseCy + ny * halfWidth },
+        { x: baseCx - nx * halfWidth, y: baseCy - ny * halfWidth }
+    ];
 }
 /**
  * Build a closed polygon "tube" around the curve for hit-testing.
@@ -13287,6 +13317,22 @@ var forecast = {
                     color: alpha(badgeTextHex, badgeTextOpacity),
                     size: BADGE_FONT_SIZE,
                     backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 5b. P2 arrow tip (small filled triangle pointing along curve tangent) ───
+        // Hidden when selected/hovered — hollow control-point circle covers this area.
+        if (!isActive) {
+            var tanAtP2 = quadBezierTangent(c1, cp, c2, 1);
+            var arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH);
+            figures.push({
+                key: 'fc_arrow',
+                type: 'polygon',
+                attrs: { coordinates: arrowPoly },
+                styles: {
+                    style: 'fill',
+                    color: lineColorAlpha
                 },
                 ignoreEvent: true
             });

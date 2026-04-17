@@ -66,8 +66,8 @@ export function resolveBarIndex (dataList: KLineData[], timestamp: number | unde
 /**
  * Compute a single quadratic Bezier control point perpendicular to the P1-P2 chord.
  *
- * Arc height = min(chordLen * 0.3, 120). Direction is chosen so bullish curves
- * bow UP (toward smaller canvas-Y) and bearish curves bow DOWN.
+ * Always bows AWAY from the candles (toward smaller canvas-Y = visually up)
+ * regardless of direction — matches TradingView LineToolPrediction.
  */
 export function computeBezierControlPoint (c1: Coordinate, c2: Coordinate): Coordinate {
   const mx = (c1.x + c2.x) / 2
@@ -77,17 +77,21 @@ export function computeBezierControlPoint (c1: Coordinate, c2: Coordinate): Coor
   const len = Math.hypot(dx, dy)
   if (len === 0) return { x: mx, y: my }
 
-  // Perpendicular unit vector (rotate 90 deg CCW)
-  const px = -dy / len
-  const py = dx / len
+  // Perpendicular unit vector (90° CCW rotation of chord direction)
+  let px = -dy / len
+  let py = dx / len
+  // Force the perpendicular to point upward (negative canvas-Y) so the curve
+  // always bows away from the candles.
+  if (py > 0) {
+    px = -px
+    py = -py
+  }
 
   const arc = Math.min(len * BEZIER_ARC_FACTOR, BEZIER_ARC_CAP)
-  // When dy < 0 (P2 above P1, i.e., bullish), bow upward (toward smaller canvas-Y).
-  const sign = dy < 0 ? 1 : -1
 
   return {
-    x: mx + px * arc * sign,
-    y: my + py * arc * sign
+    x: mx + px * arc,
+    y: my + py * arc
   }
 }
 
@@ -123,6 +127,35 @@ export function sampleBezier (
     out.push(quadBezierPoint(c1, cp, c2, i / samples))
   }
   return out
+}
+
+/**
+ * Build a closed triangle polygon for the P2 arrow tip.
+ * Tip sits at `tip`; base extends `length` pixels back along the opposite of
+ * `tangent`. Base width = 2 * halfWidth.
+ */
+export function buildArrowPolygon (
+  tip: Coordinate,
+  tangent: Coordinate,
+  length: number,
+  halfWidth: number
+): Coordinate[] {
+  const tanLen = Math.hypot(tangent.x, tangent.y)
+  if (tanLen === 0) {
+    return [{ x: tip.x, y: tip.y }, { x: tip.x, y: tip.y }, { x: tip.x, y: tip.y }]
+  }
+  const tx = tangent.x / tanLen
+  const ty = tangent.y / tanLen
+  // Perpendicular to tangent
+  const nx = -ty
+  const ny = tx
+  const baseCx = tip.x - tx * length
+  const baseCy = tip.y - ty * length
+  return [
+    { x: tip.x, y: tip.y },
+    { x: baseCx + nx * halfWidth, y: baseCy + ny * halfWidth },
+    { x: baseCx - nx * halfWidth, y: baseCy - ny * halfWidth }
+  ]
 }
 
 /**
