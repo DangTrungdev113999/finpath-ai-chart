@@ -137,7 +137,8 @@ export const XAXIS_PILL_PADDING_H = 6
 export const XAXIS_PILL_PADDING_V = 3
 
 // Translucent strip between P1 and P2 on X and Y axis panes (selection-only).
-// Uses the user's line color with reduced alpha — matches TV LineToolPrediction.
+// Fixed default blue — NOT tied to user's lineColor setting.
+export const AXIS_STRIP_COLOR = '#2962ff'
 export const AXIS_STRIP_OPACITY = 0.15
 
 // Curve hitbox

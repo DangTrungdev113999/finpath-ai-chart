@@ -32,7 +32,7 @@ import {
   CP_COLOR, CP_INACTIVE_RADIUS, CP_ACTIVE_RADIUS, CP_ACTIVE_BORDER,
   FOOTER_COLOR, FOOTER_MARGIN_BOTTOM, FOOTER_RADIUS, FOOTER_BORDER_SIZE, FOOTER_FONT_SIZE,
   XAXIS_PILL_Y, XAXIS_PILL_PADDING_H, XAXIS_PILL_PADDING_V,
-  AXIS_STRIP_OPACITY,
+  AXIS_STRIP_COLOR, AXIS_STRIP_OPACITY,
   CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES,
   ARROW_LENGTH, ARROW_HALF_WIDTH
 } from './constants'
@@ -491,7 +491,7 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
         attrs: { x: stripLeftX, y: 0, width: stripWidthX, height: bounding.height },
         styles: {
           style: 'fill',
-          color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+          color: alpha(AXIS_STRIP_COLOR, AXIS_STRIP_OPACITY)
         },
         ignoreEvent: true
       })
@@ -583,7 +583,7 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
         attrs: { x: 0, y: stripTopY, width: bounding.width, height: stripHeightY },
         styles: {
           style: 'fill',
-          color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+          color: alpha(AXIS_STRIP_COLOR, AXIS_STRIP_OPACITY)
         },
         ignoreEvent: true
       })

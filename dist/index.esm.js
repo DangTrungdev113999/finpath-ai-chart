@@ -12802,7 +12802,8 @@ var XAXIS_PILL_Y = 0;
 var XAXIS_PILL_PADDING_H = 6;
 var XAXIS_PILL_PADDING_V = 3;
 // Translucent strip between P1 and P2 on X and Y axis panes (selection-only).
-// Uses the user's line color with reduced alpha — matches TV LineToolPrediction.
+// Fixed default blue — NOT tied to user's lineColor setting.
+var AXIS_STRIP_COLOR = '#2962ff';
 var AXIS_STRIP_OPACITY = 0.15;
 // Curve hitbox
 var CURVE_HITBOX_HALF_WIDTH = 6;
@@ -13464,7 +13465,7 @@ var forecast = {
                 attrs: { x: stripLeftX, y: 0, width: stripWidthX, height: bounding.height },
                 styles: {
                     style: 'fill',
-                    color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+                    color: alpha(AXIS_STRIP_COLOR, AXIS_STRIP_OPACITY)
                 },
                 ignoreEvent: true
             });
@@ -13552,7 +13553,7 @@ var forecast = {
                 attrs: { x: 0, y: stripTopY, width: bounding.width, height: stripHeightY },
                 styles: {
                     style: 'fill',
-                    color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+                    color: alpha(AXIS_STRIP_COLOR, AXIS_STRIP_OPACITY)
                 },
                 ignoreEvent: true
             });
