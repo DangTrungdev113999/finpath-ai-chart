@@ -14,9 +14,17 @@
 
 import type Coordinate from '../../common/Coordinate'
 import type { OverlayTemplate, OverlayFigure } from '../../component/Overlay'
-import type { EventOverlayInfo } from '../../Store'
 
-import { getLinearYFromCoordinates } from '../figure/line'
+import type { ChartInternal } from './lineCommon'
+import {
+  CP_COLOR,
+  CP_RADIUS,
+  CP_CIRCLE_BORDER,
+  isLightColor,
+  getArrowCoordinates,
+  getExtendedCoordinates,
+  formatNum
+} from './lineCommon'
 
 // ═══════════════════════════════════════
 // TYPES
@@ -51,125 +59,6 @@ export interface SegmentExtendData {
   showAngle?: boolean
   alwaysShowStats?: boolean
   statsPosition?: number
-}
-
-// ═══════════════════════════════════════
-// INTERNAL HELPERS
-// ═══════════════════════════════════════
-
-interface ChartInternal {
-  getChartStore: () => {
-    getClickOverlayInfo: () => EventOverlayInfo
-    getHoverOverlayInfo: () => EventOverlayInfo
-  }
-}
-
-function isLightColor (hex: string): boolean {
-  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
-  if (match == null) return false
-  const r = parseInt(match[1], 16)
-  const g = parseInt(match[2], 16)
-  const b = parseInt(match[3], 16)
-  return (r * 299 + g * 587 + b * 114) / 1000 > 128
-}
-
-// Control point constants (match rect overlay)
-const CP_COLOR = '#1592E6'
-const CP_RADIUS = 5
-const CP_CIRCLE_BORDER = 1.5
-
-// Arrow head constants
-const ARROW_LENGTH = 14
-const ARROW_WIDTH = 6
-
-/**
- * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
- */
-function getArrowCoordinates (from: Coordinate, tip: Coordinate): Coordinate[] {
-  const dx = tip.x - from.x
-  const dy = tip.y - from.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  if (len === 0) return []
-
-  // Unit vector along the line
-  const ux = dx / len
-  const uy = dy / len
-
-  // Perpendicular unit vector
-  const px = -uy
-  const py = ux
-
-  // Base of the arrowhead
-  const bx = tip.x - ux * ARROW_LENGTH
-  const by = tip.y - uy * ARROW_LENGTH
-
-  return [
-    { x: tip.x, y: tip.y },
-    { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
-    { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
-  ]
-}
-
-/**
- * Extend a line segment from c1->c2 to bounding edges.
- */
-function getExtendedCoordinates (
-  c1: Coordinate, c2: Coordinate,
-  boundingWidth: number, boundingHeight: number,
-  extendLeft: boolean, extendRight: boolean
-): [Coordinate, Coordinate] {
-  let start: Coordinate = { x: c1.x, y: c1.y }
-  let end: Coordinate = { x: c2.x, y: c2.y }
-
-  const isVertical = c1.x === c2.x
-
-  if (isVertical) {
-    if (extendLeft) {
-      // Extend from c1 in its direction away from c2
-      if (c1.y <= c2.y) {
-        start = { x: c1.x, y: 0 }
-      } else {
-        start = { x: c1.x, y: boundingHeight }
-      }
-    }
-    if (extendRight) {
-      // Extend from c2 in its direction away from c1
-      if (c1.y <= c2.y) {
-        end = { x: c2.x, y: boundingHeight }
-      } else {
-        end = { x: c2.x, y: 0 }
-      }
-    }
-    return [start, end]
-  }
-
-  if (extendLeft) {
-    // Extend from c1 backward (away from c2)
-    const direction = c1.x < c2.x ? 0 : boundingWidth
-    start = {
-      x: direction,
-      y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
-    }
-  }
-
-  if (extendRight) {
-    // Extend from c2 forward (away from c1)
-    const direction = c1.x < c2.x ? boundingWidth : 0
-    end = {
-      x: direction,
-      y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
-    }
-  }
-
-  return [start, end]
-}
-
-/**
- * Format a number for display
- */
-function formatNum (val: number, precision?: number): string {
-  const p = precision ?? 2
-  return val.toFixed(p).replace(/\.?0+$/, '')
 }
 
 // ═══════════════════════════════════════

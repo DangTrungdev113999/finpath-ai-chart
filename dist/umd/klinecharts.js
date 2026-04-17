@@ -9150,6 +9150,113 @@ var rayLine = {
 };
 
 /**
+ * Shared helpers and constants for line-family overlays.
+ *
+ * Used by:
+ *   - segment (Duong Xu huong, reference)
+ *   - rayLine (Tia)
+ *   - straightLine (Duong Mo rong)
+ *   - priceLine (Duong Gia)
+ *   - horizontalStraightLine / horizontalRayLine / horizontalSegment
+ *   - verticalStraightLine / verticalRayLine / verticalSegment
+ *   - infoLine (surface-side Duong Thong tin)
+ *   - trendAngle (surface-side Goc Xu huong)
+ *   - crossLine (surface-side Duong giao nhau)
+ */
+// ===========================================
+// CONTROL POINT CONSTANTS
+// ===========================================
+var CP_COLOR$2 = '#1592E6';
+var CP_RADIUS$1 = 5;
+var CP_CIRCLE_BORDER$1 = 1.5;
+// ===========================================
+// ARROW CONSTANTS
+// ===========================================
+var ARROW_LENGTH$1 = 14;
+var ARROW_WIDTH = 6;
+// ===========================================
+// HELPERS
+// ===========================================
+/**
+ * Luminance check for adaptive CP background (dark vs light theme).
+ */
+function isLightColor$6(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+/**
+ * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
+ * Returns 3 points forming a closed triangle, or [] if from === tip.
+ */
+function getArrowCoordinates(from, tip) {
+    var dx = tip.x - from.x;
+    var dy = tip.y - from.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0)
+        return [];
+    var ux = dx / len;
+    var uy = dy / len;
+    var px = -uy;
+    var py = ux;
+    var bx = tip.x - ux * ARROW_LENGTH$1;
+    var by = tip.y - uy * ARROW_LENGTH$1;
+    return [
+        { x: tip.x, y: tip.y },
+        { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
+        { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
+    ];
+}
+/**
+ * Extend a line segment from c1 to c2 to bounding edges.
+ * Handles both the vertical (c1.x === c2.x) and general cases.
+ */
+function getExtendedCoordinates(c1, c2, boundingWidth, boundingHeight, extendLeft, extendRight) {
+    var start = { x: c1.x, y: c1.y };
+    var end = { x: c2.x, y: c2.y };
+    var isVertical = c1.x === c2.x;
+    if (isVertical) {
+        if (extendLeft) {
+            start = c1.y <= c2.y
+                ? { x: c1.x, y: 0 }
+                : { x: c1.x, y: boundingHeight };
+        }
+        if (extendRight) {
+            end = c1.y <= c2.y
+                ? { x: c2.x, y: boundingHeight }
+                : { x: c2.x, y: 0 };
+        }
+        return [start, end];
+    }
+    if (extendLeft) {
+        var direction = c1.x < c2.x ? 0 : boundingWidth;
+        start = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
+        };
+    }
+    if (extendRight) {
+        var direction = c1.x < c2.x ? boundingWidth : 0;
+        end = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
+        };
+    }
+    return [start, end];
+}
+/**
+ * Format a number for display, trimming trailing zeros.
+ */
+function formatNum(val, precision) {
+    var p = precision !== null && precision !== void 0 ? precision : 2;
+    return val.toFixed(p).replace(/\.?0+$/, '');
+}
+
+/**
  * Segment overlay — TradingView-style trend line
  *
  * Data points: 2 (endpoints)
@@ -9162,99 +9269,6 @@ var rayLine = {
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-function isLightColor$6(hex) {
-    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
-    if (match == null)
-        return false;
-    var r = parseInt(match[1], 16);
-    var g = parseInt(match[2], 16);
-    var b = parseInt(match[3], 16);
-    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-}
-// Control point constants (match rect overlay)
-var CP_COLOR$2 = '#1592E6';
-var CP_RADIUS$1 = 5;
-var CP_CIRCLE_BORDER$1 = 1.5;
-// Arrow head constants
-var ARROW_LENGTH$1 = 14;
-var ARROW_WIDTH = 6;
-/**
- * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
- */
-function getArrowCoordinates(from, tip) {
-    var dx = tip.x - from.x;
-    var dy = tip.y - from.y;
-    var len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0)
-        return [];
-    // Unit vector along the line
-    var ux = dx / len;
-    var uy = dy / len;
-    // Perpendicular unit vector
-    var px = -uy;
-    var py = ux;
-    // Base of the arrowhead
-    var bx = tip.x - ux * ARROW_LENGTH$1;
-    var by = tip.y - uy * ARROW_LENGTH$1;
-    return [
-        { x: tip.x, y: tip.y },
-        { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
-        { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
-    ];
-}
-/**
- * Extend a line segment from c1->c2 to bounding edges.
- */
-function getExtendedCoordinates(c1, c2, boundingWidth, boundingHeight, extendLeft, extendRight) {
-    var start = { x: c1.x, y: c1.y };
-    var end = { x: c2.x, y: c2.y };
-    var isVertical = c1.x === c2.x;
-    if (isVertical) {
-        if (extendLeft) {
-            // Extend from c1 in its direction away from c2
-            if (c1.y <= c2.y) {
-                start = { x: c1.x, y: 0 };
-            }
-            else {
-                start = { x: c1.x, y: boundingHeight };
-            }
-        }
-        if (extendRight) {
-            // Extend from c2 in its direction away from c1
-            if (c1.y <= c2.y) {
-                end = { x: c2.x, y: boundingHeight };
-            }
-            else {
-                end = { x: c2.x, y: 0 };
-            }
-        }
-        return [start, end];
-    }
-    if (extendLeft) {
-        // Extend from c1 backward (away from c2)
-        var direction = c1.x < c2.x ? 0 : boundingWidth;
-        start = {
-            x: direction,
-            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
-        };
-    }
-    if (extendRight) {
-        // Extend from c2 forward (away from c1)
-        var direction = c1.x < c2.x ? boundingWidth : 0;
-        end = {
-            x: direction,
-            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
-        };
-    }
-    return [start, end];
-}
-/**
- * Format a number for display
- */
-function formatNum(val, precision) {
-    var p = precision !== null && precision !== void 0 ? precision : 2;
-    return val.toFixed(p).replace(/\.?0+$/, '');
-}
 // ═══════════════════════════════════════
 // OVERLAY
 // ═══════════════════════════════════════
