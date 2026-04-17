@@ -24,19 +24,16 @@ import IndicatorView from '../view/IndicatorView'
 import CrosshairLineView from '../view/CrosshairLineView'
 import IndicatorTooltipView from '../view/IndicatorTooltipView'
 import OverlayView from '../view/OverlayView'
-import SectorReferenceLabelView from '../view/SectorReferenceLabelView'
 
 export default class IndicatorWidget extends DrawWidget<DrawPane<YAxis>> {
   private readonly _gridView = new GridView(this)
   private readonly _indicatorView = new IndicatorView(this)
-  private readonly _sectorReferenceLabelView = new SectorReferenceLabelView(this)
   private readonly _crosshairLineView = new CrosshairLineView(this)
   private readonly _tooltipView = this.createTooltipView()
   private readonly _overlayView = new OverlayView(this)
 
   constructor (rootContainer: HTMLElement, pane: DrawPane<YAxis>) {
     super(rootContainer, pane)
-    this.addChild(this._sectorReferenceLabelView)
     this.addChild(this._tooltipView)
     this.addChild(this._overlayView)
   }
@@ -50,7 +47,6 @@ export default class IndicatorWidget extends DrawWidget<DrawPane<YAxis>> {
       this.updateMainContent(ctx)
       this._indicatorView.draw(ctx)
       this._gridView.draw(ctx)
-      this._sectorReferenceLabelView.draw(ctx)
     }
   }
 

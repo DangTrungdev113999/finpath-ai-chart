@@ -16,7 +16,6 @@ import { isNumber, isValid } from '../common/utils/typeChecks'
 import { createDom } from '../common/utils/dom'
 
 import { eachFigures, type IndicatorFigure, type IndicatorFigureStyle } from '../component/Indicator'
-import type { EventHandler } from '../common/EventHandler'
 
 import View from './View'
 
@@ -50,11 +49,6 @@ export default class IndicatorLastValueView extends View<YAxis> {
       paneContainer.appendChild(this._htmlLabelEl)
     }
     return { container: this._htmlLabelEl, span: this._htmlLabelSpan! }
-  }
-
-  private readonly _boundSectorLabelClickEvent = (sectorName: string) => () => {
-    this.getWidget().getPane().getChart().getChartStore().executeAction('onSectorLabelClick', { sectorName })
-    return false
   }
 
   override drawImp (ctx: CanvasRenderingContext2D): void {
@@ -178,62 +172,85 @@ export default class IndicatorLastValueView extends View<YAxis> {
           })?.draw(ctx)
         }
 
-        // Sector reference VALUE label on Y-axis (just the number, like PE last value)
-        const sectorPE = extData?.sectorPE
-        const sectorPB = extData?.sectorPB
-        const indicatorStylesObj = indicator.styles as Record<string, unknown> | undefined
-        const showSectorLine = indicatorStylesObj?.showSectorLine === true
-        const sectorLineColor = (indicatorStylesObj?.sectorLineColor as string | undefined) ?? '#26A69A'
-
-        const sectorValue = indicator.name === 'PE' ? sectorPE : indicator.name === 'PB' ? sectorPB : undefined
-        if (showSectorLine && isNumber(sectorValue)) {
-          let sectorY = yAxis.convertToNicePixel(sectorValue)
-          let sectorText = yAxis.displayValueToText(
-            yAxis.realValueToDisplayValue(
-              yAxis.valueToRealValue(sectorValue, { range: yAxisRange }),
-              { range: yAxisRange }
-            ),
-            indicator.precision
-          )
-          sectorText = decimalFold.format(thousandsSeparator.format(sectorText))
-          const sectorNameStr = (extData?.sectorName as string | undefined) ?? ''
-
-          // Avoid overlap with last value label: find the indicator's last value Y
-          const lastResult = indicator.result[dataIndex] ?? {}
-          const labelFieldForCollision = indicator.name === 'PE' ? 'pe' : indicator.name === 'PB' ? 'pb' : ''
-
-          const lastVal = (lastResult as Record<string, unknown>)[labelFieldForCollision]
-          if (isNumber(lastVal)) {
-            const lastValY = yAxis.convertToNicePixel(lastVal)
-            const labelHeight = lastValueMarkTextStyles.paddingTop + lastValueMarkTextStyles.size + lastValueMarkTextStyles.paddingBottom
-            // If labels overlap (within labelHeight distance), offset sector label
-            if (Math.abs(sectorY - lastValY) < labelHeight) {
-              sectorY = sectorY > lastValY ? lastValY + labelHeight : lastValY - labelHeight
+        // Generic reference labels (avg5y, avg10y, compare stocks, etc.)
+        // Populated by the indicator's calc function via extendData._referenceLabels.
+        interface RefLabel {
+          id?: string
+          value?: unknown
+          color?: string
+          text?: string
+          mode?: 'fill' | 'stroke_fill'
+        }
+        const referenceLabels = extData?._referenceLabels as RefLabel[] | undefined
+        if (Array.isArray(referenceLabels) && referenceLabels.length > 0) {
+          // Track occupied Y regions for collision avoidance
+          const occupied: Array<{ yMin: number, yMax: number }> = []
+          // Seed with main indicator last value(s) so reference labels avoid overlapping
+          for (const figure of indicator.figures) {
+            const mv = (indicator.result[dataIndex] as Record<string, unknown> | undefined)?.[figure.key]
+            if (isNumber(mv)) {
+              const my = yAxis.convertToNicePixel(mv)
+              const h = lastValueMarkTextStyles.paddingTop + lastValueMarkTextStyles.size + lastValueMarkTextStyles.paddingBottom
+              occupied.push({ yMin: my - h / 2, yMax: my + h / 2 })
             }
           }
 
-          let sx = 0
-          let sTextAlign: CanvasTextAlign = 'left'
-          if (yAxis.isFromZero()) {
-            sx = 0
-            sTextAlign = 'left'
-          } else {
-            sx = bounding.width
-            sTextAlign = 'right'
-          }
-          const sectorHandler: EventHandler = {
-            mouseClickEvent: this._boundSectorLabelClickEvent(sectorNameStr),
-            mouseMoveEvent: () => true
-          }
-          this.createFigure({
-            name: 'text',
-            attrs: { x: sx, y: sectorY, text: sectorText, align: sTextAlign, baseline: 'middle' },
-            styles: {
-              ...lastValueMarkTextStyles,
-              backgroundColor: sectorLineColor,
-              color: '#FFFFFF'
+          for (const lbl of referenceLabels) {
+            if (!isNumber(lbl.value)) continue
+            const rawY = yAxis.convertToNicePixel(lbl.value)
+            const h = lastValueMarkTextStyles.paddingTop + lastValueMarkTextStyles.size + lastValueMarkTextStyles.paddingBottom
+            let labelY = rawY
+            // Push down if colliding with an occupied region (plain loops — no closures)
+            for (let iter = 0; iter < 8; iter++) {
+              let hit = false
+              for (const r of occupied) {
+                const rMid = (r.yMin + r.yMax) / 2
+                if (Math.abs(labelY - rMid) < h) { hit = true; break }
+              }
+              if (!hit) break
+              labelY = labelY + h
             }
-          }, sectorHandler)?.draw(ctx)
+            occupied.push({ yMin: labelY - h / 2, yMax: labelY + h / 2 })
+
+            const rawText = lbl.text ?? yAxis.displayValueToText(
+              yAxis.realValueToDisplayValue(
+                yAxis.valueToRealValue(lbl.value, { range: yAxisRange }),
+                { range: yAxisRange }
+              ),
+              indicator.precision
+            )
+            const text = decimalFold.format(thousandsSeparator.format(rawText))
+
+            let lx = 0
+            let lAlign: CanvasTextAlign = 'left'
+            if (yAxis.isFromZero()) {
+              lx = 0
+              lAlign = 'left'
+            } else {
+              lx = bounding.width
+              lAlign = 'right'
+            }
+
+            const labelColor = lbl.color ?? '#26A69A'
+            const isStroke = lbl.mode === 'stroke_fill'
+            this.createFigure({
+              name: 'text',
+              attrs: { x: lx, y: labelY, text, align: lAlign, baseline: 'middle' },
+              styles: isStroke
+                ? {
+                    ...lastValueMarkTextStyles,
+                    backgroundColor: '#17171A',
+                    color: labelColor,
+                    borderColor: labelColor,
+                    borderSize: 1
+                  }
+                : {
+                    ...lastValueMarkTextStyles,
+                    backgroundColor: labelColor,
+                    color: '#FFFFFF'
+                  }
+            })?.draw(ctx)
+          }
         }
 
         // Dynamic label (PE/PB via _labelField) + pixel-Y label (VOL_SIMPLE via _lastValuePixelY)
