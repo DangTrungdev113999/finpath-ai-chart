@@ -12801,6 +12801,9 @@ var FOOTER_FONT_SIZE = 9;
 var XAXIS_PILL_Y = 0;
 var XAXIS_PILL_PADDING_H = 6;
 var XAXIS_PILL_PADDING_V = 3;
+// Translucent strip between P1 and P2 on X and Y axis panes (selection-only).
+// Uses the user's line color with reduced alpha — matches TV LineToolPrediction.
+var AXIS_STRIP_OPACITY = 0.15;
 // Curve hitbox
 var CURVE_HITBOX_HALF_WIDTH = 6;
 var CURVE_SAMPLES = 30;
@@ -13435,7 +13438,7 @@ var forecast = {
     // ─────────────────────────────────────
     createXAxisFigures: function (_a) {
         var _b, _c, _d;
-        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 2)
             return [];
         var chartStore = chart.getChartStore();
@@ -13450,6 +13453,22 @@ var forecast = {
         var p2 = (_d = overlay.points[1]) !== null && _d !== void 0 ? _d : {};
         var p1Date = formatViDatePill(p1.timestamp);
         var p2Date = formatViDatePill(p2.timestamp);
+        // Translucent bg strip spanning P1 ↔ P2 on the X-axis
+        var stripLeftX = Math.min(c1.x, c2.x);
+        var stripRightX = Math.max(c1.x, c2.x);
+        var stripWidthX = stripRightX - stripLeftX;
+        if (stripWidthX > 0) {
+            figures.push({
+                key: 'fc_xstrip',
+                type: 'rect',
+                attrs: { x: stripLeftX, y: 0, width: stripWidthX, height: bounding.height },
+                styles: {
+                    style: 'fill',
+                    color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+                },
+                ignoreEvent: true
+            });
+        }
         if (p1Date.length > 0) {
             figures.push({
                 key: 'fc_xpill_p1',
@@ -13520,6 +13539,24 @@ var forecast = {
         var textAlign = isFromZero ? 'left' : 'right';
         var x = isFromZero ? 0 : bounding.width;
         var figures = [];
+        // Translucent bg strip spanning P1 ↔ P2 on the Y-axis
+        var c1y = coordinates[0].y;
+        var c2y = coordinates[1].y;
+        var stripTopY = Math.min(c1y, c2y);
+        var stripBottomY = Math.max(c1y, c2y);
+        var stripHeightY = stripBottomY - stripTopY;
+        if (stripHeightY > 0) {
+            figures.push({
+                key: 'fc_ystrip',
+                type: 'rect',
+                attrs: { x: 0, y: stripTopY, width: bounding.width, height: stripHeightY },
+                styles: {
+                    style: 'fill',
+                    color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+                },
+                ignoreEvent: true
+            });
+        }
         if (p1.value != null) {
             figures.push({
                 key: 'fc_ypill_p1',

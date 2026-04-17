@@ -32,6 +32,7 @@ import {
   CP_COLOR, CP_INACTIVE_RADIUS, CP_ACTIVE_RADIUS, CP_ACTIVE_BORDER,
   FOOTER_COLOR, FOOTER_MARGIN_BOTTOM, FOOTER_RADIUS, FOOTER_BORDER_SIZE, FOOTER_FONT_SIZE,
   XAXIS_PILL_Y, XAXIS_PILL_PADDING_H, XAXIS_PILL_PADDING_V,
+  AXIS_STRIP_OPACITY,
   CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES,
   ARROW_LENGTH, ARROW_HALF_WIDTH
 } from './constants'
@@ -462,7 +463,7 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
   // ─────────────────────────────────────
   // X-axis: date pills (selection only)
   // ─────────────────────────────────────
-  createXAxisFigures: ({ chart, overlay, coordinates }) => {
+  createXAxisFigures: ({ chart, overlay, coordinates, bounding }) => {
     if (coordinates.length < 2) return []
 
     const chartStore = (chart as unknown as ChartInternal).getChartStore()
@@ -478,6 +479,23 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
     const p2 = overlay.points[1] ?? {}
     const p1Date = formatViDatePill(p1.timestamp)
     const p2Date = formatViDatePill(p2.timestamp)
+
+    // Translucent bg strip spanning P1 ↔ P2 on the X-axis
+    const stripLeftX = Math.min(c1.x, c2.x)
+    const stripRightX = Math.max(c1.x, c2.x)
+    const stripWidthX = stripRightX - stripLeftX
+    if (stripWidthX > 0) {
+      figures.push({
+        key: 'fc_xstrip',
+        type: 'rect',
+        attrs: { x: stripLeftX, y: 0, width: stripWidthX, height: bounding.height },
+        styles: {
+          style: 'fill',
+          color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+        },
+        ignoreEvent: true
+      })
+    }
 
     if (p1Date.length > 0) {
       figures.push({
@@ -551,6 +569,26 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
     const x = isFromZero ? 0 : bounding.width
 
     const figures: OverlayFigure[] = []
+
+    // Translucent bg strip spanning P1 ↔ P2 on the Y-axis
+    const c1y = coordinates[0].y
+    const c2y = coordinates[1].y
+    const stripTopY = Math.min(c1y, c2y)
+    const stripBottomY = Math.max(c1y, c2y)
+    const stripHeightY = stripBottomY - stripTopY
+    if (stripHeightY > 0) {
+      figures.push({
+        key: 'fc_ystrip',
+        type: 'rect',
+        attrs: { x: 0, y: stripTopY, width: bounding.width, height: stripHeightY },
+        styles: {
+          style: 'fill',
+          color: alpha(ext.lineColor, AXIS_STRIP_OPACITY)
+        },
+        ignoreEvent: true
+      })
+    }
+
     if (p1.value != null) {
       figures.push({
         key: 'fc_ypill_p1',
