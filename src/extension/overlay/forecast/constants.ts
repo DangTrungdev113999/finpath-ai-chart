@@ -123,12 +123,18 @@ export const CP_INACTIVE_RADIUS = 2.5
 export const CP_ACTIVE_RADIUS = 5.5
 export const CP_ACTIVE_BORDER = 1.5
 
-// Footer F / F* markers (on X-axis pane)
+// Footer F / F* markers — rendered in MAIN pane, near bottom edge
+// (TradingView pattern: markers sit above the X-axis, inside chart pane)
 export const FOOTER_COLOR = '#4caf50'
-export const FOOTER_Y = 8
+export const FOOTER_MARGIN_BOTTOM = 14 // px from chart pane bottom to marker center
 export const FOOTER_RADIUS = 6
 export const FOOTER_BORDER_SIZE = 1.2
 export const FOOTER_FONT_SIZE = 9
+
+// X-axis date pills (selection-only) — rendered in X-AXIS pane, top-aligned
+export const XAXIS_PILL_Y = 0
+export const XAXIS_PILL_PADDING_H = 6
+export const XAXIS_PILL_PADDING_V = 3
 
 // Curve hitbox
 export const CURVE_HITBOX_HALF_WIDTH = 6

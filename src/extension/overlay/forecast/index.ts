@@ -30,7 +30,8 @@ import {
   PILL_ANCHOR_GAP,
   BADGE_GAP, BADGE_PADDING_H, BADGE_PADDING_V, BADGE_FONT_SIZE,
   CP_COLOR, CP_INACTIVE_RADIUS, CP_ACTIVE_RADIUS, CP_ACTIVE_BORDER,
-  FOOTER_COLOR, FOOTER_Y, FOOTER_RADIUS, FOOTER_BORDER_SIZE, FOOTER_FONT_SIZE,
+  FOOTER_COLOR, FOOTER_MARGIN_BOTTOM, FOOTER_RADIUS, FOOTER_BORDER_SIZE, FOOTER_FONT_SIZE,
+  XAXIS_PILL_Y, XAXIS_PILL_PADDING_H, XAXIS_PILL_PADDING_V,
   CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES,
   ARROW_LENGTH, ARROW_HALF_WIDTH
 } from './constants'
@@ -412,32 +413,13 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
       })
     }
 
-    return figures
-  },
-
-  // ─────────────────────────────────────
-  // X-axis: footer markers (always) + date pills (selection only)
-  // ─────────────────────────────────────
-  createXAxisFigures: ({ chart, overlay, coordinates }) => {
-    if (coordinates.length < 2) return []
-
-    const chartStore = (chart as unknown as ChartInternal).getChartStore()
-    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
-
-    const c1 = coordinates[0]
-    const c2 = coordinates[1]
-    const figures: OverlayFigure[] = []
-
-    // A. Footer markers — ALWAYS visible; F at P1, F* at P2
+    // ─── 7. Footer F / F* markers (always visible, chart pane bottom) ───
+    const footerY = bounding.height - FOOTER_MARGIN_BOTTOM
     figures.push({
       key: 'fc_footer_bg_p1',
       type: 'circle',
-      attrs: { x: c1.x, y: FOOTER_Y, r: FOOTER_RADIUS },
-      styles: {
-        style: 'stroke',
-        borderColor: FOOTER_COLOR,
-        borderSize: FOOTER_BORDER_SIZE
-      },
+      attrs: { x: c1.x, y: footerY, r: FOOTER_RADIUS },
+      styles: { style: 'stroke', borderColor: FOOTER_COLOR, borderSize: FOOTER_BORDER_SIZE },
       ignoreEvent: true
     })
     figures.push({
@@ -445,27 +427,19 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
       type: 'text',
       attrs: {
         x: c1.x,
-        y: FOOTER_Y,
+        y: footerY,
         text: 'F',
         align: 'center' as CanvasTextAlign,
         baseline: 'middle' as CanvasTextBaseline
       },
-      styles: {
-        color: FOOTER_COLOR,
-        size: FOOTER_FONT_SIZE,
-        backgroundColor: 'transparent'
-      },
+      styles: { color: FOOTER_COLOR, size: FOOTER_FONT_SIZE, backgroundColor: 'transparent' },
       ignoreEvent: true
     })
     figures.push({
       key: 'fc_footer_bg_p2',
       type: 'circle',
-      attrs: { x: c2.x, y: FOOTER_Y, r: FOOTER_RADIUS },
-      styles: {
-        style: 'stroke',
-        borderColor: FOOTER_COLOR,
-        borderSize: FOOTER_BORDER_SIZE
-      },
+      attrs: { x: c2.x, y: footerY, r: FOOTER_RADIUS },
+      styles: { style: 'stroke', borderColor: FOOTER_COLOR, borderSize: FOOTER_BORDER_SIZE },
       ignoreEvent: true
     })
     figures.push({
@@ -473,75 +447,85 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
       type: 'text',
       attrs: {
         x: c2.x,
-        y: FOOTER_Y,
+        y: footerY,
         text: 'F*',
         align: 'center' as CanvasTextAlign,
         baseline: 'middle' as CanvasTextBaseline
       },
-      styles: {
-        color: FOOTER_COLOR,
-        size: FOOTER_FONT_SIZE,
-        backgroundColor: 'transparent'
-      },
+      styles: { color: FOOTER_COLOR, size: FOOTER_FONT_SIZE, backgroundColor: 'transparent' },
       ignoreEvent: true
     })
 
-    // B. Date pills — SELECTION only
-    if (isSelected) {
-      const ext = getExt(overlay.extendData)
-      const p1 = overlay.points[0] ?? {}
-      const p2 = overlay.points[1] ?? {}
-      const p1Date = formatViDatePill(p1.timestamp)
-      const p2Date = formatViDatePill(p2.timestamp)
+    return figures
+  },
 
-      if (p1Date.length > 0) {
-        figures.push({
-          key: 'fc_xpill_p1',
-          type: 'text',
-          attrs: {
-            x: c1.x,
-            y: FOOTER_Y + FOOTER_RADIUS + 2,
-            text: p1Date,
-            align: 'center' as CanvasTextAlign,
-            baseline: 'top' as CanvasTextBaseline
-          },
-          styles: {
-            color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
-            backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
-            paddingLeft: 6,
-            paddingRight: 6,
-            paddingTop: 3,
-            paddingBottom: 3,
-            borderRadius: PILL_BORDER_RADIUS,
-            size: PILL_FONT_SIZE
-          },
-          ignoreEvent: true
-        })
-      }
-      if (p2Date.length > 0) {
-        figures.push({
-          key: 'fc_xpill_p2',
-          type: 'text',
-          attrs: {
-            x: c2.x,
-            y: FOOTER_Y + FOOTER_RADIUS + 2,
-            text: p2Date,
-            align: 'center' as CanvasTextAlign,
-            baseline: 'top' as CanvasTextBaseline
-          },
-          styles: {
-            color: alpha(ext.targetTextColor, ext.targetTextOpacity),
-            backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
-            paddingLeft: 6,
-            paddingRight: 6,
-            paddingTop: 3,
-            paddingBottom: 3,
-            borderRadius: PILL_BORDER_RADIUS,
-            size: PILL_FONT_SIZE
-          },
-          ignoreEvent: true
-        })
-      }
+  // ─────────────────────────────────────
+  // X-axis: date pills (selection only)
+  // ─────────────────────────────────────
+  createXAxisFigures: ({ chart, overlay, coordinates }) => {
+    if (coordinates.length < 2) return []
+
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    if (!isSelected) return []
+
+    const c1 = coordinates[0]
+    const c2 = coordinates[1]
+    const figures: OverlayFigure[] = []
+
+    const ext = getExt(overlay.extendData)
+    const p1 = overlay.points[0] ?? {}
+    const p2 = overlay.points[1] ?? {}
+    const p1Date = formatViDatePill(p1.timestamp)
+    const p2Date = formatViDatePill(p2.timestamp)
+
+    if (p1Date.length > 0) {
+      figures.push({
+        key: 'fc_xpill_p1',
+        type: 'text',
+        attrs: {
+          x: c1.x,
+          y: XAXIS_PILL_Y,
+          text: p1Date,
+          align: 'center' as CanvasTextAlign,
+          baseline: 'top' as CanvasTextBaseline
+        },
+        styles: {
+          color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+          backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
+          paddingLeft: XAXIS_PILL_PADDING_H,
+          paddingRight: XAXIS_PILL_PADDING_H,
+          paddingTop: XAXIS_PILL_PADDING_V,
+          paddingBottom: XAXIS_PILL_PADDING_V,
+          borderRadius: PILL_BORDER_RADIUS,
+          size: PILL_FONT_SIZE
+        },
+        ignoreEvent: true
+      })
+    }
+    if (p2Date.length > 0) {
+      figures.push({
+        key: 'fc_xpill_p2',
+        type: 'text',
+        attrs: {
+          x: c2.x,
+          y: XAXIS_PILL_Y,
+          text: p2Date,
+          align: 'center' as CanvasTextAlign,
+          baseline: 'top' as CanvasTextBaseline
+        },
+        styles: {
+          color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+          backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
+          paddingLeft: XAXIS_PILL_PADDING_H,
+          paddingRight: XAXIS_PILL_PADDING_H,
+          paddingTop: XAXIS_PILL_PADDING_V,
+          paddingBottom: XAXIS_PILL_PADDING_V,
+          borderRadius: PILL_BORDER_RADIUS,
+          size: PILL_FONT_SIZE
+        },
+        ignoreEvent: true
+      })
     }
 
     return figures

@@ -12795,12 +12795,17 @@ var CP_COLOR = '#2962ff';
 var CP_INACTIVE_RADIUS = 2.5;
 var CP_ACTIVE_RADIUS = 5.5;
 var CP_ACTIVE_BORDER = 1.5;
-// Footer F / F* markers (on X-axis pane)
+// Footer F / F* markers — rendered in MAIN pane, near bottom edge
+// (TradingView pattern: markers sit above the X-axis, inside chart pane)
 var FOOTER_COLOR = '#4caf50';
-var FOOTER_Y = 8;
+var FOOTER_MARGIN_BOTTOM = 14; // px from chart pane bottom to marker center
 var FOOTER_RADIUS = 6;
 var FOOTER_BORDER_SIZE = 1.2;
 var FOOTER_FONT_SIZE = 9;
+// X-axis date pills (selection-only) — rendered in X-AXIS pane, top-aligned
+var XAXIS_PILL_Y = 0;
+var XAXIS_PILL_PADDING_H = 6;
+var XAXIS_PILL_PADDING_V = 3;
 // Curve hitbox
 var CURVE_HITBOX_HALF_WIDTH = 6;
 var CURVE_SAMPLES = 30;
@@ -13386,10 +13391,52 @@ var forecast = {
                 cursor: 'pointer'
             });
         }
+        // ─── 7. Footer F / F* markers (always visible, chart pane bottom) ───
+        var footerY = bounding.height - FOOTER_MARGIN_BOTTOM;
+        figures.push({
+            key: 'fc_footer_bg_p1',
+            type: 'circle',
+            attrs: { x: c1.x, y: footerY, r: FOOTER_RADIUS },
+            styles: { style: 'stroke', borderColor: FOOTER_COLOR, borderSize: FOOTER_BORDER_SIZE },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_text_p1',
+            type: 'text',
+            attrs: {
+                x: c1.x,
+                y: footerY,
+                text: 'F',
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: { color: FOOTER_COLOR, size: FOOTER_FONT_SIZE, backgroundColor: 'transparent' },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_bg_p2',
+            type: 'circle',
+            attrs: { x: c2.x, y: footerY, r: FOOTER_RADIUS },
+            styles: { style: 'stroke', borderColor: FOOTER_COLOR, borderSize: FOOTER_BORDER_SIZE },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_text_p2',
+            type: 'text',
+            attrs: {
+                x: c2.x,
+                y: footerY,
+                text: 'F*',
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: { color: FOOTER_COLOR, size: FOOTER_FONT_SIZE, backgroundColor: 'transparent' },
+            ignoreEvent: true
+        });
         return figures;
     },
     // ─────────────────────────────────────
-    // X-axis: footer markers (always) + date pills (selection only)
+    // X-axis: date pills (selection only)
     // ─────────────────────────────────────
     createXAxisFigures: function (_a) {
         var _b, _c, _d;
@@ -13398,121 +13445,63 @@ var forecast = {
             return [];
         var chartStore = chart.getChartStore();
         var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        if (!isSelected)
+            return [];
         var c1 = coordinates[0];
         var c2 = coordinates[1];
         var figures = [];
-        // A. Footer markers — ALWAYS visible; F at P1, F* at P2
-        figures.push({
-            key: 'fc_footer_bg_p1',
-            type: 'circle',
-            attrs: { x: c1.x, y: FOOTER_Y, r: FOOTER_RADIUS },
-            styles: {
-                style: 'stroke',
-                borderColor: FOOTER_COLOR,
-                borderSize: FOOTER_BORDER_SIZE
-            },
-            ignoreEvent: true
-        });
-        figures.push({
-            key: 'fc_footer_text_p1',
-            type: 'text',
-            attrs: {
-                x: c1.x,
-                y: FOOTER_Y,
-                text: 'F',
-                align: 'center',
-                baseline: 'middle'
-            },
-            styles: {
-                color: FOOTER_COLOR,
-                size: FOOTER_FONT_SIZE,
-                backgroundColor: 'transparent'
-            },
-            ignoreEvent: true
-        });
-        figures.push({
-            key: 'fc_footer_bg_p2',
-            type: 'circle',
-            attrs: { x: c2.x, y: FOOTER_Y, r: FOOTER_RADIUS },
-            styles: {
-                style: 'stroke',
-                borderColor: FOOTER_COLOR,
-                borderSize: FOOTER_BORDER_SIZE
-            },
-            ignoreEvent: true
-        });
-        figures.push({
-            key: 'fc_footer_text_p2',
-            type: 'text',
-            attrs: {
-                x: c2.x,
-                y: FOOTER_Y,
-                text: 'F*',
-                align: 'center',
-                baseline: 'middle'
-            },
-            styles: {
-                color: FOOTER_COLOR,
-                size: FOOTER_FONT_SIZE,
-                backgroundColor: 'transparent'
-            },
-            ignoreEvent: true
-        });
-        // B. Date pills — SELECTION only
-        if (isSelected) {
-            var ext = getExt(overlay.extendData);
-            var p1 = (_c = overlay.points[0]) !== null && _c !== void 0 ? _c : {};
-            var p2 = (_d = overlay.points[1]) !== null && _d !== void 0 ? _d : {};
-            var p1Date = formatViDatePill(p1.timestamp);
-            var p2Date = formatViDatePill(p2.timestamp);
-            if (p1Date.length > 0) {
-                figures.push({
-                    key: 'fc_xpill_p1',
-                    type: 'text',
-                    attrs: {
-                        x: c1.x,
-                        y: FOOTER_Y + FOOTER_RADIUS + 2,
-                        text: p1Date,
-                        align: 'center',
-                        baseline: 'top'
-                    },
-                    styles: {
-                        color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
-                        backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
-                        paddingLeft: 6,
-                        paddingRight: 6,
-                        paddingTop: 3,
-                        paddingBottom: 3,
-                        borderRadius: PILL_BORDER_RADIUS,
-                        size: PILL_FONT_SIZE
-                    },
-                    ignoreEvent: true
-                });
-            }
-            if (p2Date.length > 0) {
-                figures.push({
-                    key: 'fc_xpill_p2',
-                    type: 'text',
-                    attrs: {
-                        x: c2.x,
-                        y: FOOTER_Y + FOOTER_RADIUS + 2,
-                        text: p2Date,
-                        align: 'center',
-                        baseline: 'top'
-                    },
-                    styles: {
-                        color: alpha(ext.targetTextColor, ext.targetTextOpacity),
-                        backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
-                        paddingLeft: 6,
-                        paddingRight: 6,
-                        paddingTop: 3,
-                        paddingBottom: 3,
-                        borderRadius: PILL_BORDER_RADIUS,
-                        size: PILL_FONT_SIZE
-                    },
-                    ignoreEvent: true
-                });
-            }
+        var ext = getExt(overlay.extendData);
+        var p1 = (_c = overlay.points[0]) !== null && _c !== void 0 ? _c : {};
+        var p2 = (_d = overlay.points[1]) !== null && _d !== void 0 ? _d : {};
+        var p1Date = formatViDatePill(p1.timestamp);
+        var p2Date = formatViDatePill(p2.timestamp);
+        if (p1Date.length > 0) {
+            figures.push({
+                key: 'fc_xpill_p1',
+                type: 'text',
+                attrs: {
+                    x: c1.x,
+                    y: XAXIS_PILL_Y,
+                    text: p1Date,
+                    align: 'center',
+                    baseline: 'top'
+                },
+                styles: {
+                    color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+                    backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
+                    paddingLeft: XAXIS_PILL_PADDING_H,
+                    paddingRight: XAXIS_PILL_PADDING_H,
+                    paddingTop: XAXIS_PILL_PADDING_V,
+                    paddingBottom: XAXIS_PILL_PADDING_V,
+                    borderRadius: PILL_BORDER_RADIUS,
+                    size: PILL_FONT_SIZE
+                },
+                ignoreEvent: true
+            });
+        }
+        if (p2Date.length > 0) {
+            figures.push({
+                key: 'fc_xpill_p2',
+                type: 'text',
+                attrs: {
+                    x: c2.x,
+                    y: XAXIS_PILL_Y,
+                    text: p2Date,
+                    align: 'center',
+                    baseline: 'top'
+                },
+                styles: {
+                    color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+                    backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
+                    paddingLeft: XAXIS_PILL_PADDING_H,
+                    paddingRight: XAXIS_PILL_PADDING_H,
+                    paddingTop: XAXIS_PILL_PADDING_V,
+                    paddingBottom: XAXIS_PILL_PADDING_V,
+                    borderRadius: PILL_BORDER_RADIUS,
+                    size: PILL_FONT_SIZE
+                },
+                ignoreEvent: true
+            });
         }
         return figures;
     },
