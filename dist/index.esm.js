@@ -208,7 +208,7 @@ function formatTimestampByTemplate(dateTimeFormat, timestamp, template) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
     return template.replace(/YYYY|MM|DD|HH|mm|ss/g, function (key) { return date[key]; });
 }
-function formatPrecision(value, precision) {
+function formatPrecision$1(value, precision) {
     var v = +value;
     if (isNumber(v)) {
         return v.toFixed(precision !== null && precision !== void 0 ? precision : 2);
@@ -1772,11 +1772,11 @@ var bias = {
 // ═══════════════════════════════════════════════════════════════
 var CP_RADIUS$3 = 3.5;
 var CP_BORDER$1 = 1.5;
-var CP_COLOR$3 = '#1592E6';
+var CP_COLOR$4 = '#1592E6';
 // ═══════════════════════════════════════════════════════════════
 // Theme-aware background color for control points
 // ═══════════════════════════════════════════════════════════════
-function isLightColor$6(hex) {
+function isLightColor$7(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -1784,7 +1784,7 @@ function isLightColor$6(hex) {
 }
 function getControlPointBgColor(chart) {
     var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
-    return isLightColor$6(tickTextColor) ? '#131722' : '#ffffff';
+    return isLightColor$7(tickTextColor) ? '#131722' : '#ffffff';
 }
 function collectLineSegments(result, from, to, xAxis, yAxis, key, indexOffset) {
     if (indexOffset === void 0) { indexOffset = 0; }
@@ -1875,7 +1875,7 @@ function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, inde
             ctx.beginPath();
             ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$3;
+            ctx.strokeStyle = CP_COLOR$4;
             ctx.lineWidth = CP_BORDER$1;
             ctx.stroke();
         }
@@ -3965,7 +3965,7 @@ function collectStepLineSegments(result, from, to, xAxis, yAxis, key) {
 // ═══════════════════════════════════════════════════════════════
 var CP_RADIUS$2 = 3.5;
 var CP_BORDER = 1.5;
-var CP_COLOR$2 = '#1592E6';
+var CP_COLOR$3 = '#1592E6';
 function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
     var e_1, _a;
     // Visible pixel bounds (with margin for points near edges)
@@ -4029,7 +4029,7 @@ function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
             ctx.beginPath();
             ctx.arc(p.x, p.y, CP_RADIUS$2, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$2;
+            ctx.strokeStyle = CP_COLOR$3;
             ctx.lineWidth = CP_BORDER;
             ctx.stroke();
         }
@@ -9157,7 +9157,7 @@ var rayLine = {
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  */
-function isLightColor$5(hex) {
+function isLightColor$6(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -9167,7 +9167,7 @@ function isLightColor$5(hex) {
     return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 // Control point constants (match rect overlay)
-var CP_COLOR$1 = '#1592E6';
+var CP_COLOR$2 = '#1592E6';
 var CP_RADIUS$1 = 5;
 var CP_CIRCLE_BORDER$1 = 1.5;
 // Arrow head constants
@@ -9360,7 +9360,7 @@ var segment = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$5(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
@@ -9368,7 +9368,7 @@ var segment = {
                     styles: {
                         style: 'stroke_fill',
                         color: cpBg,
-                        borderColor: CP_COLOR$1,
+                        borderColor: CP_COLOR$2,
                         borderSize: CP_CIRCLE_BORDER$1
                     },
                     pointIndex: 0,
@@ -9379,7 +9379,7 @@ var segment = {
         // ─── 6. Control points at endpoints (when selected/hovered) ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$5(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
@@ -9387,7 +9387,7 @@ var segment = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR$2,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 0,
@@ -9400,7 +9400,7 @@ var segment = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR$2,
                     borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 1,
@@ -9953,7 +9953,7 @@ var simpleTag = {
             }
         }
         if (!isValid(text) && isNumber(overlay.points[0].value)) {
-            text = formatPrecision(overlay.points[0].value, (_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : SymbolDefaultPrecisionConstants.PRICE);
+            text = formatPrecision$1(overlay.points[0].value, (_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : SymbolDefaultPrecisionConstants.PRICE);
         }
         return { type: 'text', attrs: { x: x, y: coordinates[0].y, text: text, align: textAlign, baseline: 'middle' } };
     }
@@ -10422,7 +10422,7 @@ function renderVPFRFigures(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function isLightColor$4(hex) {
+function isLightColor$5(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -10554,7 +10554,7 @@ var vpfr = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_e = hoverInfo.overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id && hoverInfo.figureType !== 'none';
         var tickTextColor = String(chartStore.getStyles().yAxis.tickText.color);
-        var isDarkTheme = isLightColor$4(tickTextColor);
+        var isDarkTheme = isLightColor$5(tickTextColor);
         // X positions from coordinates (time-based)
         var leftX = Math.min(coordinates[0].x, coordinates[1].x);
         var rightX = Math.max(coordinates[0].x, coordinates[1].x);
@@ -10895,7 +10895,7 @@ var vpfr = {
  * CP fill color is detected from chart theme (dark → black, light → white)
  */
 // CP border color (always blue)
-var CP_COLOR = '#1592E6';
+var CP_COLOR$1 = '#1592E6';
 // Corner control points (circles)
 var CP_RADIUS = 5;
 var CP_CIRCLE_BORDER = 1.5;
@@ -10911,7 +10911,7 @@ var CP_MID_BORDER_RADIUS = 3;
  * Control points: 4 corners (circles) + 4 edge midpoints (squares)
  * All drag logic handled via performEventPressedMove with figureKey
  */
-function isLightColor$3(hex) {
+function isLightColor$4(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -11071,8 +11071,8 @@ var rect$1 = {
             var midY = (top + bottom) / 2;
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor$3(tickTextColor) ? '#131722' : '#ffffff';
-            var cpColor_1 = CP_COLOR;
+            var cpBg_1 = isLightColor$4(tickTextColor) ? '#131722' : '#ffffff';
+            var cpColor_1 = CP_COLOR$1;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
                 key: key,
@@ -11184,7 +11184,7 @@ var MIN_RADIUS_PX = 5;
  * Control points: center (move) + edge (resize)
  * Drag logic: center CP translates entire circle, edge CP resizes
  */
-function isLightColor$2(hex) {
+function isLightColor$3(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -11288,7 +11288,7 @@ var circle$1 = {
         if (isSelected || isHovered) {
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$2(tickTextColor) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$3(tickTextColor) ? '#131722' : '#ffffff';
             // CP at center (drag to translate entire circle)
             figures.push({
                 key: 'circle_cp_center',
@@ -11297,7 +11297,7 @@ var circle$1 = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 0,
@@ -11311,7 +11311,7 @@ var circle$1 = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 1,
@@ -11398,7 +11398,7 @@ function calculateStats$1(entryPrice, targetPrice, stopPrice, currentPrice, ext)
 // Label text formatting
 // ═══════════════════════════════════════
 function fmtNum$1(value, precision) {
-    return formatPrecision(value, precision);
+    return formatPrecision$1(value, precision);
 }
 function fmtPct$1(value) {
     return value.toFixed(2);
@@ -11442,7 +11442,7 @@ function formatSlLabel$1(stats, compact, precision) {
 // ═══════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════
-function isLightColor$1(hex) {
+function isLightColor$2(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -11462,7 +11462,7 @@ function rgbaToSolid$1(rgba) {
     }
     return rgba;
 }
-function getExt$1(extendData) {
+function getExt$2(extendData) {
     if (extendData == null)
         return __assign({}, LONG_POSITION_DEFAULTS);
     return __assign(__assign({}, LONG_POSITION_DEFAULTS), extendData);
@@ -11479,7 +11479,7 @@ var longPosition = {
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
-        var ext = getExt$1(overlay.extendData);
+        var ext = getExt$2(overlay.extendData);
         // ── Missing points: show minimal preview ──
         if (coordinates.length < 1)
             return [];
@@ -11848,7 +11848,7 @@ var longPosition = {
         // ── 13-16. Control points (only when selected or hovered) ──
         if (isHoveredOrSelected) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$1(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
             // P1: Entry circle (free movement)
             figures.push({
                 key: 'lp_cp_entry',
@@ -11857,7 +11857,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_CIRCLE_BORDER
                 },
                 pointIndex: 0,
@@ -11876,7 +11876,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11896,7 +11896,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11916,7 +11916,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -11929,7 +11929,7 @@ var longPosition = {
     createYAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
-        var ext = getExt$1(overlay.extendData);
+        var ext = getExt$2(overlay.extendData);
         if (!ext.showPriceLabels)
             return [];
         if (coordinates.length < 3)
@@ -11966,7 +11966,7 @@ var longPosition = {
         var stopPrice = (_f = overlay.points[2]) === null || _f === void 0 ? void 0 : _f.value;
         // Entry pill (gray) — always visible
         if (entryPrice != null) {
-            var entryText = formatPrecision(entryPrice, precision);
+            var entryText = formatPrecision$1(entryPrice, precision);
             figures.push({
                 type: 'text',
                 attrs: { x: x, y: entryY, text: entryText, align: textAlign, baseline: 'middle' },
@@ -11984,7 +11984,7 @@ var longPosition = {
         }
         // TP pill (teal) — always visible
         if (targetPrice != null) {
-            var tpText = formatPrecision(targetPrice, precision);
+            var tpText = formatPrecision$1(targetPrice, precision);
             var tpBg = rgbaToSolid$1(ext.profitBackground);
             figures.push({
                 type: 'text',
@@ -12003,7 +12003,7 @@ var longPosition = {
         }
         // SL pill (red) — always visible
         if (stopPrice != null) {
-            var slText = formatPrecision(stopPrice, precision);
+            var slText = formatPrecision$1(stopPrice, precision);
             var slBg = rgbaToSolid$1(ext.stopBackground);
             figures.push({
                 type: 'text',
@@ -12192,7 +12192,7 @@ function calculateStats(entryPrice, targetPrice, stopPrice, currentPrice, ext) {
 // Label text formatting
 // ═══════════════════════════════════════
 function fmtNum(value, precision) {
-    return formatPrecision(value, precision);
+    return formatPrecision$1(value, precision);
 }
 function fmtPct(value) {
     return value.toFixed(2);
@@ -12237,7 +12237,7 @@ function formatSlLabel(stats, compact, precision) {
 // ═══════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════
-function isLightColor(hex) {
+function isLightColor$1(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -12253,7 +12253,7 @@ function rgbaToSolid(rgba) {
     }
     return rgba;
 }
-function getExt(extendData) {
+function getExt$1(extendData) {
     if (extendData == null)
         return __assign({}, SHORT_POSITION_DEFAULTS);
     return __assign(__assign({}, SHORT_POSITION_DEFAULTS), extendData);
@@ -12270,7 +12270,7 @@ var shortPosition = {
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
-        var ext = getExt(overlay.extendData);
+        var ext = getExt$1(overlay.extendData);
         if (coordinates.length < 1)
             return [];
         if (coordinates.length < 4) {
@@ -12551,12 +12551,12 @@ var shortPosition = {
         // 13-16. Control points
         if (isHoveredOrSelected) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$1(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'sp_cp_entry',
                 type: 'circle',
                 attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_CIRCLE_BORDER },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_CIRCLE_BORDER },
                 pointIndex: 0,
                 cursor: 'move'
             });
@@ -12564,7 +12564,7 @@ var shortPosition = {
                 key: 'sp_cp_tp',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: targetY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 1,
                 cursor: 'ns-resize'
             });
@@ -12572,7 +12572,7 @@ var shortPosition = {
                 key: 'sp_cp_sl',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: stopY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 2,
                 cursor: 'ns-resize'
             });
@@ -12580,7 +12580,7 @@ var shortPosition = {
                 key: 'sp_cp_width',
                 type: 'rect',
                 attrs: { x: rightX - CP_MID_SIZE / 2, y: entryY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 3,
                 cursor: 'ew-resize'
             });
@@ -12590,7 +12590,7 @@ var shortPosition = {
     createYAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
-        var ext = getExt(overlay.extendData);
+        var ext = getExt$1(overlay.extendData);
         if (!ext.showPriceLabels)
             return [];
         if (coordinates.length < 3)
@@ -12624,7 +12624,7 @@ var shortPosition = {
         if (entryPrice != null) {
             figures.push({
                 type: 'text',
-                attrs: { x: x, y: entryY, text: formatPrecision(entryPrice, precision), align: textAlign, baseline: 'middle' },
+                attrs: { x: x, y: entryY, text: formatPrecision$1(entryPrice, precision), align: textAlign, baseline: 'middle' },
                 styles: { color: '#ffffff', backgroundColor: ext.lineColor, paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 },
                 ignoreEvent: true
             });
@@ -12632,7 +12632,7 @@ var shortPosition = {
         if (targetPrice != null) {
             figures.push({
                 type: 'text',
-                attrs: { x: x, y: tpY, text: formatPrecision(targetPrice, precision), align: textAlign, baseline: 'middle' },
+                attrs: { x: x, y: tpY, text: formatPrecision$1(targetPrice, precision), align: textAlign, baseline: 'middle' },
                 styles: { color: '#ffffff', backgroundColor: rgbaToSolid(ext.profitBackground), paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 },
                 ignoreEvent: true
             });
@@ -12640,7 +12640,7 @@ var shortPosition = {
         if (stopPrice != null) {
             figures.push({
                 type: 'text',
-                attrs: { x: x, y: slY, text: formatPrecision(stopPrice, precision), align: textAlign, baseline: 'middle' },
+                attrs: { x: x, y: slY, text: formatPrecision$1(stopPrice, precision), align: textAlign, baseline: 'middle' },
                 styles: { color: '#ffffff', backgroundColor: rgbaToSolid(ext.stopBackground), paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderRadius: 2 },
                 ignoreEvent: true
             });
@@ -12733,6 +12733,846 @@ var shortPosition = {
 };
 
 /**
+ * Forecast (Dự đoán) overlay — TradingView-style LineToolPrediction
+ *
+ * Data points: 2 (P1 source anchor, P2 target anchor)
+ * Features:
+ *  - Quadratic Bézier curve P1 → P2 (arcs perpendicular to the chord)
+ *  - Two pills (P1 source, P2 info with delta/pct/bars)
+ *  - Status badge above/below P2 pill (success / failure)
+ *  - Footer F / F* markers on the X-axis pane (ALWAYS visible)
+ *  - Selection-only X-axis date pills + Y-axis price pills
+ *  - Custom control points (small filled dots unselected, hollow ○ active)
+ */
+var FORECAST_DEFAULTS = {
+    lineColor: '#2962ff',
+    lineOpacity: 1,
+    lineWidth: 1,
+    sourceTextColor: '#ffffff',
+    sourceTextOpacity: 1,
+    sourceBgColor: '#2962ff',
+    sourceBgOpacity: 1,
+    sourceBorderColor: '#2962ff',
+    sourceBorderOpacity: 1,
+    targetTextColor: '#ffffff',
+    targetTextOpacity: 1,
+    targetBgColor: '#2962ff',
+    targetBgOpacity: 1,
+    targetBorderColor: '#2962ff',
+    targetBorderOpacity: 1,
+    successTextColor: '#ffffff',
+    successTextOpacity: 1,
+    successBgColor: '#4caf50',
+    successBgOpacity: 1,
+    failureTextColor: '#ffffff',
+    failureTextOpacity: 1,
+    failureBgColor: '#ef5350',
+    failureBgOpacity: 1
+};
+// ═══════════════════════════════════════
+// Sizing / layout constants
+// ═══════════════════════════════════════
+// Pill
+var PILL_PADDING_H = 6;
+var PILL_PADDING_V = 4;
+var PILL_LINE_GAP = 2;
+var PILL_BORDER_RADIUS = 3;
+var PILL_FONT_SIZE = 11;
+// Pill anchor gap (curve endpoint sits this many pixels away from pill edge)
+var PILL_ANCHOR_GAP = 4;
+// Badge
+var BADGE_GAP = 3;
+var BADGE_PADDING_H = 6;
+var BADGE_PADDING_V = 3;
+var BADGE_FONT_SIZE = 11;
+// Control points
+var CP_COLOR = '#2962ff';
+var CP_INACTIVE_RADIUS = 2.5;
+var CP_ACTIVE_RADIUS = 5.5;
+var CP_ACTIVE_BORDER = 1.5;
+// Footer F / F* markers (on X-axis pane)
+var FOOTER_COLOR = '#4caf50';
+var FOOTER_Y = 8;
+var FOOTER_RADIUS = 6;
+var FOOTER_BORDER_SIZE = 1.2;
+var FOOTER_FONT_SIZE = 9;
+// Curve hitbox
+var CURVE_HITBOX_HALF_WIDTH = 6;
+var CURVE_SAMPLES = 30;
+// Bézier curvature
+var BEZIER_ARC_FACTOR = 0.3;
+var BEZIER_ARC_CAP = 120;
+
+/**
+ * Forecast overlay utility functions
+ *  - Status evaluation (computed-on-render)
+ *  - Bezier math (control point, sampling, hitbox tube)
+ *  - Formatters (ISO date, Vietnamese pill date, signed number, precision)
+ *  - Color alpha helper
+ *  - Timestamp -> bar-index resolver
+ */
+// ==========================================================================
+// Status evaluation
+// ==========================================================================
+/**
+ * Evaluate forecast outcome. Looks at bars in the interval (P1, P2] (exclusive P1,
+ * inclusive P2) and returns 'success' if the target price is reached by either
+ * a high (bullish case) or low (bearish case).
+ *
+ * Always resolves points by TIMESTAMP — dataIndex is unstable across reload.
+ */
+function evaluateStatus(dataList, p1, p2) {
+    if (p1.timestamp == null || p2.timestamp == null)
+        return 'failure';
+    if (p1.value == null || p2.value == null)
+        return 'failure';
+    var i1 = dataList.findIndex(function (d) { return d.timestamp === p1.timestamp; });
+    var i2 = dataList.findIndex(function (d) { return d.timestamp === p2.timestamp; });
+    if (i1 < 0 || i2 < 0)
+        return 'failure';
+    var _a = __read(i1 <= i2 ? [i1, i2] : [i2, i1], 2), lo = _a[0], hi = _a[1];
+    var start = lo + 1;
+    var end = hi;
+    if (start > end)
+        return 'success'; // no bars in window
+    if (p2.value === p1.value)
+        return 'success'; // equal — trivially reached
+    var bullish = p2.value > p1.value;
+    for (var i = start; i <= end; i++) {
+        var bar = dataList[i];
+        if (bullish && bar.high >= p2.value)
+            return 'success';
+        if (!bullish && bar.low <= p2.value)
+            return 'success';
+    }
+    return 'failure';
+}
+/**
+ * Resolve a klinedata index from a timestamp. Returns -1 when not found.
+ */
+function resolveBarIndex(dataList, timestamp) {
+    if (timestamp == null)
+        return -1;
+    return dataList.findIndex(function (d) { return d.timestamp === timestamp; });
+}
+// ==========================================================================
+// Bezier math (pixel space)
+// ==========================================================================
+/**
+ * Compute a single quadratic Bezier control point perpendicular to the P1-P2 chord.
+ *
+ * Arc height = min(chordLen * 0.3, 120). Direction is chosen so bullish curves
+ * bow UP (toward smaller canvas-Y) and bearish curves bow DOWN.
+ */
+function computeBezierControlPoint(c1, c2) {
+    var mx = (c1.x + c2.x) / 2;
+    var my = (c1.y + c2.y) / 2;
+    var dx = c2.x - c1.x;
+    var dy = c2.y - c1.y;
+    var len = Math.hypot(dx, dy);
+    if (len === 0)
+        return { x: mx, y: my };
+    // Perpendicular unit vector (rotate 90 deg CCW)
+    var px = -dy / len;
+    var py = dx / len;
+    var arc = Math.min(len * BEZIER_ARC_FACTOR, BEZIER_ARC_CAP);
+    // When dy < 0 (P2 above P1, i.e., bullish), bow upward (toward smaller canvas-Y).
+    var sign = dy < 0 ? 1 : -1;
+    return {
+        x: mx + px * arc * sign,
+        y: my + py * arc * sign
+    };
+}
+/**
+ * Point on a quadratic Bezier at parameter t in [0, 1].
+ */
+function quadBezierPoint(c1, cp, c2, t) {
+    var mt = 1 - t;
+    return {
+        x: mt * mt * c1.x + 2 * mt * t * cp.x + t * t * c2.x,
+        y: mt * mt * c1.y + 2 * mt * t * cp.y + t * t * c2.y
+    };
+}
+/**
+ * Tangent (derivative) on a quadratic Bezier at parameter t.
+ */
+function quadBezierTangent(c1, cp, c2, t) {
+    return {
+        x: 2 * (1 - t) * (cp.x - c1.x) + 2 * t * (c2.x - cp.x),
+        y: 2 * (1 - t) * (cp.y - c1.y) + 2 * t * (c2.y - cp.y)
+    };
+}
+/**
+ * Build a closed polygon "tube" around the curve for hit-testing.
+ * Offsets each sample by ±halfWidth along the curve normal, walks one side
+ * forward and the other side back to form a closed ring.
+ */
+function buildCurveHitbox(c1, cp, c2, halfWidth, samples) {
+    var upper = [];
+    var lower = [];
+    for (var i = 0; i <= samples; i++) {
+        var t = i / samples;
+        var pt = quadBezierPoint(c1, cp, c2, t);
+        var tan = quadBezierTangent(c1, cp, c2, t);
+        var rawLen = Math.hypot(tan.x, tan.y);
+        var len = rawLen === 0 ? 1 : rawLen;
+        var nx = -tan.y / len;
+        var ny = tan.x / len;
+        upper.push({ x: pt.x + nx * halfWidth, y: pt.y + ny * halfWidth });
+        lower.unshift({ x: pt.x - nx * halfWidth, y: pt.y - ny * halfWidth });
+    }
+    return __spreadArray(__spreadArray([], __read(upper), false), __read(lower), false);
+}
+// ==========================================================================
+// Formatters
+// ==========================================================================
+/**
+ * Convert #rrggbb + opacity (0..1) to a canvas-friendly rgba() string.
+ * If the input already looks like rgba(), it is returned unchanged.
+ * If alpha is 1 the original hex is returned (canvas accepts it directly).
+ */
+function alpha(hex, a) {
+    var clamp = Math.max(0, Math.min(1, a));
+    if (hex.startsWith('rgba') || hex.startsWith('rgb('))
+        return hex;
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (m == null)
+        return hex;
+    if (clamp >= 1)
+        return hex;
+    var r = parseInt(m[1], 16);
+    var g = parseInt(m[2], 16);
+    var b = parseInt(m[3], 16);
+    return "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(clamp, ")");
+}
+/**
+ * Format a timestamp as YYYY-MM-DD (used inside pill body text).
+ */
+function formatISO(timestamp) {
+    if (timestamp == null)
+        return '';
+    var d = new Date(timestamp);
+    var yyyy = d.getFullYear();
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return "".concat(yyyy, "-").concat(mm, "-").concat(dd);
+}
+var VI_MONTHS = [
+    'Tháng Một', 'Tháng Hai', 'Tháng Ba', 'Tháng Tư',
+    'Tháng Năm', 'Tháng Sáu', 'Tháng Bảy', 'Tháng Tám',
+    'Tháng Chín', 'Tháng Mười', 'Tháng Mười Một', 'Tháng Mười Hai'
+];
+/**
+ * Format a timestamp for X-axis date pills: "DD Tháng {VI-monthName} 'YY".
+ */
+function formatViDatePill(timestamp) {
+    var _a;
+    if (timestamp == null)
+        return '';
+    var d = new Date(timestamp);
+    var day = d.getDate();
+    var month = (_a = VI_MONTHS[d.getMonth()]) !== null && _a !== void 0 ? _a : '';
+    var yy = String(d.getFullYear() % 100).padStart(2, '0');
+    return "".concat(day, " ").concat(month, " '").concat(yy);
+}
+/**
+ * Format a number with a fixed precision. Preserves negative sign.
+ */
+function formatPrecision(value, precision) {
+    if (!isFinite(value))
+        return '-';
+    return value.toFixed(precision);
+}
+/**
+ * Prepend '+' for non-negative numbers.
+ */
+function signedPrecision(value, precision) {
+    var s = formatPrecision(value, precision);
+    return value >= 0 ? "+".concat(s) : s;
+}
+
+/**
+ * Forecast (Dự đoán) overlay — TradingView-style LineToolPrediction
+ *
+ * Data points: 2 (P1 source anchor, P2 target anchor)
+ * Total steps: 3 (2 on-chart clicks + initial "activated-no-click" step)
+ *
+ * Visual composition (back -> front):
+ *   1.  Bezier curve P1 -> P2 (path figure, quadratic Q command) - draw only
+ *   2.  Curve hitbox (polygon tube around the curve) - hit-test only
+ *   3.  P1 source pill (rect + 2 text lines)
+ *   4.  P2 info pill (rect + 2 text lines)
+ *   5.  Status badge above or below P2 pill (hidden during draw preview)
+ *   6.  Control points (CP0, CP1) - small dots unselected, hollow rings active
+ *
+ * X-axis figures:
+ *   - Footer F / F* markers (ALWAYS visible)
+ *   - Date pills (SELECTION only)
+ *
+ * Y-axis figures:
+ *   - Price pills (SELECTION only)
+ */
+// ═══════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════
+function getExt(extendData) {
+    if (extendData == null)
+        return __assign({}, FORECAST_DEFAULTS);
+    return __assign(__assign({}, FORECAST_DEFAULTS), extendData);
+}
+function isLightColor(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+var BODY_DRAG_KEYS = new Set([
+    'fc_curve_hitbox',
+    'fc_p1_pill',
+    'fc_p2_pill',
+    'fc_badge_bg'
+]);
+// Clock emoji inserted between price and date on P2 pill line 2
+var CLOCK_CHAR = "\uD83D\uDD50";
+// ═══════════════════════════════════════
+// Overlay template
+// ═══════════════════════════════════════
+var forecast = {
+    name: 'forecast',
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
+    mode: 'normal',
+    // ─────────────────────────────────────
+    // Main pane figures
+    // ─────────────────────────────────────
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var ext = getExt(overlay.extendData);
+        var precision = (_b = ext.pricePrecision) !== null && _b !== void 0 ? _b : ((_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2);
+        var p1 = (_e = overlay.points[0]) !== null && _e !== void 0 ? _e : {};
+        var p2 = (_f = overlay.points[1]) !== null && _f !== void 0 ? _f : {};
+        var c1 = coordinates[0];
+        var c2 = coordinates[1];
+        // "Drawing in progress" detection.
+        // OverlayImp.currentStep is -1 once the final click lands.
+        // During preview it is a positive number less than totalStep.
+        var currentStep = overlay.currentStep;
+        var isDrawing = currentStep != null && currentStep > 0 && currentStep < 3;
+        // Selection / hover state
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_g = chartStore.getClickOverlayInfo().overlay) === null || _g === void 0 ? void 0 : _g.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_h = hoverInfo.overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        var figures = [];
+        // ─── 1. Bezier curve (visual, no events) ───
+        var cp = computeBezierControlPoint(c1, c2);
+        var lineColorAlpha = alpha(ext.lineColor, ext.lineOpacity);
+        figures.push({
+            key: 'fc_curve',
+            type: 'path',
+            attrs: {
+                x: 0,
+                y: 0,
+                width: bounding.width,
+                height: bounding.height,
+                path: "M ".concat(c1.x, " ").concat(c1.y, " Q ").concat(cp.x, " ").concat(cp.y, " ").concat(c2.x, " ").concat(c2.y)
+            },
+            styles: {
+                style: 'stroke',
+                color: lineColorAlpha,
+                lineWidth: ext.lineWidth
+            },
+            ignoreEvent: true
+        });
+        // ─── 2. Curve hitbox (transparent polygon tube, receives events) ───
+        var hitboxPoly = buildCurveHitbox(c1, cp, c2, CURVE_HITBOX_HALF_WIDTH, CURVE_SAMPLES);
+        figures.push({
+            key: 'fc_curve_hitbox',
+            type: 'polygon',
+            attrs: { coordinates: hitboxPoly },
+            styles: { style: 'fill', color: 'transparent' },
+            ignoreEvent: false,
+            cursor: 'move'
+        });
+        // ─── 3. P1 source pill ───
+        var p1PriceText = p1.value != null ? formatPrecision(p1.value, precision) : '';
+        var p1DateText = formatISO(p1.timestamp);
+        var p1TextWidth = Math.max(calcTextWidth(p1PriceText, PILL_FONT_SIZE), calcTextWidth(p1DateText, PILL_FONT_SIZE));
+        var p1PillW = p1TextWidth + 2 * PILL_PADDING_H;
+        var p1PillH = 2 * PILL_FONT_SIZE + PILL_LINE_GAP + 2 * PILL_PADDING_V;
+        // Right edge of P1 pill touches (c1.x - PILL_ANCHOR_GAP)
+        var p1PillX = c1.x - PILL_ANCHOR_GAP - p1PillW;
+        var p1PillY = c1.y - p1PillH / 2;
+        figures.push({
+            key: 'fc_p1_pill',
+            type: 'rect',
+            attrs: { x: p1PillX, y: p1PillY, width: p1PillW, height: p1PillH },
+            styles: {
+                style: 'stroke_fill',
+                color: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
+                borderColor: alpha(ext.sourceBorderColor, ext.sourceBorderOpacity),
+                borderSize: 1,
+                borderRadius: PILL_BORDER_RADIUS
+            },
+            ignoreEvent: false,
+            cursor: 'move'
+        });
+        var p1PillCX = p1PillX + p1PillW / 2;
+        // Line 1 (price) centered in top half
+        figures.push({
+            key: 'fc_p1_text_price',
+            type: 'text',
+            attrs: {
+                x: p1PillCX,
+                y: p1PillY + PILL_PADDING_V + PILL_FONT_SIZE / 2,
+                text: p1PriceText,
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+                size: PILL_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_p1_text_date',
+            type: 'text',
+            attrs: {
+                x: p1PillCX,
+                y: p1PillY + PILL_PADDING_V + PILL_FONT_SIZE + PILL_LINE_GAP + PILL_FONT_SIZE / 2,
+                text: p1DateText,
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+                size: PILL_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        // ─── 4. P2 info pill ───
+        var dataList = chart.getDataList();
+        var deltaLine = '';
+        var priceLine = '';
+        if (p1.value != null && p2.value != null) {
+            var delta = p2.value - p1.value;
+            var deltaPctStr = p1.value !== 0
+                ? ((delta / Math.abs(p1.value)) * 100).toFixed(2)
+                : '-';
+            var deltaPctSigned = p1.value !== 0 && delta >= 0 ? "+".concat(deltaPctStr) : deltaPctStr;
+            var i1 = resolveBarIndex(dataList, p1.timestamp);
+            var i2 = resolveBarIndex(dataList, p2.timestamp);
+            var barCount = 0;
+            if (i1 >= 0 && i2 >= 0)
+                barCount = Math.abs(i2 - i1);
+            else if (p1.dataIndex != null && p2.dataIndex != null) {
+                barCount = Math.abs(p2.dataIndex - p1.dataIndex);
+            }
+            deltaLine = "".concat(signedPrecision(delta, precision), " (").concat(deltaPctSigned, "%) trong ").concat(barCount, "n");
+            priceLine = "".concat(formatPrecision(p2.value, precision), " ").concat(CLOCK_CHAR, " ").concat(formatISO(p2.timestamp));
+        }
+        var p2TextWidth = Math.max(calcTextWidth(deltaLine, PILL_FONT_SIZE), calcTextWidth(priceLine, PILL_FONT_SIZE));
+        var p2PillW = p2TextWidth + 2 * PILL_PADDING_H;
+        var p2PillH = 2 * PILL_FONT_SIZE + PILL_LINE_GAP + 2 * PILL_PADDING_V;
+        // Left edge of P2 pill touches (c2.x + PILL_ANCHOR_GAP)
+        var p2PillX = c2.x + PILL_ANCHOR_GAP;
+        var p2PillY = c2.y - p2PillH / 2;
+        figures.push({
+            key: 'fc_p2_pill',
+            type: 'rect',
+            attrs: { x: p2PillX, y: p2PillY, width: p2PillW, height: p2PillH },
+            styles: {
+                style: 'stroke_fill',
+                color: alpha(ext.targetBgColor, ext.targetBgOpacity),
+                borderColor: alpha(ext.targetBorderColor, ext.targetBorderOpacity),
+                borderSize: 1,
+                borderRadius: PILL_BORDER_RADIUS
+            },
+            ignoreEvent: false,
+            cursor: 'move'
+        });
+        var p2PillCX = p2PillX + p2PillW / 2;
+        figures.push({
+            key: 'fc_p2_text_line1',
+            type: 'text',
+            attrs: {
+                x: p2PillCX,
+                y: p2PillY + PILL_PADDING_V + PILL_FONT_SIZE / 2,
+                text: deltaLine,
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+                size: PILL_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_p2_text_line2',
+            type: 'text',
+            attrs: {
+                x: p2PillCX,
+                y: p2PillY + PILL_PADDING_V + PILL_FONT_SIZE + PILL_LINE_GAP + PILL_FONT_SIZE / 2,
+                text: priceLine,
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+                size: PILL_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        // ─── 5. Status badge (hidden during preview) ───
+        if (!isDrawing && p1.value != null && p2.value != null) {
+            var status_1 = evaluateStatus(dataList, p1, p2);
+            var bullish = p2.value > p1.value;
+            var badgeText = status_1 === 'success' ? '✓ THÀNH CÔNG' : '☹ THẤT BẠI';
+            var badgeTextW = calcTextWidth(badgeText, BADGE_FONT_SIZE);
+            var badgeW = badgeTextW + 2 * BADGE_PADDING_H;
+            var badgeH = BADGE_FONT_SIZE + 2 * BADGE_PADDING_V;
+            var badgeBgHex = status_1 === 'success' ? ext.successBgColor : ext.failureBgColor;
+            var badgeBgOpacity = status_1 === 'success' ? ext.successBgOpacity : ext.failureBgOpacity;
+            var badgeTextHex = status_1 === 'success' ? ext.successTextColor : ext.failureTextColor;
+            var badgeTextOpacity = status_1 === 'success' ? ext.successTextOpacity : ext.failureTextOpacity;
+            // Bullish (P2 higher price → smaller Y) → badge ABOVE; bearish → BELOW
+            // left-aligned with P2 pill
+            var badgeX = p2PillX;
+            var badgeY = bullish
+                ? p2PillY - badgeH - BADGE_GAP
+                : p2PillY + p2PillH + BADGE_GAP;
+            figures.push({
+                key: 'fc_badge_bg',
+                type: 'rect',
+                attrs: { x: badgeX, y: badgeY, width: badgeW, height: badgeH },
+                styles: {
+                    style: 'fill',
+                    color: alpha(badgeBgHex, badgeBgOpacity),
+                    borderRadius: PILL_BORDER_RADIUS
+                },
+                ignoreEvent: false,
+                cursor: 'move'
+            });
+            figures.push({
+                key: 'fc_badge_text',
+                type: 'text',
+                attrs: {
+                    x: badgeX + badgeW / 2,
+                    y: badgeY + badgeH / 2,
+                    text: badgeText,
+                    align: 'center',
+                    baseline: 'middle'
+                },
+                styles: {
+                    color: alpha(badgeTextHex, badgeTextOpacity),
+                    size: BADGE_FONT_SIZE,
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 6. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'fc_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_ACTIVE_RADIUS },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_ACTIVE_BORDER
+                },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'fc_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_ACTIVE_RADIUS },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_ACTIVE_BORDER
+                },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        else {
+            figures.push({
+                key: 'fc_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_INACTIVE_RADIUS },
+                styles: { style: 'fill', color: CP_COLOR },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'fc_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_INACTIVE_RADIUS },
+                styles: { style: 'fill', color: CP_COLOR },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        return figures;
+    },
+    // ─────────────────────────────────────
+    // X-axis: footer markers (always) + date pills (selection only)
+    // ─────────────────────────────────────
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 2)
+            return [];
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var c1 = coordinates[0];
+        var c2 = coordinates[1];
+        var figures = [];
+        // A. Footer markers — ALWAYS visible; F at P1, F* at P2
+        figures.push({
+            key: 'fc_footer_bg_p1',
+            type: 'circle',
+            attrs: { x: c1.x, y: FOOTER_Y, r: FOOTER_RADIUS },
+            styles: {
+                style: 'stroke',
+                borderColor: FOOTER_COLOR,
+                borderSize: FOOTER_BORDER_SIZE
+            },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_text_p1',
+            type: 'text',
+            attrs: {
+                x: c1.x,
+                y: FOOTER_Y,
+                text: 'F',
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: FOOTER_COLOR,
+                size: FOOTER_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_bg_p2',
+            type: 'circle',
+            attrs: { x: c2.x, y: FOOTER_Y, r: FOOTER_RADIUS },
+            styles: {
+                style: 'stroke',
+                borderColor: FOOTER_COLOR,
+                borderSize: FOOTER_BORDER_SIZE
+            },
+            ignoreEvent: true
+        });
+        figures.push({
+            key: 'fc_footer_text_p2',
+            type: 'text',
+            attrs: {
+                x: c2.x,
+                y: FOOTER_Y,
+                text: 'F*',
+                align: 'center',
+                baseline: 'middle'
+            },
+            styles: {
+                color: FOOTER_COLOR,
+                size: FOOTER_FONT_SIZE,
+                backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+        });
+        // B. Date pills — SELECTION only
+        if (isSelected) {
+            var ext = getExt(overlay.extendData);
+            var p1 = (_c = overlay.points[0]) !== null && _c !== void 0 ? _c : {};
+            var p2 = (_d = overlay.points[1]) !== null && _d !== void 0 ? _d : {};
+            var p1Date = formatViDatePill(p1.timestamp);
+            var p2Date = formatViDatePill(p2.timestamp);
+            if (p1Date.length > 0) {
+                figures.push({
+                    key: 'fc_xpill_p1',
+                    type: 'text',
+                    attrs: {
+                        x: c1.x,
+                        y: FOOTER_Y + FOOTER_RADIUS + 2,
+                        text: p1Date,
+                        align: 'center',
+                        baseline: 'top'
+                    },
+                    styles: {
+                        color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+                        backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
+                        paddingLeft: 6,
+                        paddingRight: 6,
+                        paddingTop: 3,
+                        paddingBottom: 3,
+                        borderRadius: PILL_BORDER_RADIUS,
+                        size: PILL_FONT_SIZE
+                    },
+                    ignoreEvent: true
+                });
+            }
+            if (p2Date.length > 0) {
+                figures.push({
+                    key: 'fc_xpill_p2',
+                    type: 'text',
+                    attrs: {
+                        x: c2.x,
+                        y: FOOTER_Y + FOOTER_RADIUS + 2,
+                        text: p2Date,
+                        align: 'center',
+                        baseline: 'top'
+                    },
+                    styles: {
+                        color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+                        backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
+                        paddingLeft: 6,
+                        paddingRight: 6,
+                        paddingTop: 3,
+                        paddingBottom: 3,
+                        borderRadius: PILL_BORDER_RADIUS,
+                        size: PILL_FONT_SIZE
+                    },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    },
+    // ─────────────────────────────────────
+    // Y-axis: price pills (selection only)
+    // ─────────────────────────────────────
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 2)
+            return [];
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        if (!isSelected)
+            return [];
+        var ext = getExt(overlay.extendData);
+        var precision = (_c = ext.pricePrecision) !== null && _c !== void 0 ? _c : ((_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : 2);
+        var p1 = (_f = overlay.points[0]) !== null && _f !== void 0 ? _f : {};
+        var p2 = (_g = overlay.points[1]) !== null && _g !== void 0 ? _g : {};
+        var isFromZero = (_h = yAxis === null || yAxis === void 0 ? void 0 : yAxis.isFromZero()) !== null && _h !== void 0 ? _h : false;
+        var textAlign = isFromZero ? 'left' : 'right';
+        var x = isFromZero ? 0 : bounding.width;
+        var figures = [];
+        if (p1.value != null) {
+            figures.push({
+                key: 'fc_ypill_p1',
+                type: 'text',
+                attrs: {
+                    x: x,
+                    y: coordinates[0].y,
+                    text: formatPrecision(p1.value, precision),
+                    align: textAlign,
+                    baseline: 'middle'
+                },
+                styles: {
+                    color: alpha(ext.sourceTextColor, ext.sourceTextOpacity),
+                    backgroundColor: alpha(ext.sourceBgColor, ext.sourceBgOpacity),
+                    paddingLeft: 4,
+                    paddingRight: 4,
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderRadius: 2,
+                    size: PILL_FONT_SIZE
+                },
+                ignoreEvent: true
+            });
+        }
+        if (p2.value != null) {
+            figures.push({
+                key: 'fc_ypill_p2',
+                type: 'text',
+                attrs: {
+                    x: x,
+                    y: coordinates[1].y,
+                    text: formatPrecision(p2.value, precision),
+                    align: textAlign,
+                    baseline: 'middle'
+                },
+                styles: {
+                    color: alpha(ext.targetTextColor, ext.targetTextOpacity),
+                    backgroundColor: alpha(ext.targetBgColor, ext.targetBgOpacity),
+                    paddingLeft: 4,
+                    paddingRight: 4,
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderRadius: 2,
+                    size: PILL_FONT_SIZE
+                },
+                ignoreEvent: true
+            });
+        }
+        return figures;
+    },
+    // ─────────────────────────────────────
+    // Press-move: body drag vs CP drag
+    // ─────────────────────────────────────
+    performEventPressedMove: function (_a) {
+        var points = _a.points, prevPoints = _a.prevPoints, performPoint = _a.performPoint, figureKey = _a.figureKey;
+        if (figureKey == null)
+            return;
+        // Body drag (curve / pills / badge) → move both anchors by the same delta
+        if (BODY_DRAG_KEYS.has(figureKey)) {
+            if (prevPoints.length < 2)
+                return;
+            var prev0 = prevPoints[0];
+            var prev1 = prevPoints[1];
+            if (prev0.dataIndex == null || prev1.dataIndex == null)
+                return;
+            if (prev0.value == null || prev1.value == null)
+                return;
+            if (performPoint.dataIndex == null || performPoint.value == null)
+                return;
+            var dIdx = performPoint.dataIndex - prev0.dataIndex;
+            var dVal = performPoint.value - prev0.value;
+            points[0] = {
+                dataIndex: prev0.dataIndex + dIdx,
+                value: prev0.value + dVal,
+                timestamp: undefined
+            };
+            points[1] = {
+                dataIndex: prev1.dataIndex + dIdx,
+                value: prev1.value + dVal,
+                timestamp: undefined
+            };
+        }
+        // Otherwise (fc_cp0 / fc_cp1) → engine default already applied to
+        // points[performPointIndex]; nothing extra to do.
+    }
+};
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12750,7 +13590,8 @@ var extensions$1 = [
     fibonacciLine, horizontalRayLine, horizontalSegment, horizontalStraightLine,
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
-    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition, shortPosition
+    simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition, shortPosition,
+    forecast
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);
@@ -16514,7 +17355,7 @@ var IndicatorTooltipView = /** @class */ (function (_super) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment  -- ignore
                     var value = data_1[figure.key];
                     if (isNumber(value)) {
-                        value = formatPrecision(value, indicator.precision);
+                        value = formatPrecision$1(value, indicator.precision);
                         if (indicator.shouldFormatBigNumber) {
                             value = formatter.formatBigNumber(value);
                         }
@@ -17357,10 +18198,10 @@ var CandleHighLowPriceView = /** @class */ (function (_super) {
             var decimalFold = chartStore.getDecimalFold();
             var thousandsSeparator = chartStore.getThousandsSeparator();
             if (highPriceMarkStyles.show && high !== Number.MIN_SAFE_INTEGER) {
-                this._drawMark(ctx, decimalFold.format(thousandsSeparator.format(formatPrecision(high, precision))), { x: highX, y: highY }, highY < lowY ? [-2, -5] : [2, 5], highPriceMarkStyles);
+                this._drawMark(ctx, decimalFold.format(thousandsSeparator.format(formatPrecision$1(high, precision))), { x: highX, y: highY }, highY < lowY ? [-2, -5] : [2, 5], highPriceMarkStyles);
             }
             if (lowPriceMarkStyles.show && low !== Number.MAX_SAFE_INTEGER) {
-                this._drawMark(ctx, decimalFold.format(thousandsSeparator.format(formatPrecision(low, precision))), { x: lowX, y: lowY }, highY < lowY ? [2, 5] : [-2, -5], lowPriceMarkStyles);
+                this._drawMark(ctx, decimalFold.format(thousandsSeparator.format(formatPrecision$1(low, precision))), { x: lowX, y: lowY }, highY < lowY ? [2, 5] : [-2, -5], lowPriceMarkStyles);
             }
         }
     };
@@ -17969,7 +18810,7 @@ var CandleTooltipView = /** @class */ (function (_super) {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ignore
         var prevClose = (_d = prev === null || prev === void 0 ? void 0 : prev.close) !== null && _d !== void 0 ? _d : current.close;
         var changeValue = current.close - prevClose;
-        var mapping = __assign(__assign({}, current), { time: formatter.formatDate(current.timestamp, PeriodTypeCrosshairTooltipFormat[(_e = period === null || period === void 0 ? void 0 : period.type) !== null && _e !== void 0 ? _e : 'day'], 'tooltip'), open: decimalFold.format(thousandsSeparator.format(formatPrecision(current.open, pricePrecision))), high: decimalFold.format(thousandsSeparator.format(formatPrecision(current.high, pricePrecision))), low: decimalFold.format(thousandsSeparator.format(formatPrecision(current.low, pricePrecision))), close: decimalFold.format(thousandsSeparator.format(formatPrecision(current.close, pricePrecision))), volume: decimalFold.format(thousandsSeparator.format(formatter.formatBigNumber(formatPrecision((_f = current.volume) !== null && _f !== void 0 ? _f : defaultValue, volumePrecision)))), turnover: decimalFold.format(thousandsSeparator.format(formatPrecision((_g = current.turnover) !== null && _g !== void 0 ? _g : defaultValue, pricePrecision))), change: prevClose === 0 ? defaultValue : "".concat(thousandsSeparator.format(formatPrecision(changeValue / prevClose * 100)), "%") });
+        var mapping = __assign(__assign({}, current), { time: formatter.formatDate(current.timestamp, PeriodTypeCrosshairTooltipFormat[(_e = period === null || period === void 0 ? void 0 : period.type) !== null && _e !== void 0 ? _e : 'day'], 'tooltip'), open: decimalFold.format(thousandsSeparator.format(formatPrecision$1(current.open, pricePrecision))), high: decimalFold.format(thousandsSeparator.format(formatPrecision$1(current.high, pricePrecision))), low: decimalFold.format(thousandsSeparator.format(formatPrecision$1(current.low, pricePrecision))), close: decimalFold.format(thousandsSeparator.format(formatPrecision$1(current.close, pricePrecision))), volume: decimalFold.format(thousandsSeparator.format(formatter.formatBigNumber(formatPrecision$1((_f = current.volume) !== null && _f !== void 0 ? _f : defaultValue, volumePrecision)))), turnover: decimalFold.format(thousandsSeparator.format(formatPrecision$1((_g = current.turnover) !== null && _g !== void 0 ? _g : defaultValue, pricePrecision))), change: prevClose === 0 ? defaultValue : "".concat(thousandsSeparator.format(formatPrecision$1(changeValue / prevClose * 100)), "%") });
         var legends = (isFunction(template)
             ? template({ prev: prev, current: current, next: (_h = dataList[dataIndex + 1]) !== null && _h !== void 0 ? _h : null }, styles)
             : template);
@@ -18845,7 +19686,7 @@ var OverlayYAxisView = /** @class */ (function (_super) {
                 if (isNumber(point.value)) {
                     topY_1 = Math.min(topY_1, coordinate.y);
                     bottomY_1 = Math.max(bottomY_1, coordinate.y);
-                    var text = decimalFold_1.format(thousandsSeparator_1.format(formatPrecision(point.value, (_b = (_a = chartStore.getSymbol()) === null || _a === void 0 ? void 0 : _a.pricePrecision) !== null && _b !== void 0 ? _b : SymbolDefaultPrecisionConstants.PRICE)));
+                    var text = decimalFold_1.format(thousandsSeparator_1.format(formatPrecision$1(point.value, (_b = (_a = chartStore.getSymbol()) === null || _a === void 0 ? void 0 : _a.pricePrecision) !== null && _b !== void 0 ? _b : SymbolDefaultPrecisionConstants.PRICE)));
                     figures.push({ type: 'text', attrs: { x: x_1, y: coordinate.y, text: text, align: textAlign_1, baseline: 'middle' }, ignoreEvent: true });
                 }
             });
@@ -19218,7 +20059,7 @@ var YAxisImp = /** @class */ (function (_super) {
         _this.realValueToDisplayValue = function (value) { return value; };
         _this.displayValueToRealValue = function (value) { return value; };
         _this.realValueToValue = function (value) { return value; };
-        _this.displayValueToText = function (value, precision) { return formatPrecision(value, precision); };
+        _this.displayValueToText = function (value, precision) { return formatPrecision$1(value, precision); };
         _this.override(yAxis);
         return _this;
     }
@@ -19506,7 +20347,7 @@ var YAxisImp = /** @class */ (function (_super) {
                 var data_1 = dataList[dataList.length - 1];
                 if (isValid(data_1)) {
                     var _c = priceMarkStyles.last.text, paddingLeft = _c.paddingLeft, paddingRight = _c.paddingRight, size = _c.size, family = _c.family, weight = _c.weight;
-                    lastPriceTextWidth = paddingLeft + calcTextWidth(formatPrecision(data_1.close, pricePrecision), size, weight, family) + paddingRight;
+                    lastPriceTextWidth = paddingLeft + calcTextWidth(formatPrecision$1(data_1.close, pricePrecision), size, weight, family) + paddingRight;
                     var formatExtendText_1 = chartStore.getInnerFormatter().formatExtendText;
                     priceMarkStyles.last.extendTexts.forEach(function (item, index) {
                         var text = formatExtendText_1({ type: 'last_price', data: data_1, index: index });
@@ -19537,7 +20378,7 @@ var YAxisImp = /** @class */ (function (_super) {
                 else {
                     precision = indicatorPrecision_1;
                 }
-                var valueText = formatPrecision(max, precision);
+                var valueText = formatPrecision$1(max, precision);
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ignore
                 if (shouldFormatBigNumber_1) {
                     valueText = chartStore.getInnerFormatter().formatBigNumber(valueText);
@@ -19623,7 +20464,7 @@ var normal$1 = {
 var percentage = {
     name: 'percentage',
     minSpan: function () { return Math.pow(10, -2); },
-    displayValueToText: function (value) { return "".concat(formatPrecision(value, 2), "%"); },
+    displayValueToText: function (value) { return "".concat(formatPrecision$1(value, 2), "%"); },
     valueToRealValue: function (value, _a) {
         var range = _a.range;
         return (value - range.from) / range.range * range.realRange + range.realFrom;
@@ -23433,7 +24274,7 @@ var utils = {
     isFunction: isFunction,
     isBoolean: isBoolean,
     formatValue: formatValue,
-    formatPrecision: formatPrecision,
+    formatPrecision: formatPrecision$1,
     formatBigNumber: formatBigNumber,
     formatDate: formatTimestampByTemplate,
     formatThousands: formatThousands,

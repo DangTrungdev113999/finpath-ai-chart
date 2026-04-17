@@ -1,0 +1,150 @@
+/**
+ * Forecast (Dự đoán) overlay — TradingView-style LineToolPrediction
+ *
+ * Data points: 2 (P1 source anchor, P2 target anchor)
+ * Features:
+ *  - Quadratic Bézier curve P1 → P2 (arcs perpendicular to the chord)
+ *  - Two pills (P1 source, P2 info with delta/pct/bars)
+ *  - Status badge above/below P2 pill (success / failure)
+ *  - Footer F / F* markers on the X-axis pane (ALWAYS visible)
+ *  - Selection-only X-axis date pills + Y-axis price pills
+ *  - Custom control points (small filled dots unselected, hollow ○ active)
+ */
+
+import type { EventOverlayInfo } from '../../../Store'
+
+// ═══════════════════════════════════════
+// ExtendData
+// ═══════════════════════════════════════
+
+export interface ForecastExtendData {
+  // Line (curve)
+  lineColor: string
+  lineOpacity: number // 0–1
+  lineWidth: 1 | 2 | 3 | 4
+
+  // P1 source pill
+  sourceTextColor: string
+  sourceTextOpacity: number
+  sourceBgColor: string
+  sourceBgOpacity: number
+  sourceBorderColor: string
+  sourceBorderOpacity: number
+
+  // P2 info pill
+  targetTextColor: string
+  targetTextOpacity: number
+  targetBgColor: string
+  targetBgOpacity: number
+  targetBorderColor: string
+  targetBorderOpacity: number
+
+  // Success badge
+  successTextColor: string
+  successTextOpacity: number
+  successBgColor: string
+  successBgOpacity: number
+
+  // Failure badge
+  failureTextColor: string
+  failureTextOpacity: number
+  failureBgColor: string
+  failureBgOpacity: number
+
+  // Meta
+  pricePrecision?: number
+}
+
+export const FORECAST_DEFAULTS: ForecastExtendData = {
+  lineColor: '#2962ff',
+  lineOpacity: 1,
+  lineWidth: 1,
+
+  sourceTextColor: '#ffffff',
+  sourceTextOpacity: 1,
+  sourceBgColor: '#2962ff',
+  sourceBgOpacity: 1,
+  sourceBorderColor: '#2962ff',
+  sourceBorderOpacity: 1,
+
+  targetTextColor: '#ffffff',
+  targetTextOpacity: 1,
+  targetBgColor: '#2962ff',
+  targetBgOpacity: 1,
+  targetBorderColor: '#2962ff',
+  targetBorderOpacity: 1,
+
+  successTextColor: '#ffffff',
+  successTextOpacity: 1,
+  successBgColor: '#4caf50',
+  successBgOpacity: 1,
+
+  failureTextColor: '#ffffff',
+  failureTextOpacity: 1,
+  failureBgColor: '#ef5350',
+  failureBgOpacity: 1
+}
+
+// ═══════════════════════════════════════
+// Computed state (not persisted)
+// ═══════════════════════════════════════
+
+export interface ForecastComputedState {
+  status: 'success' | 'failure'
+  delta: number
+  deltaPct: number
+  barCount: number
+  bullish: boolean
+}
+
+// ═══════════════════════════════════════
+// Sizing / layout constants
+// ═══════════════════════════════════════
+
+// Pill
+export const PILL_PADDING_H = 6
+export const PILL_PADDING_V = 4
+export const PILL_LINE_GAP = 2
+export const PILL_BORDER_RADIUS = 3
+export const PILL_FONT_SIZE = 11
+
+// Pill anchor gap (curve endpoint sits this many pixels away from pill edge)
+export const PILL_ANCHOR_GAP = 4
+
+// Badge
+export const BADGE_GAP = 3
+export const BADGE_PADDING_H = 6
+export const BADGE_PADDING_V = 3
+export const BADGE_FONT_SIZE = 11
+
+// Control points
+export const CP_COLOR = '#2962ff'
+export const CP_INACTIVE_RADIUS = 2.5
+export const CP_ACTIVE_RADIUS = 5.5
+export const CP_ACTIVE_BORDER = 1.5
+
+// Footer F / F* markers (on X-axis pane)
+export const FOOTER_COLOR = '#4caf50'
+export const FOOTER_Y = 8
+export const FOOTER_RADIUS = 6
+export const FOOTER_BORDER_SIZE = 1.2
+export const FOOTER_FONT_SIZE = 9
+
+// Curve hitbox
+export const CURVE_HITBOX_HALF_WIDTH = 6
+export const CURVE_SAMPLES = 30
+
+// Bézier curvature
+export const BEZIER_ARC_FACTOR = 0.3
+export const BEZIER_ARC_CAP = 120
+
+// ═══════════════════════════════════════
+// Narrow chart-store accessor (pattern from longPosition / segment)
+// ═══════════════════════════════════════
+
+export interface ChartInternal {
+  getChartStore: () => {
+    getClickOverlayInfo: () => EventOverlayInfo
+    getHoverOverlayInfo: () => EventOverlayInfo
+  }
+}
