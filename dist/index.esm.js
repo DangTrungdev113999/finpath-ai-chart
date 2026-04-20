@@ -9433,7 +9433,7 @@ var horizontalSegment = {
                     key: 'hs_xstrip',
                     type: 'rect',
                     attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10138,7 +10138,7 @@ var rayLine = {
                     key: 'ray_ystrip',
                     type: 'rect',
                     attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10169,7 +10169,7 @@ var rayLine = {
                     key: 'ray_xstrip',
                     type: 'rect',
                     attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10584,7 +10584,7 @@ var segment = {
                     key: 'seg_ystrip',
                     type: 'rect',
                     attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10615,7 +10615,7 @@ var segment = {
                     key: 'seg_xstrip',
                     type: 'rect',
                     attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10937,7 +10937,7 @@ var straightLine = {
                     key: 'sl_ystrip',
                     type: 'rect',
                     attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
@@ -10968,7 +10968,7 @@ var straightLine = {
                     key: 'sl_xstrip',
                     type: 'rect',
                     attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
-                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    styles: { style: 'fill', color: alphaColor('#2962ff', 0.1) },
                     ignoreEvent: true
                 });
             }
