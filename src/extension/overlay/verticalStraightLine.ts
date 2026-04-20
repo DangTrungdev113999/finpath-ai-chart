@@ -1,41 +1,154 @@
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * VerticalStraightLine — Đường thẳng đứng (Vertical Line)
+ *
+ * Data points: 1 (sets X position; line extends full height)
+ * Features: date label, text label, control point
  */
 
-import type { OverlayTemplate } from '../../component/Overlay'
+import type { OverlayTemplate, OverlayFigure } from '../../component/Overlay'
 
-const verticalStraightLine: OverlayTemplate = {
+import type { ChartInternal } from './lineCommon'
+import {
+  CP_COLOR,
+  CP_RADIUS,
+  CP_CIRCLE_BORDER,
+  isLightColor,
+  formatNum
+} from './lineCommon'
+
+// ═══════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════
+
+export interface VertStraightLineExtendData {
+  showLabel?: boolean
+  text?: string
+  textcolor?: string
+  fontsize?: number
+  bold?: boolean
+  italic?: boolean
+  horzLabelsAlign?: string
+  vertLabelsAlign?: string
+  alwaysShowStats?: boolean
+}
+
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+
+const verticalStraightLine: OverlayTemplate<Partial<VertStraightLineExtendData>> = {
   name: 'verticalStraightLine',
   totalStep: 2,
-  needDefaultPointFigure: true,
+  needDefaultPointFigure: false,
   needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
-  createPointFigures: ({ coordinates, bounding }) => [
-    {
+  needDefaultYAxisFigure: false,
+
+  createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
+    if (coordinates.length < 1) return []
+
+    const [c1] = coordinates
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+    const ext = overlay.extendData ?? {}
+
+    const figures: OverlayFigure[] = []
+
+    const overlayStyles = overlay.styles
+    const lineColor = overlayStyles?.line?.color ?? '#2196F3'
+
+    // ─── 1. Vertical line (full height) ───
+    figures.push({
+      key: 'vsl_line',
       type: 'line',
-      attrs: {
-        coordinates: [
-          {
-            x: coordinates[0].x,
-            y: 0
-          }, {
-            x: coordinates[0].x,
-            y: bounding.height
-          }
-        ]
-      }
+      attrs: { coordinates: [{ x: c1.x, y: 0 }, { x: c1.x, y: bounding.height }] }
+    })
+
+    // ─── 2. Selection state ───
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    const isActive = isSelected || isHovered
+
+    // ─── 3. Control point ───
+    if (isActive) {
+      const tickTextColor = chart.getStyles().yAxis.tickText.color
+      const cpBg = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff'
+
+      figures.push({
+        key: 'vsl_cp0',
+        type: 'circle',
+        attrs: { x: c1.x, y: c1.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+        styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR, borderSize: CP_CIRCLE_BORDER },
+        pointIndex: 0,
+        cursor: 'pointer'
+      })
     }
-  ]
+
+    // ─── 4. Text label (rotated 90° along vertical line) ───
+    if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+      const textColor = ext.textcolor ?? lineColor
+      const fontSize = ext.fontsize ?? 14
+      const vAlign = ext.vertLabelsAlign ?? 'top'
+      const hAlign = ext.horzLabelsAlign ?? 'center'
+
+      let ty = bounding.height / 2
+      if (hAlign === 'left') ty = bounding.height * 0.15
+      else if (hAlign === 'right') ty = bounding.height * 0.85
+
+      const lineWidth = overlayStyles?.line?.size ?? 2
+      const gap = 5
+      let offsetX = 0
+      let baseline: CanvasTextBaseline = 'middle'
+      if (vAlign === 'top') {
+        offsetX = lineWidth / 2 + gap + fontSize
+        baseline = 'bottom'
+      } else if (vAlign === 'bottom') {
+        offsetX = -(lineWidth / 2 + gap + fontSize)
+        baseline = 'top'
+      }
+
+      figures.push({
+        key: 'vsl_label',
+        type: 'text',
+        attrs: {
+          x: c1.x + offsetX,
+          y: ty,
+          text: ext.text,
+          align: 'center' as CanvasTextAlign,
+          baseline,
+          rotation: -Math.PI / 2
+        },
+        styles: {
+          color: textColor,
+          size: fontSize,
+          weight: ext.bold === true ? 'bold' : 'normal',
+          style: ext.italic === true ? 'italic' : 'normal',
+          backgroundColor: 'transparent'
+        },
+        ignoreEvent: true
+      })
+    }
+
+    // ─── 5. Stats (distance from visible left edge) ───
+    const showStats = ext.alwaysShowStats === true || isActive
+    if (showStats) {
+      figures.push({
+        key: 'vsl_stats',
+        type: 'text',
+        attrs: {
+          x: c1.x + 6,
+          y: 12,
+          text: `X: ${formatNum(c1.x, 0)}px`,
+          align: 'left' as CanvasTextAlign,
+          baseline: 'top' as CanvasTextBaseline
+        },
+        styles: { color: lineColor, size: 10, weight: 'normal', backgroundColor: 'transparent' },
+        ignoreEvent: true
+      })
+    }
+
+    return figures
+  }
 }
 
 export default verticalStraightLine

@@ -10573,39 +10573,149 @@ var straightLine = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * VerticalRayLine — Tia thẳng đứng (Vertical Ray)
+ *
+ * Data points: 2 (P1 = anchor, P2 = direction up/down; same X)
+ * Geometry: extends from P1 toward P2 to bounding edge
+ * Features: arrow at tip, text label, control points
  */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var verticalRayLine = {
     name: 'verticalRayLine',
     totalStep: 3,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        if (coordinates.length === 2) {
-            var coordinate = { x: coordinates[0].x, y: 0 };
-            if (coordinates[0].y < coordinates[1].y) {
-                coordinate.y = bounding.height;
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _q = __read(coordinates, 2), c1 = _q[0], c2 = _q[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_d = (_c = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        // ─── 1. Compute ray tip (vertical: same X, extends up or down) ───
+        var tipY = c1.y < c2.y ? bounding.height : 0;
+        var rayTip = { x: c1.x, y: tipY };
+        // ─── 2. Main line ───
+        figures.push({
+            key: 'vrl_line',
+            type: 'line',
+            attrs: { coordinates: [c1, rayTip] }
+        });
+        // ─── 3. Arrow at tip ───
+        var rightEnd = (_e = ext.rightEnd) !== null && _e !== void 0 ? _e : 1;
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates(c1, rayTip);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'vrl_arrow',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
             }
-            return [
-                {
-                    type: 'line',
-                    attrs: { coordinates: [coordinates[0], coordinate] }
-                }
-            ];
         }
-        return [];
+        // ─── 4. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_f = chartStore.getClickOverlayInfo().overlay) === null || _f === void 0 ? void 0 : _f.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_g = hoverInfo.overlay) === null || _g === void 0 ? void 0 : _g.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 5. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'vrl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'vrl_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 6. Text label (rotated along vertical) ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_h = ext.textcolor) !== null && _h !== void 0 ? _h : lineColor;
+            var fontSize = (_j = ext.fontsize) !== null && _j !== void 0 ? _j : 14;
+            var hAlign = (_k = ext.horzLabelsAlign) !== null && _k !== void 0 ? _k : 'center';
+            var vAlign = (_l = ext.vertLabelsAlign) !== null && _l !== void 0 ? _l : 'top';
+            var rayLen = Math.abs(rayTip.y - c1.y);
+            var topY = Math.min(c1.y, rayTip.y);
+            var ty = topY + rayLen * 0.5;
+            if (hAlign === 'left')
+                ty = topY + rayLen * 0.15;
+            else if (hAlign === 'right')
+                ty = topY + rayLen * 0.85;
+            var lineWidth = (_o = (_m = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _m === void 0 ? void 0 : _m.size) !== null && _o !== void 0 ? _o : 2;
+            var gap = 5;
+            var offsetX = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetX = lineWidth / 2 + gap + fontSize;
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetX = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'vrl_label',
+                type: 'text',
+                attrs: {
+                    x: c1.x + offsetX,
+                    y: ty,
+                    text: ext.text,
+                    align: 'center',
+                    baseline: baseline,
+                    rotation: -Math.PI / 2
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 7. Stats ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        if (showStats && ext.showBarsRange === true) {
+            var statsText = "".concat(formatNum(Math.abs(rayTip.y - c1.y), 0), "px");
+            var statsPos = (_p = ext.statsPosition) !== null && _p !== void 0 ? _p : 2;
+            var sx = c1.x + 8;
+            var sy = (c1.y + rayTip.y) / 2;
+            var sAlign = 'left';
+            if (statsPos === 0) {
+                sx = c1.x - 8;
+                sAlign = 'right';
+            }
+            figures.push({
+                key: 'vrl_stats',
+                type: 'text',
+                attrs: { x: sx, y: sy, text: statsText, align: sAlign, baseline: 'middle' },
+                styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                ignoreEvent: true
+            });
+        }
+        return figures;
     },
     performEventPressedMove: function (_a) {
         var points = _a.points, performPoint = _a.performPoint;
@@ -10624,42 +10734,213 @@ var verticalRayLine = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * VerticalSegment — Đoạn thẳng đứng (Vertical Segment)
+ *
+ * Data points: 2 (P1 and P2, same X, finite vertical span)
+ * Features: arrows at ends, text label, control points, stats
  */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var verticalSegment = {
     name: 'verticalSegment',
     totalStep: 3,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
-        var coordinates = _a.coordinates;
-        if (coordinates.length === 2) {
-            return [
-                {
-                    type: 'line',
-                    attrs: { coordinates: coordinates }
-                }
-            ];
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _r = __read(coordinates, 2), c1 = _r[0], c2 = _r[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_d = (_c = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        // Lock both points to same X (P1.x is authoritative)
+        var topPt = c1.y <= c2.y ? c1 : c2;
+        var botPt = c1.y <= c2.y ? c2 : c1;
+        // ─── 1. Main line ───
+        figures.push({
+            key: 'vs_line',
+            type: 'line',
+            attrs: { coordinates: [{ x: c1.x, y: topPt.y }, { x: c1.x, y: botPt.y }] }
+        });
+        // ─── 2. Arrow endpoints ───
+        var leftEnd = (_e = ext.leftEnd) !== null && _e !== void 0 ? _e : 0;
+        var rightEnd = (_f = ext.rightEnd) !== null && _f !== void 0 ? _f : 0;
+        if (leftEnd === 1) {
+            var arrowCoords = getArrowCoordinates({ x: c1.x, y: botPt.y }, { x: c1.x, y: topPt.y });
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'vs_arrow_top',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
         }
-        return [];
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates({ x: c1.x, y: topPt.y }, { x: c1.x, y: botPt.y });
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'vs_arrow_bot',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 3. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_g = chartStore.getClickOverlayInfo().overlay) === null || _g === void 0 ? void 0 : _g.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_h = hoverInfo.overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 4. Middle point ───
+        if (ext.showMiddlePoint === true && isActive) {
+            var midY = (c1.y + c2.y) / 2;
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'vs_mid',
+                type: 'circle',
+                attrs: { x: c1.x, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'move'
+            });
+        }
+        // ─── 5. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'vs_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'vs_cp1',
+                type: 'circle',
+                attrs: { x: c1.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 6. Text label (rotated along vertical) ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_j = ext.textcolor) !== null && _j !== void 0 ? _j : lineColor;
+            var fontSize = (_k = ext.fontsize) !== null && _k !== void 0 ? _k : 14;
+            var hAlign = (_l = ext.horzLabelsAlign) !== null && _l !== void 0 ? _l : 'center';
+            var vAlign = (_m = ext.vertLabelsAlign) !== null && _m !== void 0 ? _m : 'top';
+            var spanH = Math.abs(c2.y - c1.y);
+            var topY = Math.min(c1.y, c2.y);
+            var ty = topY + spanH * 0.5;
+            if (hAlign === 'left')
+                ty = topY + spanH * 0.15;
+            else if (hAlign === 'right')
+                ty = topY + spanH * 0.85;
+            var lineWidth = (_p = (_o = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _o === void 0 ? void 0 : _o.size) !== null && _p !== void 0 ? _p : 2;
+            var gap = 5;
+            var offsetX = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetX = lineWidth / 2 + gap + fontSize;
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetX = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'vs_label',
+                type: 'text',
+                attrs: {
+                    x: c1.x + offsetX,
+                    y: ty,
+                    text: ext.text,
+                    align: 'center',
+                    baseline: baseline,
+                    rotation: -Math.PI / 2
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 7. Stats ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = ext.showBarsRange === true || ext.showDistance === true;
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                statLines.push("".concat(Math.abs(p2Index - p1Index), " bars"));
+            }
+            if (ext.showDistance === true) {
+                statLines.push("Dist: ".concat(formatNum(Math.abs(c2.y - c1.y), 1), "px"));
+            }
+            if (statLines.length > 0) {
+                var statsPos = (_q = ext.statsPosition) !== null && _q !== void 0 ? _q : 2;
+                var midY = (c1.y + c2.y) / 2;
+                var sx = c1.x + 8;
+                var sy = midY;
+                var sAlign = 'left';
+                if (statsPos === 0) {
+                    sx = c1.x - 8;
+                    sAlign = 'right';
+                }
+                else if (statsPos === 1) {
+                    sy = Math.min(c1.y, c2.y) - 8;
+                }
+                else if (statsPos === 3) {
+                    sy = Math.max(c1.y, c2.y) + 8;
+                }
+                figures.push({
+                    key: 'vs_stats',
+                    type: 'text',
+                    attrs: { x: sx, y: sy, text: statLines.join('  '), align: sAlign, baseline: 'middle' },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
     },
     performEventPressedMove: function (_a) {
-        var points = _a.points, performPoint = _a.performPoint;
-        points[0].timestamp = performPoint.timestamp;
-        points[0].dataIndex = performPoint.dataIndex;
-        points[1].timestamp = performPoint.timestamp;
-        points[1].dataIndex = performPoint.dataIndex;
+        var _b;
+        var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey, performPoint = _a.performPoint;
+        if (figureKey === 'vs_mid' && prevPoints.length >= 2) {
+            if (prevPoints[0].dataIndex != null && prevPoints[1].dataIndex != null) {
+                var midOrigIndex = Math.round((prevPoints[0].dataIndex + prevPoints[1].dataIndex) / 2);
+                var newIndex = (_b = points[0].dataIndex) !== null && _b !== void 0 ? _b : midOrigIndex;
+                var delta = newIndex - midOrigIndex;
+                points[0] = __assign(__assign({}, prevPoints[0]), { dataIndex: prevPoints[0].dataIndex + delta, timestamp: undefined });
+                points[1] = __assign(__assign({}, prevPoints[1]), { dataIndex: prevPoints[1].dataIndex + delta, timestamp: undefined });
+            }
+        }
+        else {
+            points[0].timestamp = performPoint.timestamp;
+            points[0].dataIndex = performPoint.dataIndex;
+            points[1].timestamp = performPoint.timestamp;
+            points[1].dataIndex = performPoint.dataIndex;
+        }
     },
     performEventMoveForDrawing: function (_a) {
         var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
@@ -10671,42 +10952,118 @@ var verticalSegment = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * VerticalStraightLine — Đường thẳng đứng (Vertical Line)
+ *
+ * Data points: 1 (sets X position; line extends full height)
+ * Features: date label, text label, control point
  */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var verticalStraightLine = {
     name: 'verticalStraightLine',
     totalStep: 2,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        return [
-            {
-                type: 'line',
-                attrs: {
-                    coordinates: [
-                        {
-                            x: coordinates[0].x,
-                            y: 0
-                        }, {
-                            x: coordinates[0].x,
-                            y: bounding.height
-                        }
-                    ]
-                }
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 1)
+            return [];
+        var _o = __read(coordinates, 1), c1 = _o[0];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_d = (_c = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        // ─── 1. Vertical line (full height) ───
+        figures.push({
+            key: 'vsl_line',
+            type: 'line',
+            attrs: { coordinates: [{ x: c1.x, y: 0 }, { x: c1.x, y: bounding.height }] }
+        });
+        // ─── 2. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_e = chartStore.getClickOverlayInfo().overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_f = hoverInfo.overlay) === null || _f === void 0 ? void 0 : _f.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 3. Control point ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'vsl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 4. Text label (rotated 90° along vertical line) ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_g = ext.textcolor) !== null && _g !== void 0 ? _g : lineColor;
+            var fontSize = (_h = ext.fontsize) !== null && _h !== void 0 ? _h : 14;
+            var vAlign = (_j = ext.vertLabelsAlign) !== null && _j !== void 0 ? _j : 'top';
+            var hAlign = (_k = ext.horzLabelsAlign) !== null && _k !== void 0 ? _k : 'center';
+            var ty = bounding.height / 2;
+            if (hAlign === 'left')
+                ty = bounding.height * 0.15;
+            else if (hAlign === 'right')
+                ty = bounding.height * 0.85;
+            var lineWidth = (_m = (_l = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _l === void 0 ? void 0 : _l.size) !== null && _m !== void 0 ? _m : 2;
+            var gap = 5;
+            var offsetX = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetX = lineWidth / 2 + gap + fontSize;
+                baseline = 'bottom';
             }
-        ];
+            else if (vAlign === 'bottom') {
+                offsetX = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'vsl_label',
+                type: 'text',
+                attrs: {
+                    x: c1.x + offsetX,
+                    y: ty,
+                    text: ext.text,
+                    align: 'center',
+                    baseline: baseline,
+                    rotation: -Math.PI / 2
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 5. Stats (distance from visible left edge) ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        if (showStats) {
+            figures.push({
+                key: 'vsl_stats',
+                type: 'text',
+                attrs: {
+                    x: c1.x + 6,
+                    y: 12,
+                    text: "X: ".concat(formatNum(c1.x, 0), "px"),
+                    align: 'left',
+                    baseline: 'top'
+                },
+                styles: { color: lineColor, size: 10, weight: 'normal', backgroundColor: 'transparent' },
+                ignoreEvent: true
+            });
+        }
+        return figures;
     }
 };
 
