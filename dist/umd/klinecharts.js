@@ -8522,134 +8522,6 @@ var fibonacciLine = {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var horizontalRayLine = {
-    name: 'horizontalRayLine',
-    totalStep: 3,
-    needDefaultPointFigure: true,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
-    createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        var coordinate = { x: 0, y: coordinates[0].y };
-        if (isValid(coordinates[1]) && coordinates[0].x < coordinates[1].x) {
-            coordinate.x = bounding.width;
-        }
-        return [
-            {
-                type: 'line',
-                attrs: { coordinates: [coordinates[0], coordinate] }
-            }
-        ];
-    },
-    performEventPressedMove: function (_a) {
-        var points = _a.points, performPoint = _a.performPoint;
-        points[0].value = performPoint.value;
-        points[1].value = performPoint.value;
-    },
-    performEventMoveForDrawing: function (_a) {
-        var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
-        if (currentStep === 2) {
-            points[0].value = performPoint.value;
-        }
-    }
-};
-
-/**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var horizontalSegment = {
-    name: 'horizontalSegment',
-    totalStep: 3,
-    needDefaultPointFigure: true,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
-    createPointFigures: function (_a) {
-        var coordinates = _a.coordinates;
-        var lines = [];
-        if (coordinates.length === 2) {
-            lines.push({ coordinates: coordinates });
-        }
-        return [
-            {
-                type: 'line',
-                attrs: lines
-            }
-        ];
-    },
-    performEventPressedMove: function (_a) {
-        var points = _a.points, performPoint = _a.performPoint;
-        points[0].value = performPoint.value;
-        points[1].value = performPoint.value;
-    },
-    performEventMoveForDrawing: function (_a) {
-        var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
-        if (currentStep === 2) {
-            points[0].value = performPoint.value;
-        }
-    }
-};
-
-/**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var horizontalStraightLine = {
-    name: 'horizontalStraightLine',
-    totalStep: 2,
-    needDefaultPointFigure: true,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
-    createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        return [{
-                type: 'line',
-                attrs: {
-                    coordinates: [
-                        {
-                            x: 0,
-                            y: coordinates[0].y
-                        }, {
-                            x: bounding.width,
-                            y: coordinates[0].y
-                        }
-                    ]
-                }
-            }];
-    }
-};
-
-/**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 var Eventful = /** @class */ (function () {
     function Eventful() {
         this._children = [];
@@ -8931,6 +8803,681 @@ var line = {
 };
 
 /**
+ * Shared helpers and constants for line-family overlays.
+ *
+ * Used by:
+ *   - segment (Duong Xu huong, reference)
+ *   - rayLine (Tia)
+ *   - straightLine (Duong Mo rong)
+ *   - priceLine (Duong Gia)
+ *   - horizontalStraightLine / horizontalRayLine / horizontalSegment
+ *   - verticalStraightLine / verticalRayLine / verticalSegment
+ *   - infoLine (surface-side Duong Thong tin)
+ *   - trendAngle (surface-side Goc Xu huong)
+ *   - crossLine (surface-side Duong giao nhau)
+ */
+// ===========================================
+// CONTROL POINT CONSTANTS
+// ===========================================
+var CP_COLOR$2 = '#1592E6';
+var CP_RADIUS$1 = 5;
+var CP_CIRCLE_BORDER$1 = 1.5;
+// ===========================================
+// ARROW CONSTANTS
+// ===========================================
+var ARROW_LENGTH$1 = 14;
+var ARROW_WIDTH = 6;
+// ===========================================
+// HELPERS
+// ===========================================
+/**
+ * Luminance check for adaptive CP background (dark vs light theme).
+ */
+function isLightColor$6(hex) {
+    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
+    if (match == null)
+        return false;
+    var r = parseInt(match[1], 16);
+    var g = parseInt(match[2], 16);
+    var b = parseInt(match[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+/**
+ * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
+ * Returns 3 points forming a closed triangle, or [] if from === tip.
+ */
+function getArrowCoordinates(from, tip) {
+    var dx = tip.x - from.x;
+    var dy = tip.y - from.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0)
+        return [];
+    var ux = dx / len;
+    var uy = dy / len;
+    var px = -uy;
+    var py = ux;
+    var bx = tip.x - ux * ARROW_LENGTH$1;
+    var by = tip.y - uy * ARROW_LENGTH$1;
+    return [
+        { x: tip.x, y: tip.y },
+        { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
+        { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
+    ];
+}
+/**
+ * Extend a line segment from c1 to c2 to bounding edges.
+ * Handles both the vertical (c1.x === c2.x) and general cases.
+ */
+function getExtendedCoordinates(c1, c2, boundingWidth, boundingHeight, extendLeft, extendRight) {
+    var start = { x: c1.x, y: c1.y };
+    var end = { x: c2.x, y: c2.y };
+    var isVertical = c1.x === c2.x;
+    if (isVertical) {
+        if (extendLeft) {
+            start = c1.y <= c2.y
+                ? { x: c1.x, y: 0 }
+                : { x: c1.x, y: boundingHeight };
+        }
+        if (extendRight) {
+            end = c1.y <= c2.y
+                ? { x: c2.x, y: boundingHeight }
+                : { x: c2.x, y: 0 };
+        }
+        return [start, end];
+    }
+    if (extendLeft) {
+        var direction = c1.x < c2.x ? 0 : boundingWidth;
+        start = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
+        };
+    }
+    if (extendRight) {
+        var direction = c1.x < c2.x ? boundingWidth : 0;
+        end = {
+            x: direction,
+            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
+        };
+    }
+    return [start, end];
+}
+/**
+ * Format a number for display, trimming trailing zeros.
+ */
+function formatNum(val, precision) {
+    var p = precision !== null && precision !== void 0 ? precision : 2;
+    return val.toFixed(p).replace(/\.?0+$/, '');
+}
+
+/**
+ * HorizontalRayLine — Tia nằm ngang (Horizontal Ray)
+ *
+ * Data points: 2 (P1 = anchor, P2 = direction; both locked to same Y)
+ * Geometry: extends from P1 toward P2 to bounding edge
+ * Features: arrow at tip, price label, text label, control points, stats
+ */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var horizontalRayLine = {
+    name: 'horizontalRayLine',
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: true,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _s = __read(coordinates, 2), c1 = _s[0], c2 = _s[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        // ─── 1. Compute ray tip (horizontal: same Y as anchor) ───
+        var tipX = c1.x < c2.x ? bounding.width : 0;
+        var rayTip = { x: tipX, y: c1.y };
+        // ─── 2. Main line ───
+        figures.push({
+            key: 'hrl_line',
+            type: 'line',
+            attrs: { coordinates: [c1, rayTip] }
+        });
+        // ─── 3. Arrow at tip ───
+        var rightEnd = (_g = ext.rightEnd) !== null && _g !== void 0 ? _g : 1;
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates(c1, rayTip);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'hrl_arrow',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 4. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_h = chartStore.getClickOverlayInfo().overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_j = hoverInfo.overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 5. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'hrl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'hrl_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 6. Price label at anchor ───
+        if (ext.showPriceLabels === true && points.length >= 1) {
+            var p1Value = points[0].value;
+            if (p1Value != null) {
+                figures.push({
+                    key: 'hrl_price0',
+                    type: 'text',
+                    attrs: {
+                        x: c1.x,
+                        y: c1.y - 6,
+                        text: formatNum(p1Value, pricePrecision),
+                        align: 'center',
+                        baseline: 'bottom'
+                    },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 7. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_k = ext.textcolor) !== null && _k !== void 0 ? _k : lineColor;
+            var fontSize = (_l = ext.fontsize) !== null && _l !== void 0 ? _l : 14;
+            var hAlign = (_m = ext.horzLabelsAlign) !== null && _m !== void 0 ? _m : 'center';
+            var vAlign = (_o = ext.vertLabelsAlign) !== null && _o !== void 0 ? _o : 'top';
+            var midX = (c1.x + rayTip.x) / 2;
+            var tx = midX;
+            if (hAlign === 'left')
+                tx = c1.x + Math.abs(rayTip.x - c1.x) * 0.15;
+            else if (hAlign === 'right')
+                tx = c1.x + Math.abs(rayTip.x - c1.x) * 0.85;
+            var lineWidth = (_q = (_p = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _p === void 0 ? void 0 : _p.size) !== null && _q !== void 0 ? _q : 2;
+            var gap = 5;
+            var offsetY = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetY = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetY = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'hrl_label',
+                type: 'text',
+                attrs: { x: tx, y: c1.y + offsetY, text: ext.text, align: 'center', baseline: baseline },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 8. Stats ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = ext.showBarsRange === true || ext.showDistance === true;
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                statLines.push("".concat(Math.abs(p2Index - p1Index), " bars"));
+            }
+            if (ext.showDistance === true) {
+                statLines.push("Dist: ".concat(formatNum(Math.abs(rayTip.x - c1.x), 1), "px"));
+            }
+            if (statLines.length > 0) {
+                var statsPos = (_r = ext.statsPosition) !== null && _r !== void 0 ? _r : 2;
+                var midX = (c1.x + rayTip.x) / 2;
+                var sx = Math.max(c1.x, rayTip.x) + 8;
+                var sy = c1.y - 12;
+                var sAlign = 'left';
+                var sBaseline = 'bottom';
+                switch (statsPos) {
+                    case 0:
+                        sx = Math.min(c1.x, rayTip.x) - 8;
+                        sAlign = 'right';
+                        break;
+                    case 1:
+                        sx = midX;
+                        sAlign = 'center';
+                        break;
+                    case 3:
+                        sy = c1.y + 12;
+                        sBaseline = 'top';
+                        break;
+                }
+                figures.push({
+                    key: 'hrl_stats',
+                    type: 'text',
+                    attrs: { x: sx, y: sy, text: statLines.join('  '), align: sAlign, baseline: sBaseline },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var points = _a.points, performPoint = _a.performPoint;
+        points[0].value = performPoint.value;
+        points[1].value = performPoint.value;
+    },
+    performEventMoveForDrawing: function (_a) {
+        var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
+        if (currentStep === 2) {
+            points[0].value = performPoint.value;
+        }
+    }
+};
+
+/**
+ * HorizontalSegment — Đoạn nằm ngang (Horizontal Segment)
+ *
+ * Data points: 2 (both locked to same Y, defines finite horizontal span)
+ * Features: arrows at ends, price label, text label, control points, stats
+ */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var horizontalSegment = {
+    name: 'horizontalSegment',
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: true,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+        var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _t = __read(coordinates, 2), c1 = _t[0], c2 = _t[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        // Lock both endpoints to same Y (P1.y is authoritative)
+        var lineStart = { x: c1.x, y: c1.y };
+        var lineEnd = { x: c2.x, y: c1.y };
+        // ─── 1. Main line ───
+        figures.push({
+            key: 'hs_line',
+            type: 'line',
+            attrs: { coordinates: [lineStart, lineEnd] }
+        });
+        // ─── 2. Arrow endpoints ───
+        var leftEnd = (_g = ext.leftEnd) !== null && _g !== void 0 ? _g : 0;
+        var rightEnd = (_h = ext.rightEnd) !== null && _h !== void 0 ? _h : 0;
+        var _u = __read(lineStart.x <= lineEnd.x
+            ? [lineStart, lineEnd]
+            : [lineEnd, lineStart], 2), leftPt = _u[0], rightPt = _u[1];
+        if (leftEnd === 1) {
+            var arrowCoords = getArrowCoordinates(rightPt, leftPt);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'hs_arrow_left',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates(leftPt, rightPt);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'hs_arrow_right',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 3. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_j = chartStore.getClickOverlayInfo().overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_k = hoverInfo.overlay) === null || _k === void 0 ? void 0 : _k.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 4. Middle point ───
+        if (ext.showMiddlePoint === true && isActive) {
+            var midX = (c1.x + c2.x) / 2;
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'hs_mid',
+                type: 'circle',
+                attrs: { x: midX, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'move'
+            });
+        }
+        // ─── 5. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'hs_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'hs_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 6. Price labels ───
+        if (ext.showPriceLabels === true && points.length >= 1) {
+            var p1Value = points[0].value;
+            if (p1Value != null) {
+                figures.push({
+                    key: 'hs_price0',
+                    type: 'text',
+                    attrs: { x: c1.x, y: c1.y - 6, text: formatNum(p1Value, pricePrecision), align: 'center', baseline: 'bottom' },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+                figures.push({
+                    key: 'hs_price1',
+                    type: 'text',
+                    attrs: { x: c2.x, y: c1.y - 6, text: formatNum(p1Value, pricePrecision), align: 'center', baseline: 'bottom' },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 7. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_l = ext.textcolor) !== null && _l !== void 0 ? _l : lineColor;
+            var fontSize = (_m = ext.fontsize) !== null && _m !== void 0 ? _m : 14;
+            var hAlign = (_o = ext.horzLabelsAlign) !== null && _o !== void 0 ? _o : 'center';
+            var vAlign = (_p = ext.vertLabelsAlign) !== null && _p !== void 0 ? _p : 'top';
+            var totalWidth = Math.abs(c2.x - c1.x);
+            var leftX = Math.min(c1.x, c2.x);
+            var tx = leftX + totalWidth * 0.5;
+            if (hAlign === 'left')
+                tx = leftX + totalWidth * 0.15;
+            else if (hAlign === 'right')
+                tx = leftX + totalWidth * 0.85;
+            var lineWidth = (_r = (_q = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _q === void 0 ? void 0 : _q.size) !== null && _r !== void 0 ? _r : 2;
+            var gap = 5;
+            var offsetY = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetY = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetY = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'hs_label',
+                type: 'text',
+                attrs: { x: tx, y: c1.y + offsetY, text: ext.text, align: 'center', baseline: baseline },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 8. Stats ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = ext.showBarsRange === true || ext.showDistance === true;
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                statLines.push("".concat(Math.abs(p2Index - p1Index), " bars"));
+            }
+            if (ext.showDistance === true) {
+                statLines.push("Dist: ".concat(formatNum(Math.abs(c2.x - c1.x), 1), "px"));
+            }
+            if (statLines.length > 0) {
+                var statsPos = (_s = ext.statsPosition) !== null && _s !== void 0 ? _s : 2;
+                var midX = (c1.x + c2.x) / 2;
+                var sx = Math.max(c1.x, c2.x) + 8;
+                var sy = c1.y - 12;
+                var sAlign = 'left';
+                var sBaseline = 'bottom';
+                switch (statsPos) {
+                    case 0:
+                        sx = Math.min(c1.x, c2.x) - 8;
+                        sAlign = 'right';
+                        break;
+                    case 1:
+                        sx = midX;
+                        sAlign = 'center';
+                        break;
+                    case 3:
+                        sy = c1.y + 12;
+                        sBaseline = 'top';
+                        break;
+                }
+                figures.push({
+                    key: 'hs_stats',
+                    type: 'text',
+                    attrs: { x: sx, y: sy, text: statLines.join('  '), align: sAlign, baseline: sBaseline },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var _b;
+        var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey, performPoint = _a.performPoint;
+        if (figureKey === 'hs_mid' && prevPoints.length >= 2) {
+            if (prevPoints[0].dataIndex != null && prevPoints[1].dataIndex != null) {
+                var midOrigIndex = Math.round((prevPoints[0].dataIndex + prevPoints[1].dataIndex) / 2);
+                var newIndex = (_b = points[0].dataIndex) !== null && _b !== void 0 ? _b : midOrigIndex;
+                var delta = newIndex - midOrigIndex;
+                points[0] = __assign(__assign({}, prevPoints[0]), { dataIndex: prevPoints[0].dataIndex + delta, timestamp: undefined });
+                points[1] = __assign(__assign({}, prevPoints[1]), { dataIndex: prevPoints[1].dataIndex + delta, timestamp: undefined });
+            }
+        }
+        else {
+            points[0].value = performPoint.value;
+            points[1].value = performPoint.value;
+        }
+    },
+    performEventMoveForDrawing: function (_a) {
+        var currentStep = _a.currentStep, points = _a.points, performPoint = _a.performPoint;
+        if (currentStep === 2) {
+            points[0].value = performPoint.value;
+        }
+    }
+};
+
+/**
+ * HorizontalStraightLine — Đường nằm ngang (Horizontal Line)
+ *
+ * Data points: 1 (sets Y level; line extends full width)
+ * Features: price label, text label, control point, stats
+ */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var horizontalStraightLine = {
+    name: 'horizontalStraightLine',
+    totalStep: 2,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: true,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 1)
+            return [];
+        var _r = __read(coordinates, 1), c1 = _r[0];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        // ─── 1. Horizontal line (full width) ───
+        figures.push({
+            key: 'hsl_line',
+            type: 'line',
+            attrs: { coordinates: [{ x: 0, y: c1.y }, { x: bounding.width, y: c1.y }] }
+        });
+        // ─── 2. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_g = chartStore.getClickOverlayInfo().overlay) === null || _g === void 0 ? void 0 : _g.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_h = hoverInfo.overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 3. Control point ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'hsl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 4. Price label ───
+        if (ext.showPriceLabels === true && points.length >= 1) {
+            var p1Value = points[0].value;
+            if (p1Value != null) {
+                figures.push({
+                    key: 'hsl_price0',
+                    type: 'text',
+                    attrs: {
+                        x: c1.x,
+                        y: c1.y - 6,
+                        text: formatNum(p1Value, pricePrecision),
+                        align: 'left',
+                        baseline: 'bottom'
+                    },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 5. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_j = ext.textcolor) !== null && _j !== void 0 ? _j : lineColor;
+            var fontSize = (_k = ext.fontsize) !== null && _k !== void 0 ? _k : 14;
+            var hAlign = (_l = ext.horzLabelsAlign) !== null && _l !== void 0 ? _l : 'center';
+            var vAlign = (_m = ext.vertLabelsAlign) !== null && _m !== void 0 ? _m : 'top';
+            var tx = bounding.width / 2;
+            if (hAlign === 'left')
+                tx = bounding.width * 0.15;
+            else if (hAlign === 'right')
+                tx = bounding.width * 0.85;
+            var lineWidth = (_p = (_o = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _o === void 0 ? void 0 : _o.size) !== null && _p !== void 0 ? _p : 2;
+            var gap = 5;
+            var offsetY = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetY = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetY = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'hsl_label',
+                type: 'text',
+                attrs: { x: tx, y: c1.y + offsetY, text: ext.text, align: 'center', baseline: baseline },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 6. Stats ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        if (showStats && ext.showDistance === true) {
+            var statsPos = (_q = ext.statsPosition) !== null && _q !== void 0 ? _q : 2;
+            var sx = bounding.width * 0.75;
+            var sy = c1.y - 12;
+            var sAlign = 'center';
+            var sBaseline = 'bottom';
+            if (statsPos === 0) {
+                sx = 4;
+                sAlign = 'left';
+            }
+            else if (statsPos === 3) {
+                sy = c1.y + 12;
+                sBaseline = 'top';
+            }
+            figures.push({
+                key: 'hsl_stats',
+                type: 'text',
+                attrs: { x: sx, y: sy, text: "Dist: ".concat(formatNum(bounding.width, 1), "px"), align: sAlign, baseline: sBaseline },
+                styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                ignoreEvent: true
+            });
+        }
+        return figures;
+    }
+};
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -9085,113 +9632,6 @@ var priceLine = {
         ];
     }
 };
-
-/**
- * Shared helpers and constants for line-family overlays.
- *
- * Used by:
- *   - segment (Duong Xu huong, reference)
- *   - rayLine (Tia)
- *   - straightLine (Duong Mo rong)
- *   - priceLine (Duong Gia)
- *   - horizontalStraightLine / horizontalRayLine / horizontalSegment
- *   - verticalStraightLine / verticalRayLine / verticalSegment
- *   - infoLine (surface-side Duong Thong tin)
- *   - trendAngle (surface-side Goc Xu huong)
- *   - crossLine (surface-side Duong giao nhau)
- */
-// ===========================================
-// CONTROL POINT CONSTANTS
-// ===========================================
-var CP_COLOR$2 = '#1592E6';
-var CP_RADIUS$1 = 5;
-var CP_CIRCLE_BORDER$1 = 1.5;
-// ===========================================
-// ARROW CONSTANTS
-// ===========================================
-var ARROW_LENGTH$1 = 14;
-var ARROW_WIDTH = 6;
-// ===========================================
-// HELPERS
-// ===========================================
-/**
- * Luminance check for adaptive CP background (dark vs light theme).
- */
-function isLightColor$6(hex) {
-    var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
-    if (match == null)
-        return false;
-    var r = parseInt(match[1], 16);
-    var g = parseInt(match[2], 16);
-    var b = parseInt(match[3], 16);
-    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-}
-/**
- * Compute arrowhead polygon coordinates at `tip` pointing away from `from`.
- * Returns 3 points forming a closed triangle, or [] if from === tip.
- */
-function getArrowCoordinates(from, tip) {
-    var dx = tip.x - from.x;
-    var dy = tip.y - from.y;
-    var len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0)
-        return [];
-    var ux = dx / len;
-    var uy = dy / len;
-    var px = -uy;
-    var py = ux;
-    var bx = tip.x - ux * ARROW_LENGTH$1;
-    var by = tip.y - uy * ARROW_LENGTH$1;
-    return [
-        { x: tip.x, y: tip.y },
-        { x: bx + px * ARROW_WIDTH, y: by + py * ARROW_WIDTH },
-        { x: bx - px * ARROW_WIDTH, y: by - py * ARROW_WIDTH }
-    ];
-}
-/**
- * Extend a line segment from c1 to c2 to bounding edges.
- * Handles both the vertical (c1.x === c2.x) and general cases.
- */
-function getExtendedCoordinates(c1, c2, boundingWidth, boundingHeight, extendLeft, extendRight) {
-    var start = { x: c1.x, y: c1.y };
-    var end = { x: c2.x, y: c2.y };
-    var isVertical = c1.x === c2.x;
-    if (isVertical) {
-        if (extendLeft) {
-            start = c1.y <= c2.y
-                ? { x: c1.x, y: 0 }
-                : { x: c1.x, y: boundingHeight };
-        }
-        if (extendRight) {
-            end = c1.y <= c2.y
-                ? { x: c2.x, y: boundingHeight }
-                : { x: c2.x, y: 0 };
-        }
-        return [start, end];
-    }
-    if (extendLeft) {
-        var direction = c1.x < c2.x ? 0 : boundingWidth;
-        start = {
-            x: direction,
-            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c1.y })
-        };
-    }
-    if (extendRight) {
-        var direction = c1.x < c2.x ? boundingWidth : 0;
-        end = {
-            x: direction,
-            y: getLinearYFromCoordinates(c1, c2, { x: direction, y: c2.y })
-        };
-    }
-    return [start, end];
-}
-/**
- * Format a number for display, trimming trailing zeros.
- */
-function formatNum(val, precision) {
-    var p = precision !== null && precision !== void 0 ? precision : 2;
-    return val.toFixed(p).replace(/\.?0+$/, '');
-}
 
 /**
  * RayLine overlay — TradingView-style Tia (Ray)
