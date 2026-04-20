@@ -8945,6 +8945,18 @@ function buildYAxisPill(y, value, color, precision, bounding, yAxis, key) {
     };
 }
 /**
+ * Convert #rrggbb + opacity (0–1) to rgba() string.
+ */
+function alphaColor(hex, a) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (m == null)
+        return hex;
+    var r = parseInt(m[1], 16);
+    var g = parseInt(m[2], 16);
+    var b = parseInt(m[3], 16);
+    return "rgba(".concat(r, ",").concat(g, ",").concat(b, ",").concat(Math.max(0, Math.min(1, a)), ")");
+}
+/**
  * Build an X-axis date pill figure.
  */
 function buildXAxisPill(x, dateText, color, key) {
@@ -9407,11 +9419,25 @@ var horizontalSegment = {
     },
     createXAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
-        var overlay = _a.overlay, coordinates = _a.coordinates;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 1)
             return [];
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var figures = [];
+        // Strip between the two anchor X positions
+        if (coordinates.length >= 2) {
+            var stripLeft = Math.min(coordinates[0].x, coordinates[1].x);
+            var stripW = Math.abs(coordinates[1].x - coordinates[0].x);
+            if (stripW > 0) {
+                figures.push({
+                    key: 'hs_xstrip',
+                    type: 'rect',
+                    attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
         if (d0 !== '')
             figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'hs_x0'));
@@ -10103,6 +10129,20 @@ var rayLine = {
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
         var figures = [];
+        // Strip between the two anchor prices
+        if (coordinates.length >= 2) {
+            var stripTop = Math.min(coordinates[0].y, coordinates[1].y);
+            var stripH = Math.abs(coordinates[1].y - coordinates[0].y);
+            if (stripH > 0) {
+                figures.push({
+                    key: 'ray_ystrip',
+                    type: 'rect',
+                    attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'ray_y0');
         if (p1 != null)
             figures.push(p1);
@@ -10115,11 +10155,25 @@ var rayLine = {
     },
     createXAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
-        var overlay = _a.overlay, coordinates = _a.coordinates;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 1)
             return [];
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var figures = [];
+        // Strip between the two anchor X positions
+        if (coordinates.length >= 2) {
+            var stripLeft = Math.min(coordinates[0].x, coordinates[1].x);
+            var stripW = Math.abs(coordinates[1].x - coordinates[0].x);
+            if (stripW > 0) {
+                figures.push({
+                    key: 'ray_xstrip',
+                    type: 'rect',
+                    attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
         if (d0 !== '')
             figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'ray_x0'));
@@ -10521,6 +10575,20 @@ var segment = {
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
         var figures = [];
+        // Strip between the two anchor prices
+        if (coordinates.length >= 2) {
+            var stripTop = Math.min(coordinates[0].y, coordinates[1].y);
+            var stripH = Math.abs(coordinates[1].y - coordinates[0].y);
+            if (stripH > 0) {
+                figures.push({
+                    key: 'seg_ystrip',
+                    type: 'rect',
+                    attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'seg_y0');
         if (p1 != null)
             figures.push(p1);
@@ -10533,11 +10601,25 @@ var segment = {
     },
     createXAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
-        var overlay = _a.overlay, coordinates = _a.coordinates;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 1)
             return [];
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var figures = [];
+        // Strip between the two anchor X positions
+        if (coordinates.length >= 2) {
+            var stripLeft = Math.min(coordinates[0].x, coordinates[1].x);
+            var stripW = Math.abs(coordinates[1].x - coordinates[0].x);
+            if (stripW > 0) {
+                figures.push({
+                    key: 'seg_xstrip',
+                    type: 'rect',
+                    attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
         if (d0 !== '')
             figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'seg_x0'));
@@ -10846,6 +10928,20 @@ var straightLine = {
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
         var figures = [];
+        // Strip between the two anchor prices
+        if (coordinates.length >= 2) {
+            var stripTop = Math.min(coordinates[0].y, coordinates[1].y);
+            var stripH = Math.abs(coordinates[1].y - coordinates[0].y);
+            if (stripH > 0) {
+                figures.push({
+                    key: 'sl_ystrip',
+                    type: 'rect',
+                    attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'sl_y0');
         if (p1 != null)
             figures.push(p1);
@@ -10858,11 +10954,25 @@ var straightLine = {
     },
     createXAxisFigures: function (_a) {
         var _b, _c, _d, _e, _f;
-        var overlay = _a.overlay, coordinates = _a.coordinates;
+        var overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 1)
             return [];
         var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
         var figures = [];
+        // Strip between the two anchor X positions
+        if (coordinates.length >= 2) {
+            var stripLeft = Math.min(coordinates[0].x, coordinates[1].x);
+            var stripW = Math.abs(coordinates[1].x - coordinates[0].x);
+            if (stripW > 0) {
+                figures.push({
+                    key: 'sl_xstrip',
+                    type: 'rect',
+                    attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+                    styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+                    ignoreEvent: true
+                });
+            }
+        }
         var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
         if (d0 !== '')
             figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'sl_x0'));

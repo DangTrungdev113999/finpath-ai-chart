@@ -17,7 +17,8 @@ import {
   formatNum,
   buildYAxisPill,
   buildXAxisPill,
-  formatDate
+  formatDate,
+  alphaColor
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -272,10 +273,24 @@ const horizontalSegment: OverlayTemplate<Partial<HorizSegmentExtendData>> = {
     return pill != null ? [pill] : []
   },
 
-  createXAxisFigures: ({ overlay, coordinates }) => {
+  createXAxisFigures: ({ overlay, coordinates, bounding }) => {
     if (coordinates.length < 1) return []
     const lineColor = overlay.styles?.line?.color ?? '#2196F3'
     const figures: OverlayFigure[] = []
+    // Strip between the two anchor X positions
+    if (coordinates.length >= 2) {
+      const stripLeft = Math.min(coordinates[0].x, coordinates[1].x)
+      const stripW = Math.abs(coordinates[1].x - coordinates[0].x)
+      if (stripW > 0) {
+        figures.push({
+          key: 'hs_xstrip',
+          type: 'rect',
+          attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+          styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+          ignoreEvent: true
+        })
+      }
+    }
     const d0 = formatDate(overlay.points[0]?.timestamp)
     if (d0 !== '') figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'hs_x0'))
     if (coordinates.length >= 2) {

@@ -19,7 +19,8 @@ import {
   formatNum,
   buildYAxisPill,
   buildXAxisPill,
-  formatDate
+  formatDate,
+  alphaColor
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -332,6 +333,20 @@ const straightLine: OverlayTemplate<Partial<StraightLineExtendData>> = {
     const lineColor = overlay.styles?.line?.color ?? '#2196F3'
     const precision = chart.getSymbol()?.pricePrecision ?? 2
     const figures: OverlayFigure[] = []
+    // Strip between the two anchor prices
+    if (coordinates.length >= 2) {
+      const stripTop = Math.min(coordinates[0].y, coordinates[1].y)
+      const stripH = Math.abs(coordinates[1].y - coordinates[0].y)
+      if (stripH > 0) {
+        figures.push({
+          key: 'sl_ystrip',
+          type: 'rect',
+          attrs: { x: 0, y: stripTop, width: bounding.width, height: stripH },
+          styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+          ignoreEvent: true
+        })
+      }
+    }
     const p1 = buildYAxisPill(coordinates[0].y, overlay.points[0]?.value, lineColor, precision, bounding, yAxis ?? undefined, 'sl_y0')
     if (p1 != null) figures.push(p1)
     if (coordinates.length >= 2) {
@@ -341,10 +356,24 @@ const straightLine: OverlayTemplate<Partial<StraightLineExtendData>> = {
     return figures
   },
 
-  createXAxisFigures: ({ overlay, coordinates }) => {
+  createXAxisFigures: ({ overlay, coordinates, bounding }) => {
     if (coordinates.length < 1) return []
     const lineColor = overlay.styles?.line?.color ?? '#2196F3'
     const figures: OverlayFigure[] = []
+    // Strip between the two anchor X positions
+    if (coordinates.length >= 2) {
+      const stripLeft = Math.min(coordinates[0].x, coordinates[1].x)
+      const stripW = Math.abs(coordinates[1].x - coordinates[0].x)
+      if (stripW > 0) {
+        figures.push({
+          key: 'sl_xstrip',
+          type: 'rect',
+          attrs: { x: stripLeft, y: 0, width: stripW, height: bounding.height },
+          styles: { style: 'fill', color: alphaColor(lineColor, 0.1) },
+          ignoreEvent: true
+        })
+      }
+    }
     const d0 = formatDate(overlay.points[0]?.timestamp)
     if (d0 !== '') figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'sl_x0'))
     if (coordinates.length >= 2) {

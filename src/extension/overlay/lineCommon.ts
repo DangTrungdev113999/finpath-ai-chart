@@ -191,6 +191,18 @@ export function buildYAxisPill (
 }
 
 /**
+ * Convert #rrggbb + opacity (0–1) to rgba() string.
+ */
+export function alphaColor (hex: string, a: number): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (m == null) return hex
+  const r = parseInt(m[1], 16)
+  const g = parseInt(m[2], 16)
+  const b = parseInt(m[3], 16)
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`
+}
+
+/**
  * Build an X-axis date pill figure.
  */
 export function buildXAxisPill (
