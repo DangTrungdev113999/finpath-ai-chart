@@ -9087,69 +9087,6 @@ var priceLine = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-function getRayLine(coordinates, bounding) {
-    if (coordinates.length > 1) {
-        var coordinate = { x: 0, y: 0 };
-        if (coordinates[0].x === coordinates[1].x && coordinates[0].y !== coordinates[1].y) {
-            if (coordinates[0].y < coordinates[1].y) {
-                coordinate = {
-                    x: coordinates[0].x,
-                    y: bounding.height
-                };
-            }
-            else {
-                coordinate = {
-                    x: coordinates[0].x,
-                    y: 0
-                };
-            }
-        }
-        else if (coordinates[0].x > coordinates[1].x) {
-            coordinate = {
-                x: 0,
-                y: getLinearYFromCoordinates(coordinates[0], coordinates[1], { x: 0, y: coordinates[0].y })
-            };
-        }
-        else {
-            coordinate = {
-                x: bounding.width,
-                y: getLinearYFromCoordinates(coordinates[0], coordinates[1], { x: bounding.width, y: coordinates[0].y })
-            };
-        }
-        return { coordinates: [coordinates[0], coordinate] };
-    }
-    return [];
-}
-var rayLine = {
-    name: 'rayLine',
-    totalStep: 3,
-    needDefaultPointFigure: true,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
-    createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        return [
-            {
-                type: 'line',
-                attrs: getRayLine(coordinates, bounding)
-            }
-        ];
-    }
-};
-
-/**
  * Shared helpers and constants for line-family overlays.
  *
  * Used by:
@@ -9255,6 +9192,258 @@ function formatNum(val, precision) {
     var p = precision !== null && precision !== void 0 ? precision : 2;
     return val.toFixed(p).replace(/\.?0+$/, '');
 }
+
+/**
+ * RayLine overlay — TradingView-style Tia (Ray)
+ *
+ * Data points: 2 (P1 = anchor, P2 = direction)
+ * Geometry: extends from P1 toward P2 to bounding edge
+ * Features: arrow at tip, price label, text label, stats, control points
+ */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
+var rayLine = {
+    name: 'rayLine',
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: true,
+    needDefaultYAxisFigure: true,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _s = __read(coordinates, 2), c1 = _s[0], c2 = _s[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime for legacy overlays
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        // ─── 1. Compute ray tip ───
+        var rayTip = c1.x === c2.x && c1.y !== c2.y
+            ? { x: c1.x, y: c1.y < c2.y ? bounding.height : 0 }
+            : c1.x > c2.x
+                ? { x: 0, y: getLinearYFromCoordinates(c1, c2, { x: 0, y: c1.y }) }
+                : { x: bounding.width, y: getLinearYFromCoordinates(c1, c2, { x: bounding.width, y: c1.y }) };
+        // ─── 2. Main line ───
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        figures.push({
+            key: 'ray_line',
+            type: 'line',
+            attrs: { coordinates: [c1, rayTip] }
+        });
+        // ─── 3. Arrow at tip ───
+        var rightEnd = (_g = ext.rightEnd) !== null && _g !== void 0 ? _g : 1;
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates(c1, rayTip);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'ray_arrow',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 4. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_h = chartStore.getClickOverlayInfo().overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_j = hoverInfo.overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 5. Middle point ───
+        if (ext.showMiddlePoint === true) {
+            var midX = (c1.x + rayTip.x) / 2;
+            var midY = (c1.y + rayTip.y) / 2;
+            if (isActive) {
+                var tickTextColor = chart.getStyles().yAxis.tickText.color;
+                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+                figures.push({
+                    key: 'ray_mid',
+                    type: 'circle',
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                    pointIndex: 0,
+                    cursor: 'move'
+                });
+            }
+        }
+        // ─── 6. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'ray_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'ray_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 7. Price label at anchor ───
+        if (ext.showPriceLabels === true && points.length >= 1) {
+            var p1Value = points[0].value;
+            if (p1Value != null) {
+                figures.push({
+                    key: 'ray_price0',
+                    type: 'text',
+                    attrs: {
+                        x: c1.x,
+                        y: c1.y - 18,
+                        text: formatNum(p1Value, pricePrecision),
+                        align: 'center',
+                        baseline: 'bottom'
+                    },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 8. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_k = ext.textcolor) !== null && _k !== void 0 ? _k : lineColor;
+            var fontSize = (_l = ext.fontsize) !== null && _l !== void 0 ? _l : 14;
+            var hAlign = (_m = ext.horzLabelsAlign) !== null && _m !== void 0 ? _m : 'center';
+            var vAlign = (_o = ext.vertLabelsAlign) !== null && _o !== void 0 ? _o : 'top';
+            var dx = rayTip.x - c1.x;
+            var dy = rayTip.y - c1.y;
+            var angle = Math.atan2(dy, dx);
+            if (angle > Math.PI / 2)
+                angle -= Math.PI;
+            if (angle < -Math.PI / 2)
+                angle += Math.PI;
+            var t = 0.5;
+            if (hAlign === 'left')
+                t = 0.15;
+            else if (hAlign === 'right')
+                t = 0.85;
+            var anchorX = c1.x + dx * t;
+            var anchorY = c1.y + dy * t;
+            var lineWidth = (_q = (_p = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _p === void 0 ? void 0 : _p.size) !== null && _q !== void 0 ? _q : 2;
+            var gap = 5;
+            var offsetPx = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetPx = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetPx = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            var perpX = -Math.sin(angle) * offsetPx;
+            var perpY = Math.cos(angle) * offsetPx;
+            figures.push({
+                key: 'ray_label',
+                type: 'text',
+                attrs: {
+                    x: anchorX + perpX,
+                    y: anchorY + perpY,
+                    text: ext.text,
+                    align: 'center',
+                    baseline: baseline,
+                    rotation: angle
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 9. Stats display ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = (ext.showPriceRange === true ||
+            ext.showPercentPriceRange === true ||
+            ext.showBarsRange === true ||
+            ext.showDistance === true ||
+            ext.showAngle === true);
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Value = points[0].value;
+            var p2Value = points[1].value;
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showPriceRange === true && p1Value != null && p2Value != null) {
+                var diff = p2Value - p1Value;
+                statLines.push("".concat(diff >= 0 ? '+' : '').concat(formatNum(diff, pricePrecision)));
+            }
+            if (ext.showPercentPriceRange === true && p1Value != null && p2Value != null && p1Value !== 0) {
+                var pct = ((p2Value - p1Value) / Math.abs(p1Value)) * 100;
+                statLines.push("".concat(pct >= 0 ? '+' : '').concat(formatNum(pct), "%"));
+            }
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                statLines.push("".concat(Math.abs(p2Index - p1Index), " bars"));
+            }
+            if (ext.showDistance === true) {
+                var ddx = rayTip.x - c1.x;
+                var ddy = rayTip.y - c1.y;
+                statLines.push("Dist: ".concat(formatNum(Math.sqrt(ddx * ddx + ddy * ddy), 1), "px"));
+            }
+            if (ext.showAngle === true) {
+                var adx = c2.x - c1.x;
+                var ady = c2.y - c1.y;
+                statLines.push("".concat(formatNum(Math.atan2(-ady, adx) * (180 / Math.PI), 1), "\u00B0"));
+            }
+            if (statLines.length > 0) {
+                var statsText = statLines.join('  ');
+                var statsPos = (_r = ext.statsPosition) !== null && _r !== void 0 ? _r : 2;
+                var midX = (c1.x + rayTip.x) / 2;
+                var midY = (c1.y + rayTip.y) / 2;
+                var sx = Math.max(c1.x, rayTip.x) + 8;
+                var sy = midY;
+                var sAlign = 'left';
+                var sBaseline = 'middle';
+                switch (statsPos) {
+                    case 0:
+                        sx = Math.min(c1.x, rayTip.x) - 8;
+                        sy = midY;
+                        sAlign = 'right';
+                        break;
+                    case 1:
+                        sx = midX;
+                        sy = Math.min(c1.y, rayTip.y) - 12;
+                        sAlign = 'center';
+                        sBaseline = 'bottom';
+                        break;
+                    case 3:
+                        sx = midX;
+                        sy = Math.max(c1.y, rayTip.y) + 12;
+                        sAlign = 'center';
+                        sBaseline = 'top';
+                        break;
+                    default:
+                        sx = Math.max(c1.x, rayTip.x) + 8;
+                        sy = midY;
+                        break;
+                }
+                figures.push({
+                    key: 'ray_stats',
+                    type: 'text',
+                    attrs: { x: sx, y: sy, text: statsText, align: sAlign, baseline: sBaseline },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    }
+};
 
 /**
  * Segment overlay — TradingView-style trend line
@@ -9663,63 +9852,288 @@ var segment = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * StraightLine overlay — TradingView-style Đường Mở rộng (Extended Line)
+ *
+ * Data points: 2 (define direction; line extends to both bounding edges)
+ * Features: arrows at both ends, middle point, price labels, text label,
+ *           stats display, control points
  */
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var straightLine = {
     name: 'straightLine',
     totalStep: 3,
-    needDefaultPointFigure: true,
+    needDefaultPointFigure: false,
     needDefaultXAxisFigure: true,
     needDefaultYAxisFigure: true,
     createPointFigures: function (_a) {
-        var coordinates = _a.coordinates, bounding = _a.bounding;
-        if (coordinates.length === 2) {
-            if (coordinates[0].x === coordinates[1].x) {
-                return [
-                    {
-                        type: 'line',
-                        attrs: {
-                            coordinates: [
-                                {
-                                    x: coordinates[0].x,
-                                    y: 0
-                                }, {
-                                    x: coordinates[0].x,
-                                    y: bounding.height
-                                }
-                            ]
-                        }
-                    }
-                ];
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 2)
+            return [];
+        var _t = __read(coordinates, 2), c1 = _t[0], c2 = _t[1];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined at runtime for legacy overlays
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        // ─── 1. Extended line (always both directions for straightLine) ───
+        var _u = __read(getExtendedCoordinates(c1, c2, bounding.width, bounding.height, true, true), 2), lineStart = _u[0], lineEnd = _u[1];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        // ─── 2. Main line ───
+        figures.push({
+            key: 'sl_line',
+            type: 'line',
+            attrs: { coordinates: [lineStart, lineEnd] }
+        });
+        // ─── 3. Arrow endpoints ───
+        var leftEnd = (_g = ext.leftEnd) !== null && _g !== void 0 ? _g : 0;
+        var rightEnd = (_h = ext.rightEnd) !== null && _h !== void 0 ? _h : 0;
+        if (leftEnd === 1) {
+            var arrowCoords = getArrowCoordinates(c2, lineStart);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'sl_arrow_left',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
             }
-            return [
-                {
-                    type: 'line',
-                    attrs: {
-                        coordinates: [
-                            {
-                                x: 0,
-                                y: getLinearYFromCoordinates(coordinates[0], coordinates[1], { x: 0, y: coordinates[0].y })
-                            }, {
-                                x: bounding.width,
-                                y: getLinearYFromCoordinates(coordinates[0], coordinates[1], { x: bounding.width, y: coordinates[0].y })
-                            }
-                        ]
-                    }
-                }
-            ];
         }
-        return [];
+        if (rightEnd === 1) {
+            var arrowCoords = getArrowCoordinates(c1, lineEnd);
+            if (arrowCoords.length === 3) {
+                figures.push({
+                    key: 'sl_arrow_right',
+                    type: 'polygon',
+                    attrs: { coordinates: arrowCoords },
+                    styles: { style: 'fill', color: lineColor },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 4. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_j = chartStore.getClickOverlayInfo().overlay) === null || _j === void 0 ? void 0 : _j.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_k = hoverInfo.overlay) === null || _k === void 0 ? void 0 : _k.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 5. Middle point ───
+        if (ext.showMiddlePoint === true) {
+            var midX = (c1.x + c2.x) / 2;
+            var midY = (c1.y + c2.y) / 2;
+            if (isActive) {
+                var tickTextColor = chart.getStyles().yAxis.tickText.color;
+                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+                figures.push({
+                    key: 'sl_mid',
+                    type: 'circle',
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                    pointIndex: 0,
+                    cursor: 'move'
+                });
+            }
+        }
+        // ─── 6. Control points ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'sl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
+            });
+            figures.push({
+                key: 'sl_cp1',
+                type: 'circle',
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 1,
+                cursor: 'pointer'
+            });
+        }
+        // ─── 7. Price labels at anchor points ───
+        if (ext.showPriceLabels === true && points.length >= 2) {
+            var p1Value = points[0].value;
+            var p2Value = points[1].value;
+            if (p1Value != null) {
+                figures.push({
+                    key: 'sl_price0',
+                    type: 'text',
+                    attrs: { x: c1.x, y: c1.y - 18, text: formatNum(p1Value, pricePrecision), align: 'center', baseline: 'bottom' },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+            if (p2Value != null) {
+                figures.push({
+                    key: 'sl_price1',
+                    type: 'text',
+                    attrs: { x: c2.x, y: c2.y - 18, text: formatNum(p2Value, pricePrecision), align: 'center', baseline: 'bottom' },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        // ─── 8. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_l = ext.textcolor) !== null && _l !== void 0 ? _l : lineColor;
+            var fontSize = (_m = ext.fontsize) !== null && _m !== void 0 ? _m : 14;
+            var hAlign = (_o = ext.horzLabelsAlign) !== null && _o !== void 0 ? _o : 'center';
+            var vAlign = (_p = ext.vertLabelsAlign) !== null && _p !== void 0 ? _p : 'top';
+            var dx = c2.x - c1.x;
+            var dy = c2.y - c1.y;
+            var angle = Math.atan2(dy, dx);
+            if (angle > Math.PI / 2)
+                angle -= Math.PI;
+            if (angle < -Math.PI / 2)
+                angle += Math.PI;
+            var t = 0.5;
+            if (hAlign === 'left')
+                t = 0.15;
+            else if (hAlign === 'right')
+                t = 0.85;
+            var lineDx = lineEnd.x - lineStart.x;
+            var lineDy = lineEnd.y - lineStart.y;
+            var anchorX = lineStart.x + lineDx * t;
+            var anchorY = lineStart.y + lineDy * t;
+            var lineWidth = (_r = (_q = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _q === void 0 ? void 0 : _q.size) !== null && _r !== void 0 ? _r : 2;
+            var gap = 5;
+            var offsetPx = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetPx = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetPx = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            var perpX = -Math.sin(angle) * offsetPx;
+            var perpY = Math.cos(angle) * offsetPx;
+            figures.push({
+                key: 'sl_label',
+                type: 'text',
+                attrs: {
+                    x: anchorX + perpX,
+                    y: anchorY + perpY,
+                    text: ext.text,
+                    align: 'center',
+                    baseline: baseline,
+                    rotation: angle
+                },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── 9. Stats display ───
+        var showStats = ext.alwaysShowStats === true || isActive;
+        var hasAnyStats = (ext.showPriceRange === true ||
+            ext.showPercentPriceRange === true ||
+            ext.showBarsRange === true ||
+            ext.showDistance === true ||
+            ext.showAngle === true);
+        if (showStats && hasAnyStats && points.length >= 2) {
+            var p1Value = points[0].value;
+            var p2Value = points[1].value;
+            var p1Index = points[0].dataIndex;
+            var p2Index = points[1].dataIndex;
+            var statLines = [];
+            if (ext.showPriceRange === true && p1Value != null && p2Value != null) {
+                var diff = p2Value - p1Value;
+                statLines.push("".concat(diff >= 0 ? '+' : '').concat(formatNum(diff, pricePrecision)));
+            }
+            if (ext.showPercentPriceRange === true && p1Value != null && p2Value != null && p1Value !== 0) {
+                var pct = ((p2Value - p1Value) / Math.abs(p1Value)) * 100;
+                statLines.push("".concat(pct >= 0 ? '+' : '').concat(formatNum(pct), "%"));
+            }
+            if (ext.showBarsRange === true && p1Index != null && p2Index != null) {
+                statLines.push("".concat(Math.abs(p2Index - p1Index), " bars"));
+            }
+            if (ext.showDistance === true) {
+                var ddx = lineEnd.x - lineStart.x;
+                var ddy = lineEnd.y - lineStart.y;
+                statLines.push("Dist: ".concat(formatNum(Math.sqrt(ddx * ddx + ddy * ddy), 1), "px"));
+            }
+            if (ext.showAngle === true) {
+                var adx = c2.x - c1.x;
+                var ady = c2.y - c1.y;
+                statLines.push("".concat(formatNum(Math.atan2(-ady, adx) * (180 / Math.PI), 1), "\u00B0"));
+            }
+            if (statLines.length > 0) {
+                var statsText = statLines.join('  ');
+                var statsPos = (_s = ext.statsPosition) !== null && _s !== void 0 ? _s : 2;
+                var midX = (lineStart.x + lineEnd.x) / 2;
+                var midY = (lineStart.y + lineEnd.y) / 2;
+                var sx = Math.max(lineStart.x, lineEnd.x) + 8;
+                var sy = midY;
+                var sAlign = 'left';
+                var sBaseline = 'middle';
+                switch (statsPos) {
+                    case 0:
+                        sx = Math.min(lineStart.x, lineEnd.x) - 8;
+                        sy = midY;
+                        sAlign = 'right';
+                        break;
+                    case 1:
+                        sx = midX;
+                        sy = Math.min(lineStart.y, lineEnd.y) - 12;
+                        sAlign = 'center';
+                        sBaseline = 'bottom';
+                        break;
+                    case 3:
+                        sx = midX;
+                        sy = Math.max(lineStart.y, lineEnd.y) + 12;
+                        sAlign = 'center';
+                        sBaseline = 'top';
+                        break;
+                    default:
+                        sx = Math.max(lineStart.x, lineEnd.x) + 8;
+                        sy = midY;
+                        break;
+                }
+                figures.push({
+                    key: 'sl_stats',
+                    type: 'text',
+                    attrs: { x: sx, y: sy, text: statsText, align: sAlign, baseline: sBaseline },
+                    styles: { color: lineColor, size: 11, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
+            }
+        }
+        return figures;
+    },
+    performEventPressedMove: function (_a) {
+        var _b, _c;
+        var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey;
+        if (figureKey == null || figureKey === '' || prevPoints.length < 2)
+            return;
+        if (figureKey === 'sl_mid') {
+            if (prevPoints[0].dataIndex != null && prevPoints[1].dataIndex != null &&
+                prevPoints[0].value != null && prevPoints[1].value != null) {
+                var midOrigIndex = Math.round((prevPoints[0].dataIndex + prevPoints[1].dataIndex) / 2);
+                var midOrigValue = (prevPoints[0].value + prevPoints[1].value) / 2;
+                var newIndex = (_b = points[0].dataIndex) !== null && _b !== void 0 ? _b : midOrigIndex;
+                var newValue = (_c = points[0].value) !== null && _c !== void 0 ? _c : midOrigValue;
+                var dxFromMid = newIndex - midOrigIndex;
+                var dyFromMid = newValue - midOrigValue;
+                points[0] = __assign(__assign({}, prevPoints[0]), { dataIndex: prevPoints[0].dataIndex + dxFromMid, value: prevPoints[0].value + dyFromMid, timestamp: undefined });
+                points[1] = __assign(__assign({}, prevPoints[1]), { dataIndex: prevPoints[1].dataIndex + dxFromMid, value: prevPoints[1].value + dyFromMid, timestamp: undefined });
+            }
+        }
     }
 };
 
