@@ -13,7 +13,9 @@ import {
   CP_RADIUS,
   CP_CIRCLE_BORDER,
   isLightColor,
-  formatNum
+  formatNum,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -40,7 +42,7 @@ const verticalStraightLine: OverlayTemplate<Partial<VertStraightLineExtendData>>
   name: 'verticalStraightLine',
   totalStep: 2,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
+  needDefaultXAxisFigure: false,
   needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
@@ -148,6 +150,14 @@ const verticalStraightLine: OverlayTemplate<Partial<VertStraightLineExtendData>>
     }
 
     return figures
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 === '') return []
+    return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'vsl_x0')]
   }
 }
 

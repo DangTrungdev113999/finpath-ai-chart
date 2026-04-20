@@ -14,7 +14,10 @@ import {
   CP_CIRCLE_BORDER,
   isLightColor,
   getArrowCoordinates,
-  formatNum
+  formatNum,
+  buildYAxisPill,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -48,8 +51,8 @@ const horizontalSegment: OverlayTemplate<Partial<HorizSegmentExtendData>> = {
   name: 'horizontalSegment',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
+  needDefaultXAxisFigure: false,
+  needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, overlay }) => {
     if (coordinates.length < 2) return []
@@ -257,6 +260,28 @@ const horizontalSegment: OverlayTemplate<Partial<HorizSegmentExtendData>> = {
       }
     }
 
+    return figures
+  },
+
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+    const value = overlay.points[0]?.value
+    const pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis ?? undefined, 'hs_y0')
+    return pill != null ? [pill] : []
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const figures: OverlayFigure[] = []
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 !== '') figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'hs_x0'))
+    if (coordinates.length >= 2) {
+      const d1 = formatDate(overlay.points[1]?.timestamp)
+      if (d1 !== '') figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'hs_x1'))
+    }
     return figures
   },
 

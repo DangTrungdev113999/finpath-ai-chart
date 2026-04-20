@@ -15,7 +15,10 @@ import {
   CP_CIRCLE_BORDER,
   isLightColor,
   getArrowCoordinates,
-  formatNum
+  formatNum,
+  buildYAxisPill,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 import { getLinearYFromCoordinates } from '../figure/line'
 
@@ -60,8 +63,8 @@ const rayLine: OverlayTemplate<Partial<RayLineExtendData>> = {
   name: 'rayLine',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
+  needDefaultXAxisFigure: false,
+  needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
     if (coordinates.length < 2) return []
@@ -300,6 +303,33 @@ const rayLine: OverlayTemplate<Partial<RayLineExtendData>> = {
       }
     }
 
+    return figures
+  },
+
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+    const figures: OverlayFigure[] = []
+    const p1 = buildYAxisPill(coordinates[0].y, overlay.points[0]?.value, lineColor, precision, bounding, yAxis ?? undefined, 'ray_y0')
+    if (p1 != null) figures.push(p1)
+    if (coordinates.length >= 2) {
+      const p2 = buildYAxisPill(coordinates[1].y, overlay.points[1]?.value, lineColor, precision, bounding, yAxis ?? undefined, 'ray_y1')
+      if (p2 != null) figures.push(p2)
+    }
+    return figures
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const figures: OverlayFigure[] = []
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 !== '') figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'ray_x0'))
+    if (coordinates.length >= 2) {
+      const d1 = formatDate(overlay.points[1]?.timestamp)
+      if (d1 !== '') figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'ray_x1'))
+    }
     return figures
   }
 }

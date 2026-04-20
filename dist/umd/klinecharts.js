@@ -8908,6 +8908,68 @@ function formatNum(val, precision) {
     var p = precision !== null && precision !== void 0 ? precision : 2;
     return val.toFixed(p).replace(/\.?0+$/, '');
 }
+/**
+ * Format a timestamp as YYYY-MM-DD, returns '' if undefined.
+ */
+function formatDate(timestamp) {
+    if (timestamp == null)
+        return '';
+    var d = new Date(timestamp);
+    var year = d.getFullYear();
+    var month = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return "".concat(year, "-").concat(month, "-").concat(day);
+}
+/**
+ * Build a Y-axis pill figure (colored background, white text).
+ * Returns null if value is null/undefined.
+ */
+function buildYAxisPill(y, value, color, precision, bounding, yAxis, key) {
+    var _a;
+    if (value == null)
+        return null;
+    var isFromZero = (_a = yAxis === null || yAxis === void 0 ? void 0 : yAxis.isFromZero()) !== null && _a !== void 0 ? _a : false;
+    var textAlign = isFromZero ? 'left' : 'right';
+    var x = isFromZero ? 0 : bounding.width;
+    var text = formatPrecision$1(value, precision);
+    return {
+        key: key,
+        type: 'text',
+        attrs: { x: x, y: y, text: text, align: textAlign, baseline: 'middle' },
+        styles: {
+            color: '#ffffff',
+            size: 11,
+            backgroundColor: color,
+            paddingLeft: 4,
+            paddingRight: 4,
+            paddingTop: 2,
+            paddingBottom: 2,
+            borderRadius: 2
+        },
+        ignoreEvent: true
+    };
+}
+/**
+ * Build an X-axis date pill figure.
+ */
+function buildXAxisPill(x, dateText, color, key) {
+    return {
+        key: key,
+        type: 'text',
+        attrs: { x: x, y: 0, text: dateText, align: 'center', baseline: 'top' },
+        styles: {
+            color: '#ffffff',
+            size: 11,
+            backgroundColor: color,
+            paddingLeft: 6,
+            paddingRight: 6,
+            paddingTop: 3,
+            paddingBottom: 3,
+            borderRadius: 3
+        },
+        ignoreEvent: true
+    };
+}
 
 /**
  * HorizontalRayLine — Tia nằm ngang (Horizontal Ray)
@@ -8923,8 +8985,8 @@ var horizontalRayLine = {
     name: 'horizontalRayLine',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -9090,6 +9152,28 @@ var horizontalRayLine = {
         }
         return figures;
     },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var value = (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value;
+        var pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'hrl_y0');
+        return pill != null ? [pill] : [];
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 === '')
+            return [];
+        return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'hrl_x0')];
+    },
     performEventPressedMove: function (_a) {
         var points = _a.points, performPoint = _a.performPoint;
         points[0].value = performPoint.value;
@@ -9116,8 +9200,8 @@ var horizontalSegment = {
     name: 'horizontalSegment',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
@@ -9315,6 +9399,34 @@ var horizontalSegment = {
         }
         return figures;
     },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var value = (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value;
+        var pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'hs_y0');
+        return pill != null ? [pill] : [];
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var figures = [];
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 !== '')
+            figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'hs_x0'));
+        if (coordinates.length >= 2) {
+            var d1 = formatDate((_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.timestamp);
+            if (d1 !== '')
+                figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'hs_x1'));
+        }
+        return figures;
+    },
     performEventPressedMove: function (_a) {
         var _b;
         var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey, performPoint = _a.performPoint;
@@ -9353,8 +9465,8 @@ var horizontalStraightLine = {
     name: 'horizontalStraightLine',
     totalStep: 2,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -9474,6 +9586,17 @@ var horizontalStraightLine = {
             });
         }
         return figures;
+    },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var value = (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value;
+        var pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'hsl_y0');
+        return pill != null ? [pill] : [];
     }
 };
 
@@ -9601,7 +9724,7 @@ var priceLine = {
     totalStep: 2,
     needDefaultPointFigure: false,
     needDefaultXAxisFigure: false,
-    needDefaultYAxisFigure: true,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -9713,6 +9836,17 @@ var priceLine = {
             });
         }
         return figures;
+    },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var value = (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value;
+        var pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'pl_y0');
+        return pill != null ? [pill] : [];
     }
 };
 
@@ -9730,8 +9864,8 @@ var rayLine = {
     name: 'rayLine',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -9965,6 +10099,41 @@ var rayLine = {
             }
         }
         return figures;
+    },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var figures = [];
+        var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'ray_y0');
+        if (p1 != null)
+            figures.push(p1);
+        if (coordinates.length >= 2) {
+            var p2 = buildYAxisPill(coordinates[1].y, (_h = overlay.points[1]) === null || _h === void 0 ? void 0 : _h.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'ray_y1');
+            if (p2 != null)
+                figures.push(p2);
+        }
+        return figures;
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var figures = [];
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 !== '')
+            figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'ray_x0'));
+        if (coordinates.length >= 2) {
+            var d1 = formatDate((_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.timestamp);
+            if (d1 !== '')
+                figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'ray_x1'));
+        }
+        return figures;
     }
 };
 
@@ -9988,8 +10157,8 @@ var segment = {
     name: 'segment',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -10349,6 +10518,41 @@ var segment = {
         }
         return figures;
     },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var figures = [];
+        var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'seg_y0');
+        if (p1 != null)
+            figures.push(p1);
+        if (coordinates.length >= 2) {
+            var p2 = buildYAxisPill(coordinates[1].y, (_h = overlay.points[1]) === null || _h === void 0 ? void 0 : _h.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'seg_y1');
+            if (p2 != null)
+                figures.push(p2);
+        }
+        return figures;
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var figures = [];
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 !== '')
+            figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'seg_x0'));
+        if (coordinates.length >= 2) {
+            var d1 = formatDate((_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.timestamp);
+            if (d1 !== '')
+                figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'seg_x1'));
+        }
+        return figures;
+    },
     performEventPressedMove: function (_a) {
         var _b, _c;
         var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey;
@@ -10388,8 +10592,8 @@ var straightLine = {
     name: 'straightLine',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
         var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
@@ -10639,6 +10843,41 @@ var straightLine = {
         }
         return figures;
     },
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g, _h;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var precision = (_f = (_e = chart.getSymbol()) === null || _e === void 0 ? void 0 : _e.pricePrecision) !== null && _f !== void 0 ? _f : 2;
+        var figures = [];
+        var p1 = buildYAxisPill(coordinates[0].y, (_g = overlay.points[0]) === null || _g === void 0 ? void 0 : _g.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'sl_y0');
+        if (p1 != null)
+            figures.push(p1);
+        if (coordinates.length >= 2) {
+            var p2 = buildYAxisPill(coordinates[1].y, (_h = overlay.points[1]) === null || _h === void 0 ? void 0 : _h.value, lineColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'sl_y1');
+            if (p2 != null)
+                figures.push(p2);
+        }
+        return figures;
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var figures = [];
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 !== '')
+            figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'sl_x0'));
+        if (coordinates.length >= 2) {
+            var d1 = formatDate((_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.timestamp);
+            if (d1 !== '')
+                figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'sl_x1'));
+        }
+        return figures;
+    },
     performEventPressedMove: function (_a) {
         var _b, _c;
         var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey;
@@ -10674,7 +10913,7 @@ var verticalRayLine = {
     name: 'verticalRayLine',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
+    needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
@@ -10805,6 +11044,17 @@ var verticalRayLine = {
         }
         return figures;
     },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 === '')
+            return [];
+        return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'vrl_x0')];
+    },
     performEventPressedMove: function (_a) {
         var points = _a.points, performPoint = _a.performPoint;
         points[0].timestamp = performPoint.timestamp;
@@ -10834,7 +11084,7 @@ var verticalSegment = {
     name: 'verticalSegment',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
+    needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
@@ -11011,6 +11261,23 @@ var verticalSegment = {
         }
         return figures;
     },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var figures = [];
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 !== '')
+            figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'vs_x0'));
+        if (coordinates.length >= 2) {
+            var d1 = formatDate((_f = overlay.points[1]) === null || _f === void 0 ? void 0 : _f.timestamp);
+            if (d1 !== '')
+                figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'vs_x1'));
+        }
+        return figures;
+    },
     performEventPressedMove: function (_a) {
         var _b;
         var points = _a.points, prevPoints = _a.prevPoints, figureKey = _a.figureKey, performPoint = _a.performPoint;
@@ -11052,7 +11319,7 @@ var verticalStraightLine = {
     name: 'verticalStraightLine',
     totalStep: 2,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
+    needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
@@ -11152,6 +11419,17 @@ var verticalStraightLine = {
             });
         }
         return figures;
+    },
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 1)
+            return [];
+        var lineColor = (_d = (_c = (_b = overlay.styles) === null || _b === void 0 ? void 0 : _b.line) === null || _c === void 0 ? void 0 : _c.color) !== null && _d !== void 0 ? _d : '#2196F3';
+        var d0 = formatDate((_e = overlay.points[0]) === null || _e === void 0 ? void 0 : _e.timestamp);
+        if (d0 === '')
+            return [];
+        return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'vsl_x0')];
     }
 };
 

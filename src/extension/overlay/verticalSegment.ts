@@ -14,7 +14,9 @@ import {
   CP_CIRCLE_BORDER,
   isLightColor,
   getArrowCoordinates,
-  formatNum
+  formatNum,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -47,7 +49,7 @@ const verticalSegment: OverlayTemplate<Partial<VertSegmentExtendData>> = {
   name: 'verticalSegment',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
+  needDefaultXAxisFigure: false,
   needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, overlay }) => {
@@ -231,6 +233,19 @@ const verticalSegment: OverlayTemplate<Partial<VertSegmentExtendData>> = {
       }
     }
 
+    return figures
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const figures: OverlayFigure[] = []
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 !== '') figures.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'vs_x0'))
+    if (coordinates.length >= 2) {
+      const d1 = formatDate(overlay.points[1]?.timestamp)
+      if (d1 !== '') figures.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'vs_x1'))
+    }
     return figures
   },
 

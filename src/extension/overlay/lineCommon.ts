@@ -15,8 +15,10 @@
 
 import type Coordinate from '../../common/Coordinate'
 import type { EventOverlayInfo } from '../../Store'
+import type { OverlayFigure } from '../../component/Overlay'
 
 import { getLinearYFromCoordinates } from '../figure/line'
+import { formatPrecision } from '../../common/utils/format'
 
 // ===========================================
 // CHART STORE ACCESSOR (for selection/hover detection)
@@ -138,4 +140,79 @@ export function getExtendedCoordinates (
 export function formatNum (val: number, precision?: number): string {
   const p = precision ?? 2
   return val.toFixed(p).replace(/\.?0+$/, '')
+}
+
+/**
+ * Format a timestamp as YYYY-MM-DD, returns '' if undefined.
+ */
+export function formatDate (timestamp: number | undefined): string {
+  if (timestamp == null) return ''
+  const d = new Date(timestamp)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Build a Y-axis pill figure (colored background, white text).
+ * Returns null if value is null/undefined.
+ */
+export function buildYAxisPill (
+  y: number,
+  value: number | null | undefined,
+  color: string,
+  precision: number,
+  bounding: { width: number },
+  yAxis: { isFromZero: () => boolean } | undefined,
+  key: string
+): OverlayFigure | null {
+  if (value == null) return null
+  const isFromZero = yAxis?.isFromZero() ?? false
+  const textAlign: CanvasTextAlign = isFromZero ? 'left' : 'right'
+  const x = isFromZero ? 0 : bounding.width
+  const text = formatPrecision(value, precision)
+  return {
+    key,
+    type: 'text',
+    attrs: { x, y, text, align: textAlign, baseline: 'middle' as CanvasTextBaseline },
+    styles: {
+      color: '#ffffff',
+      size: 11,
+      backgroundColor: color,
+      paddingLeft: 4,
+      paddingRight: 4,
+      paddingTop: 2,
+      paddingBottom: 2,
+      borderRadius: 2
+    },
+    ignoreEvent: true
+  }
+}
+
+/**
+ * Build an X-axis date pill figure.
+ */
+export function buildXAxisPill (
+  x: number,
+  dateText: string,
+  color: string,
+  key: string
+): OverlayFigure {
+  return {
+    key,
+    type: 'text',
+    attrs: { x, y: 0, text: dateText, align: 'center' as CanvasTextAlign, baseline: 'top' as CanvasTextBaseline },
+    styles: {
+      color: '#ffffff',
+      size: 11,
+      backgroundColor: color,
+      paddingLeft: 6,
+      paddingRight: 6,
+      paddingTop: 3,
+      paddingBottom: 3,
+      borderRadius: 3
+    },
+    ignoreEvent: true
+  }
 }

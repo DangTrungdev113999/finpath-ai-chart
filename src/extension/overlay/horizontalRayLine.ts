@@ -15,7 +15,10 @@ import {
   CP_CIRCLE_BORDER,
   isLightColor,
   getArrowCoordinates,
-  formatNum
+  formatNum,
+  buildYAxisPill,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -47,8 +50,8 @@ const horizontalRayLine: OverlayTemplate<Partial<HorizRayLineExtendData>> = {
   name: 'horizontalRayLine',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
+  needDefaultXAxisFigure: false,
+  needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
     if (coordinates.length < 2) return []
@@ -221,6 +224,23 @@ const horizontalRayLine: OverlayTemplate<Partial<HorizRayLineExtendData>> = {
     }
 
     return figures
+  },
+
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+    const value = overlay.points[0]?.value
+    const pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis ?? undefined, 'hrl_y0')
+    return pill != null ? [pill] : []
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 === '') return []
+    return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'hrl_x0')]
   },
 
   performEventPressedMove: ({ points, performPoint }) => {

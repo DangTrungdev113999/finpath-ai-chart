@@ -15,7 +15,9 @@ import {
   CP_CIRCLE_BORDER,
   isLightColor,
   getArrowCoordinates,
-  formatNum
+  formatNum,
+  buildXAxisPill,
+  formatDate
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -45,7 +47,7 @@ const verticalRayLine: OverlayTemplate<Partial<VertRayLineExtendData>> = {
   name: 'verticalRayLine',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
+  needDefaultXAxisFigure: false,
   needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
@@ -184,6 +186,14 @@ const verticalRayLine: OverlayTemplate<Partial<VertRayLineExtendData>> = {
     }
 
     return figures
+  },
+
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 === '') return []
+    return [buildXAxisPill(coordinates[0].x, d0, lineColor, 'vrl_x0')]
   },
 
   performEventPressedMove: ({ points, performPoint }) => {

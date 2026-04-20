@@ -13,7 +13,8 @@ import {
   CP_RADIUS,
   CP_CIRCLE_BORDER,
   isLightColor,
-  formatNum
+  formatNum,
+  buildYAxisPill
 } from './lineCommon'
 
 // ═══════════════════════════════════════
@@ -44,8 +45,8 @@ const horizontalStraightLine: OverlayTemplate<Partial<HorizStraightLineExtendDat
   name: 'horizontalStraightLine',
   totalStep: 2,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
+  needDefaultXAxisFigure: false,
+  needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, bounding, overlay }) => {
     if (coordinates.length < 1) return []
@@ -169,6 +170,15 @@ const horizontalStraightLine: OverlayTemplate<Partial<HorizStraightLineExtendDat
     }
 
     return figures
+  },
+
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 1) return []
+    const lineColor = overlay.styles?.line?.color ?? '#2196F3'
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+    const value = overlay.points[0]?.value
+    const pill = buildYAxisPill(coordinates[0].y, value, lineColor, precision, bounding, yAxis ?? undefined, 'hsl_y0')
+    return pill != null ? [pill] : []
   }
 }
 
