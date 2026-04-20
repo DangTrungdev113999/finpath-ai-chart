@@ -9582,54 +9582,137 @@ var priceChannelLine = {
 };
 
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * PriceLine overlay — Đường Giá (Price Line)
+ *
+ * Data points: 1 (sets Y level; line extends from P1.x to right edge)
+ * Features: pill price label at anchor, optional text label, control point
  */
+// ═══════════════════════════════════════
+// PILL CONSTANTS
+// ═══════════════════════════════════════
+var PILL_PAD_H = 8;
+var PILL_PAD_V = 4;
+var PILL_RADIUS = 2;
+// ═══════════════════════════════════════
+// OVERLAY
+// ═══════════════════════════════════════
 var priceLine = {
     name: 'priceLine',
     totalStep: 2,
-    needDefaultPointFigure: true,
-    needDefaultXAxisFigure: true,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: false,
     needDefaultYAxisFigure: true,
     createPointFigures: function (_a) {
-        var _b, _c, _d;
-        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay, yAxis = _a.yAxis;
-        var precision = 0;
-        if ((_b = yAxis === null || yAxis === void 0 ? void 0 : yAxis.isInCandle()) !== null && _b !== void 0 ? _b : true) {
-            precision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : SymbolDefaultPrecisionConstants.PRICE;
-        }
-        else {
-            var indicators = chart.getIndicators({ paneId: overlay.paneId });
-            indicators.forEach(function (indicator) {
-                precision = Math.max(precision, indicator.precision);
+        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        if (coordinates.length < 1)
+            return [];
+        var _q = __read(coordinates, 1), c1 = _q[0];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- extendData may be undefined
+        var ext = (_b = overlay.extendData) !== null && _b !== void 0 ? _b : {};
+        var points = overlay.points;
+        var pricePrecision = (_d = (_c = chart.getSymbol()) === null || _c === void 0 ? void 0 : _c.pricePrecision) !== null && _d !== void 0 ? _d : 2;
+        var figures = [];
+        var overlayStyles = overlay.styles;
+        var lineColor = (_f = (_e = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _e === void 0 ? void 0 : _e.color) !== null && _f !== void 0 ? _f : '#2196F3';
+        // ─── 1. Horizontal line from anchor to right edge ───
+        figures.push({
+            key: 'pl_line',
+            type: 'line',
+            attrs: { coordinates: [c1, { x: bounding.width, y: c1.y }] }
+        });
+        // ─── 2. Selection state ───
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_g = chartStore.getClickOverlayInfo().overlay) === null || _g === void 0 ? void 0 : _g.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_h = hoverInfo.overlay) === null || _h === void 0 ? void 0 : _h.id) === overlay.id && hoverInfo.figureType !== 'none';
+        var isActive = isSelected || isHovered;
+        // ─── 3. Control point ───
+        if (isActive) {
+            var tickTextColor = chart.getStyles().yAxis.tickText.color;
+            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            figures.push({
+                key: 'pl_cp0',
+                type: 'circle',
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                pointIndex: 0,
+                cursor: 'pointer'
             });
         }
-        var _e = (overlay.points)[0].value, value = _e === void 0 ? 0 : _e;
-        return [
-            {
-                type: 'line',
-                attrs: { coordinates: [coordinates[0], { x: bounding.width, y: coordinates[0].y }] }
-            },
-            {
-                type: 'text',
-                ignoreEvent: true,
-                attrs: {
-                    x: coordinates[0].x,
-                    y: coordinates[0].y,
-                    text: chart.getDecimalFold().format(chart.getThousandsSeparator().format(value.toFixed(precision))),
-                    baseline: 'bottom'
-                }
+        // ─── 4. Pill price label ───
+        var showPrice = ext.showPrice !== false;
+        if (showPrice && points.length >= 1) {
+            var priceValue = points[0].value;
+            if (priceValue != null) {
+                var priceText = formatNum(priceValue, pricePrecision);
+                var textSize = 12;
+                var charW = textSize * 0.6;
+                var pillW = priceText.length * charW + PILL_PAD_H * 2;
+                var pillH = textSize + PILL_PAD_V * 2;
+                var pillX = c1.x - pillW;
+                var pillY = c1.y - pillH / 2;
+                figures.push({
+                    key: 'pl_pill_bg',
+                    type: 'rect',
+                    attrs: { x: pillX, y: pillY, width: pillW, height: pillH },
+                    styles: { style: 'stroke_fill', color: lineColor, borderColor: lineColor, borderSize: 1, borderRadius: PILL_RADIUS },
+                    ignoreEvent: true
+                });
+                figures.push({
+                    key: 'pl_pill_text',
+                    type: 'text',
+                    attrs: {
+                        x: pillX + pillW / 2,
+                        y: c1.y,
+                        text: priceText,
+                        align: 'center',
+                        baseline: 'middle'
+                    },
+                    styles: { color: '#ffffff', size: textSize, weight: 'normal', backgroundColor: 'transparent' },
+                    ignoreEvent: true
+                });
             }
-        ];
+        }
+        // ─── 5. Text label ───
+        if (ext.showLabel === true && ext.text != null && ext.text !== '') {
+            var textColor = (_j = ext.textcolor) !== null && _j !== void 0 ? _j : lineColor;
+            var fontSize = (_k = ext.fontsize) !== null && _k !== void 0 ? _k : 14;
+            var hAlign = (_l = ext.horzLabelsAlign) !== null && _l !== void 0 ? _l : 'center';
+            var vAlign = (_m = ext.vertLabelsAlign) !== null && _m !== void 0 ? _m : 'top';
+            var lineWidth = (_p = (_o = overlayStyles === null || overlayStyles === void 0 ? void 0 : overlayStyles.line) === null || _o === void 0 ? void 0 : _o.size) !== null && _p !== void 0 ? _p : 1;
+            var halfWidth = (bounding.width - c1.x) / 2;
+            var tx = c1.x + halfWidth;
+            if (hAlign === 'left')
+                tx = c1.x + halfWidth * 0.15;
+            else if (hAlign === 'right')
+                tx = c1.x + halfWidth * 0.85;
+            var gap = 5;
+            var offsetY = 0;
+            var baseline = 'middle';
+            if (vAlign === 'top') {
+                offsetY = -(lineWidth / 2 + gap + fontSize);
+                baseline = 'bottom';
+            }
+            else if (vAlign === 'bottom') {
+                offsetY = lineWidth / 2 + gap + fontSize;
+                baseline = 'top';
+            }
+            figures.push({
+                key: 'pl_label',
+                type: 'text',
+                attrs: { x: tx, y: c1.y + offsetY, text: ext.text, align: 'center', baseline: baseline },
+                styles: {
+                    color: textColor,
+                    size: fontSize,
+                    weight: ext.bold === true ? 'bold' : 'normal',
+                    style: ext.italic === true ? 'italic' : 'normal',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        return figures;
     }
 };
 
