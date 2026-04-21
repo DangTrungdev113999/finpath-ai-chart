@@ -59,6 +59,26 @@ function mergeExt (ext: RegressionTrendExtendData | undefined): Required<Regress
   return { ...REGRESSION_TREND_DEFAULTS, ...(ext ?? {}) }
 }
 
+/**
+ * Find the current bar index for a stored point.
+ *
+ * KLineChart's `point.dataIndex` can drift when historical data is
+ * lazy-loaded on scroll. `point.timestamp` is the stable identifier.
+ * Look up by timestamp first; fall back to the stored dataIndex when the
+ * timestamp is missing or the bar is no longer present in the data list.
+ */
+function resolveBarIndex (
+  dataList: ReadonlyArray<{ timestamp: number }>,
+  timestamp: number | undefined,
+  fallback: number | undefined
+): number {
+  if (timestamp != null) {
+    const i = dataList.findIndex(d => d.timestamp === timestamp)
+    if (i !== -1) return i
+  }
+  return isNumber(fallback) ? fallback : -1
+}
+
 // ═══════════════════════════════════════
 // Overlay template
 // ═══════════════════════════════════════
@@ -87,22 +107,88 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
       pressed.overlay?.id === overlay.id &&
       pressed.figureType === 'point'
 
-    // ─── Mode A / Mode B: preview line only ───
+    // ─── Mode A / Mode B: preview line + CP marker(s) ───
+    // Reference: docs/ai-chart/regression-trend/exploration/screenshots/draw-flow-2.png
+    // Click 1 anchor visible as a small circle, with a thin gray line to cursor.
     if (isDrawing || isCpDrag) {
-      if (coordinates.length < 2) return figures
-      const rawCrosshairColor = chart.getStyles().crosshair.horizontal.line.color
-      const crosshairColor = rawCrosshairColor !== '' ? rawCrosshairColor : PREVIEW_FALLBACK_COLOR
+      if (coordinates.length < 1) return figures
+      const tickTextColor = String(chart.getStyles().yAxis.tickText.color)
+      const cpBg = isLightColor(tickTextColor) ? '#131722' : '#ffffff'
+
+      // Vertical guide lines through every known anchor X — helps the user see
+      // which bar they have just clicked. Light dashed gray, full pane height.
+      const guideTop = 0
+      const guideBottom = bounding.height
       figures.push({
-        key: RT_PREVIEW,
+        key: 'rt_guide_0',
         type: 'line',
-        attrs: { coordinates: [coordinates[0], coordinates[1]] },
+        attrs: { coordinates: [{ x: coordinates[0].x, y: guideTop }, { x: coordinates[0].x, y: guideBottom }] },
         styles: {
-          color: crosshairColor,
-          size: PREVIEW_LINE_WIDTH,
-          style: 'solid'
+          color: PREVIEW_FALLBACK_COLOR,
+          size: 1,
+          style: 'dashed',
+          dashedValue: [4, 4]
         },
         ignoreEvent: true
       })
+
+      // Preview line (only when both endpoints are known)
+      if (coordinates.length >= 2) {
+        figures.push({
+          key: 'rt_guide_1',
+          type: 'line',
+          attrs: { coordinates: [{ x: coordinates[1].x, y: guideTop }, { x: coordinates[1].x, y: guideBottom }] },
+          styles: {
+            color: PREVIEW_FALLBACK_COLOR,
+            size: 1,
+            style: 'dashed',
+            dashedValue: [4, 4]
+          },
+          ignoreEvent: true
+        })
+        figures.push({
+          key: RT_PREVIEW,
+          type: 'line',
+          attrs: { coordinates: [coordinates[0], coordinates[1]] },
+          styles: {
+            color: PREVIEW_FALLBACK_COLOR,
+            size: PREVIEW_LINE_WIDTH,
+            style: 'solid'
+          },
+          ignoreEvent: true
+        })
+      }
+
+      // CP markers — render at every known anchor position so the user can see
+      // where they have already clicked. During CP drag both markers stay visible.
+      figures.push({
+        key: RT_CP_0,
+        type: 'circle',
+        attrs: { x: coordinates[0].x, y: coordinates[0].y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+        styles: {
+          style: 'stroke_fill',
+          color: cpBg,
+          borderColor: CP_COLOR,
+          borderSize: CP_CIRCLE_BORDER
+        },
+        pointIndex: 0,
+        cursor: 'move'
+      })
+      if (coordinates.length >= 2) {
+        figures.push({
+          key: RT_CP_1,
+          type: 'circle',
+          attrs: { x: coordinates[1].x, y: coordinates[1].y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+          styles: {
+            style: 'stroke_fill',
+            color: cpBg,
+            borderColor: CP_COLOR,
+            borderSize: CP_CIRCLE_BORDER
+          },
+          pointIndex: 1,
+          cursor: 'move'
+        })
+      }
       return figures
     }
 
@@ -110,11 +196,22 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
     if (coordinates.length < 2) return figures
 
     const ext = mergeExt(overlay.extendData)
-    const i1 = overlay.points[0]?.dataIndex
-    const i2 = overlay.points[1]?.dataIndex
+    const dataList = chart.getDataList()
 
-    // Degenerate case — less than 2 distinct bars. Render plain center line only.
-    if (!isNumber(i1) || !isNumber(i2) || Math.abs(i2 - i1) < 1) {
+    // Resolve bar indices via TIMESTAMP (robust against scroll / data shifts).
+    // Falls back to stored dataIndex when timestamp lookup misses.
+    const p0 = overlay.points[0]
+    const p1 = overlay.points[1]
+    const i1 = resolveBarIndex(dataList, p0.timestamp, p0.dataIndex)
+    const i2 = resolveBarIndex(dataList, p1.timestamp, p1.dataIndex)
+
+    // Degenerate case — less than 2 distinct bars OR data not loaded yet.
+    // Render plain center line as a fallback so the shape never silently
+    // vanishes during transient state changes (scroll / lazy-load).
+    if (
+      !isNumber(i1) || !isNumber(i2) || i1 < 0 || i2 < 0 ||
+      Math.abs(i2 - i1) < 1 || dataList.length === 0
+    ) {
       figures.push({
         key: RT_CENTER_LINE,
         type: 'line',
@@ -130,9 +227,6 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
     }
 
     // ─── Clamp bar range + extract prices ───
-    const dataList = chart.getDataList()
-    if (dataList.length === 0) return figures
-
     const startIdx = Math.min(i1, i2)
     const endIdx = Math.max(i1, i2)
     const start = Math.max(0, startIdx)
@@ -198,7 +292,9 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
         attrs: { coordinates: [regS, regE2, loE2, loS] },
         styles: {
           style: 'fill',
-          color: alphaRgba(ext.lowerColor, FILL_OPACITY)
+          // Lower fill tracks the base line color (matches reference screenshot:
+          // blue above, red below — visual trend-direction cue).
+          color: alphaRgba(ext.baseColor, FILL_OPACITY)
         }
       })
     }
@@ -244,14 +340,16 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
       })
     }
 
-    // ─── Pearson R label (left of regS, text color = upperColor per TAD §6) ───
+    // ─── Pearson R label ───
+    // Anchored at the LEFT end of the LOWER band (matches reference image).
+    // Text color = upperColor (band color, per TAD §6).
     if (ext.pearsonR) {
       figures.push({
         key: RT_PEARSON_R,
         type: 'text',
         attrs: {
-          x: regS.x - PEARSON_LABEL_OFFSET_X,
-          y: regS.y,
+          x: loS.x - PEARSON_LABEL_OFFSET_X,
+          y: loS.y,
           text: r.toFixed(15),
           align: 'right' as CanvasTextAlign,
           baseline: 'middle' as CanvasTextBaseline
@@ -305,21 +403,13 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
     }
 
     return figures
-  },
-
-  // ─────────────────────────────────────
-  // CP drag: discard raw pointer Y so the CP snaps to regression Y on release.
-  // Body drag (figureType === 'other') is handled by the engine's default
-  // eventPressedOtherMove which translates all points by the same delta.
-  // ─────────────────────────────────────
-  performEventPressedMove: ({ points, performPointIndex, prevPoints }) => {
-    if (performPointIndex !== 0 && performPointIndex !== 1) return
-    if (prevPoints.length < 2) return
-
-    // dataIndex/timestamp already follow the cursor via the engine default.
-    // Wipe the pointer-derived Y — Mode C recomputes it from regression.
-    points[performPointIndex].value = undefined
   }
+
+  // CP drag: the engine writes pointer (dataIndex, value) into points[i] —
+  // we leave both intact so the CP marker tracks the cursor 1:1 during Mode B.
+  // On pointer release (Mode B exits, Mode C re-renders), the CP's RENDERED
+  // position snaps to the regression-line Y at its bar — `points[i].value`
+  // is not read by Mode C anywhere, so the stored value is harmless decor.
 }
 
 export default regressionTrend
