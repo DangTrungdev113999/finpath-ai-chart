@@ -1178,6 +1178,46 @@ export interface SegmentExtendData {
 	alwaysShowStats?: boolean;
 	statsPosition?: number;
 }
+/**
+ * Regression Trend (Xu hướng hồi quy) - ExtendData types
+ *
+ * Data-driven channel tool: linear regression fitted over the bar range
+ * between 2 control points, with optional upper/lower deviation bands.
+ */
+export type RegressionSource = "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4";
+type LineStyle$1 = "solid" | "dashed" | "dotted";
+interface VisibilityRange {
+	enabled: boolean;
+	min: number;
+	max: number;
+}
+/**
+ * Flat 21-field schema — matches BRD §4.3. Bar indices (#17/#18) live
+ * on `overlay.points` as `dataIndex`, not on ExtendData.
+ */
+export interface RegressionTrendExtendData {
+	upperDeviation?: number;
+	lowerDeviation?: number;
+	useUpperDeviation?: boolean;
+	useLowerDeviation?: boolean;
+	source?: RegressionSource;
+	baseVisible?: boolean;
+	baseColor?: string;
+	baseStyle?: LineStyle$1;
+	upperVisible?: boolean;
+	upperColor?: string;
+	upperStyle?: LineStyle$1;
+	lowerVisible?: boolean;
+	lowerColor?: string;
+	lowerStyle?: LineStyle$1;
+	extendLines?: boolean;
+	pearsonR?: boolean;
+	vis_ticks?: VisibilityRange;
+	vis_hours?: VisibilityRange;
+	vis_days?: VisibilityRange;
+	vis_weeks?: VisibilityRange;
+	vis_months?: VisibilityRange;
+}
 export declare function registerStyles(name: string, ss: DeepPartial<Styles>): void;
 export declare function registerXAxis(axis: XAxisTemplate): void;
 export declare function registerYAxis(axis: YAxisTemplate): void;
@@ -1224,6 +1264,11 @@ export declare const utils: {
 	checkCoordinateOnPolygon: typeof checkCoordinateOnPolygon;
 	checkCoordinateOnRect: typeof checkCoordinateOnRect;
 	checkCoordinateOnText: typeof checkCoordinateOnText;
+};
+
+export {
+	LineStyle$1 as RegressionTrendLineStyle,
+	VisibilityRange as RegressionVisibilityRange,
 };
 
 export as namespace klinecharts;

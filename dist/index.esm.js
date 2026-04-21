@@ -1770,13 +1770,13 @@ var bias = {
 // ═══════════════════════════════════════════════════════════════
 // Control point constants (matches trendline style but smaller)
 // ═══════════════════════════════════════════════════════════════
-var CP_RADIUS$3 = 3.5;
+var CP_RADIUS$4 = 3.5;
 var CP_BORDER$1 = 1.5;
-var CP_COLOR$4 = '#1592E6';
+var CP_COLOR$5 = '#1592E6';
 // ═══════════════════════════════════════════════════════════════
 // Theme-aware background color for control points
 // ═══════════════════════════════════════════════════════════════
-function isLightColor$7(hex) {
+function isLightColor$8(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -1784,7 +1784,7 @@ function isLightColor$7(hex) {
 }
 function getControlPointBgColor(chart) {
     var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
-    return isLightColor$7(tickTextColor) ? '#131722' : '#ffffff';
+    return isLightColor$8(tickTextColor) ? '#131722' : '#ffffff';
 }
 function collectLineSegments(result, from, to, xAxis, yAxis, key, indexOffset) {
     if (indexOffset === void 0) { indexOffset = 0; }
@@ -1817,8 +1817,8 @@ function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, inde
     if (indexOffset === void 0) { indexOffset = 0; }
     if (bgColor === void 0) { bgColor = '#131722'; }
     // Visible pixel bounds (with margin for points near edges)
-    var visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS$3 * 2;
-    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS$3 * 2;
+    var visLeft = xAxis.convertToPixel(from + indexOffset) - CP_RADIUS$4 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1 + indexOffset) + CP_RADIUS$4 * 2;
     var points = [];
     var _loop_1 = function (key) {
         // Scan FULL data range to find fixed segment boundaries
@@ -1873,9 +1873,9 @@ function drawSparseControlPoints(ctx, result, from, to, xAxis, yAxis, keys, inde
                 continue;
             ctx.fillStyle = bgColor;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, CP_RADIUS$4, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$4;
+            ctx.strokeStyle = CP_COLOR$5;
             ctx.lineWidth = CP_BORDER$1;
             ctx.stroke();
         }
@@ -3963,14 +3963,14 @@ function collectStepLineSegments(result, from, to, xAxis, yAxis, key) {
 // Control points: small circles at step-line vertices when selected
 // Style: similar to trendline but smaller
 // ═══════════════════════════════════════════════════════════════
-var CP_RADIUS$2 = 3.5;
+var CP_RADIUS$3 = 3.5;
 var CP_BORDER = 1.5;
-var CP_COLOR$3 = '#1592E6';
+var CP_COLOR$4 = '#1592E6';
 function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
     var e_1, _a;
     // Visible pixel bounds (with margin for points near edges)
-    var visLeft = xAxis.convertToPixel(from) - CP_RADIUS$2 * 2;
-    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS$2 * 2;
+    var visLeft = xAxis.convertToPixel(from) - CP_RADIUS$3 * 2;
+    var visRight = xAxis.convertToPixel(Math.min(to, result.length) - 1) + CP_RADIUS$3 * 2;
     // Collect sparse control points: start, middle, end of each continuous segment.
     // Scan FULL data range so points stay fixed when scrolling.
     var points = [];
@@ -4027,9 +4027,9 @@ function drawControlPoints(ctx, result, from, to, xAxis, yAxis, bgColor) {
                 continue;
             ctx.fillStyle = bgColor;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, CP_RADIUS$2, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, CP_RADIUS$3, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = CP_COLOR$3;
+            ctx.strokeStyle = CP_COLOR$4;
             ctx.lineWidth = CP_BORDER;
             ctx.stroke();
         }
@@ -8814,9 +8814,9 @@ var line = {
 // ===========================================
 // CONTROL POINT CONSTANTS
 // ===========================================
-var CP_COLOR$2 = '#1592E6';
-var CP_RADIUS$1 = 5;
-var CP_CIRCLE_BORDER$1 = 1.5;
+var CP_COLOR$3 = '#1592E6';
+var CP_RADIUS$2 = 5;
+var CP_CIRCLE_BORDER$2 = 1.5;
 // ===========================================
 // ARROW CONSTANTS
 // ===========================================
@@ -8828,7 +8828,7 @@ var ARROW_WIDTH = 6;
 /**
  * Luminance check for adaptive CP background (dark vs light theme).
  */
-function isLightColor$6(hex) {
+function isLightColor$7(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -9039,20 +9039,20 @@ var horizontalRayLine = {
         // ─── 5. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'hrl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'hrl_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -9271,12 +9271,12 @@ var horizontalSegment = {
         if (ext.showMiddlePoint === true && isActive) {
             var midX = (c1.x + c2.x) / 2;
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'hs_mid',
                 type: 'circle',
-                attrs: { x: midX, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: midX, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'move'
             });
@@ -9284,20 +9284,20 @@ var horizontalSegment = {
         // ─── 5. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'hs_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'hs_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -9516,12 +9516,12 @@ var horizontalStraightLine = {
         // ─── 3. Control point ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'hsl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
@@ -9774,12 +9774,12 @@ var priceLine = {
         // ─── 3. Control point ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'pl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
@@ -9938,12 +9938,12 @@ var rayLine = {
             var midY = (c1.y + rayTip.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'ray_mid',
                     type: 'circle',
-                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                     pointIndex: 0,
                     cursor: 'move'
                 });
@@ -9952,20 +9952,20 @@ var rayLine = {
         // ─── 6. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'ray_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'ray_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -10309,16 +10309,16 @@ var segment = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'seg_mid',
                     type: 'circle',
-                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
                     styles: {
                         style: 'stroke_fill',
                         color: cpBg,
-                        borderColor: CP_COLOR$2,
-                        borderSize: CP_CIRCLE_BORDER$1
+                        borderColor: CP_COLOR$3,
+                        borderSize: CP_CIRCLE_BORDER$2
                     },
                     pointIndex: 0,
                     cursor: 'move'
@@ -10328,16 +10328,16 @@ var segment = {
         // ─── 6. Control points at endpoints (when selected/hovered) ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'seg_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
-                    borderSize: CP_CIRCLE_BORDER$1
+                    borderColor: CP_COLOR$3,
+                    borderSize: CP_CIRCLE_BORDER$2
                 },
                 pointIndex: 0,
                 cursor: 'pointer'
@@ -10345,12 +10345,12 @@ var segment = {
             figures.push({
                 key: 'seg_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$2,
-                    borderSize: CP_CIRCLE_BORDER$1
+                    borderColor: CP_COLOR$3,
+                    borderSize: CP_CIRCLE_BORDER$2
                 },
                 pointIndex: 1,
                 cursor: 'pointer'
@@ -10731,12 +10731,12 @@ var straightLine = {
             var midY = (c1.y + c2.y) / 2;
             if (isActive) {
                 var tickTextColor = chart.getStyles().yAxis.tickText.color;
-                var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+                var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
                 figures.push({
                     key: 'sl_mid',
                     type: 'circle',
-                    attrs: { x: midX, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                    attrs: { x: midX, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                    styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                     pointIndex: 0,
                     cursor: 'move'
                 });
@@ -10745,20 +10745,20 @@ var straightLine = {
         // ─── 6. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'sl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'sl_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -11063,20 +11063,20 @@ var verticalRayLine = {
         // ─── 5. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'vrl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'vrl_cp1',
                 type: 'circle',
-                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c2.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -11249,12 +11249,12 @@ var verticalSegment = {
         if (ext.showMiddlePoint === true && isActive) {
             var midY = (c1.y + c2.y) / 2;
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'vs_mid',
                 type: 'circle',
-                attrs: { x: c1.x, y: midY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: midY, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'move'
             });
@@ -11262,20 +11262,20 @@ var verticalSegment = {
         // ─── 5. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'vs_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
             figures.push({
                 key: 'vs_cp1',
                 type: 'circle',
-                attrs: { x: c1.x, y: c2.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c2.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -11452,12 +11452,12 @@ var verticalStraightLine = {
         // ─── 3. Control point ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$6(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$7(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'vsl_cp0',
                 type: 'circle',
-                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
+                attrs: { x: c1.x, y: c1.y, r: CP_RADIUS$2 + CP_CIRCLE_BORDER$2 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$3, borderSize: CP_CIRCLE_BORDER$2 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
@@ -12118,7 +12118,7 @@ function renderVPFRFigures(params) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function isLightColor$5(hex) {
+function isLightColor$6(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (m === null)
         return false;
@@ -12250,7 +12250,7 @@ var vpfr = {
         var hoverInfo = chartStore.getHoverOverlayInfo();
         var isHovered = ((_e = hoverInfo.overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id && hoverInfo.figureType !== 'none';
         var tickTextColor = String(chartStore.getStyles().yAxis.tickText.color);
-        var isDarkTheme = isLightColor$5(tickTextColor);
+        var isDarkTheme = isLightColor$6(tickTextColor);
         // X positions from coordinates (time-based)
         var leftX = Math.min(coordinates[0].x, coordinates[1].x);
         var rightX = Math.max(coordinates[0].x, coordinates[1].x);
@@ -12591,10 +12591,10 @@ var vpfr = {
  * CP fill color is detected from chart theme (dark → black, light → white)
  */
 // CP border color (always blue)
-var CP_COLOR$1 = '#1592E6';
+var CP_COLOR$2 = '#1592E6';
 // Corner control points (circles)
-var CP_RADIUS = 5;
-var CP_CIRCLE_BORDER = 1.5;
+var CP_RADIUS$1 = 5;
+var CP_CIRCLE_BORDER$1 = 1.5;
 // Midpoint control points (rounded squares)
 var CP_MID_SIZE = 12;
 var CP_MID_BORDER = 1.5;
@@ -12607,7 +12607,7 @@ var CP_MID_BORDER_RADIUS = 3;
  * Control points: 4 corners (circles) + 4 edge midpoints (squares)
  * All drag logic handled via performEventPressedMove with figureKey
  */
-function isLightColor$4(hex) {
+function isLightColor$5(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -12767,18 +12767,18 @@ var rect$1 = {
             var midY = (top + bottom) / 2;
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg_1 = isLightColor$4(tickTextColor) ? '#131722' : '#ffffff';
-            var cpColor_1 = CP_COLOR$1;
+            var cpBg_1 = isLightColor$5(tickTextColor) ? '#131722' : '#ffffff';
+            var cpColor_1 = CP_COLOR$2;
             // Corner handle (circle)
             var cornerCP = function (key, x, y, pIdx, cur) { return ({
                 key: key,
                 type: 'circle',
-                attrs: { x: x, y: y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                attrs: { x: x, y: y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg_1,
                     borderColor: cpColor_1,
-                    borderSize: CP_CIRCLE_BORDER
+                    borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: pIdx,
                 cursor: cur
@@ -12880,7 +12880,7 @@ var MIN_RADIUS_PX = 5;
  * Control points: center (move) + edge (resize)
  * Drag logic: center CP translates entire circle, edge CP resizes
  */
-function isLightColor$3(hex) {
+function isLightColor$4(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -12984,17 +12984,17 @@ var circle$1 = {
         if (isSelected || isHovered) {
             // Detect theme from Y-axis tick text color: light text = dark theme
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$3(tickTextColor) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$4(tickTextColor) ? '#131722' : '#ffffff';
             // CP at center (drag to translate entire circle)
             figures.push({
                 key: 'circle_cp_center',
                 type: 'circle',
-                attrs: { x: center.x, y: center.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                attrs: { x: center.x, y: center.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
-                    borderSize: CP_CIRCLE_BORDER
+                    borderColor: CP_COLOR$2,
+                    borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 0,
                 cursor: 'move'
@@ -13003,12 +13003,12 @@ var circle$1 = {
             figures.push({
                 key: 'circle_cp_edge',
                 type: 'circle',
-                attrs: { x: edge.x, y: edge.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                attrs: { x: edge.x, y: edge.y, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
-                    borderSize: CP_CIRCLE_BORDER
+                    borderColor: CP_COLOR$2,
+                    borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 1,
                 cursor: 'crosshair'
@@ -13138,7 +13138,7 @@ function formatSlLabel$1(stats, compact, precision) {
 // ═══════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════
-function isLightColor$2(hex) {
+function isLightColor$3(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -13544,17 +13544,17 @@ var longPosition = {
         // ── 13-16. Control points (only when selected or hovered) ──
         if (isHoveredOrSelected) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$3(String(tickTextColor)) ? '#131722' : '#ffffff';
             // P1: Entry circle (free movement)
             figures.push({
                 key: 'lp_cp_entry',
                 type: 'circle',
-                attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                attrs: { x: leftX, y: entryY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
-                    borderSize: CP_CIRCLE_BORDER
+                    borderColor: CP_COLOR$2,
+                    borderSize: CP_CIRCLE_BORDER$1
                 },
                 pointIndex: 0,
                 cursor: 'move'
@@ -13572,7 +13572,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR$2,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -13592,7 +13592,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR$2,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -13612,7 +13612,7 @@ var longPosition = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR$1,
+                    borderColor: CP_COLOR$2,
                     borderSize: CP_MID_BORDER,
                     borderRadius: CP_MID_BORDER_RADIUS
                 },
@@ -13933,7 +13933,7 @@ function formatSlLabel(stats, compact, precision) {
 // ═══════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════
-function isLightColor$1(hex) {
+function isLightColor$2(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -14247,12 +14247,12 @@ var shortPosition = {
         // 13-16. Control points
         if (isHoveredOrSelected) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor$1(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$2(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'sp_cp_entry',
                 type: 'circle',
-                attrs: { x: leftX, y: entryY, r: CP_RADIUS + CP_CIRCLE_BORDER },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_CIRCLE_BORDER },
+                attrs: { x: leftX, y: entryY, r: CP_RADIUS$1 + CP_CIRCLE_BORDER$1 },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_CIRCLE_BORDER$1 },
                 pointIndex: 0,
                 cursor: 'move'
             });
@@ -14260,7 +14260,7 @@ var shortPosition = {
                 key: 'sp_cp_tp',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: targetY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 1,
                 cursor: 'ns-resize'
             });
@@ -14268,7 +14268,7 @@ var shortPosition = {
                 key: 'sp_cp_sl',
                 type: 'rect',
                 attrs: { x: leftX - CP_MID_SIZE / 2, y: stopY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 2,
                 cursor: 'ns-resize'
             });
@@ -14276,7 +14276,7 @@ var shortPosition = {
                 key: 'sp_cp_width',
                 type: 'rect',
                 attrs: { x: rightX - CP_MID_SIZE / 2, y: entryY - CP_MID_SIZE / 2, width: CP_MID_SIZE, height: CP_MID_SIZE },
-                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$1, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
+                styles: { style: 'stroke_fill', color: cpBg, borderColor: CP_COLOR$2, borderSize: CP_MID_BORDER, borderRadius: CP_MID_BORDER_RADIUS },
                 pointIndex: 3,
                 cursor: 'ew-resize'
             });
@@ -14482,7 +14482,7 @@ var BADGE_PADDING_H = 6;
 var BADGE_PADDING_V = 3;
 var BADGE_FONT_SIZE = 11;
 // Control points
-var CP_COLOR = '#2962ff';
+var CP_COLOR$1 = '#2962ff';
 var CP_INACTIVE_RADIUS = 2.5;
 var CP_ACTIVE_RADIUS = 5.5;
 var CP_ACTIVE_BORDER = 1.5;
@@ -14755,7 +14755,7 @@ function getExt(extendData) {
         return __assign({}, FORECAST_DEFAULTS);
     return __assign(__assign({}, FORECAST_DEFAULTS), extendData);
 }
-function isLightColor(hex) {
+function isLightColor$1(hex) {
     var match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex);
     if (match == null)
         return false;
@@ -15040,7 +15040,7 @@ var forecast = {
         // ─── 6. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;
-            var cpBg = isLightColor(String(tickTextColor)) ? '#131722' : '#ffffff';
+            var cpBg = isLightColor$1(String(tickTextColor)) ? '#131722' : '#ffffff';
             figures.push({
                 key: 'fc_cp0',
                 type: 'circle',
@@ -15048,7 +15048,7 @@ var forecast = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_ACTIVE_BORDER
                 },
                 pointIndex: 0,
@@ -15061,7 +15061,7 @@ var forecast = {
                 styles: {
                     style: 'stroke_fill',
                     color: cpBg,
-                    borderColor: CP_COLOR,
+                    borderColor: CP_COLOR$1,
                     borderSize: CP_ACTIVE_BORDER
                 },
                 pointIndex: 1,
@@ -15073,7 +15073,7 @@ var forecast = {
                 key: 'fc_cp0',
                 type: 'circle',
                 attrs: { x: c1.x, y: c1.y, r: CP_INACTIVE_RADIUS },
-                styles: { style: 'fill', color: CP_COLOR },
+                styles: { style: 'fill', color: CP_COLOR$1 },
                 pointIndex: 0,
                 cursor: 'pointer'
             });
@@ -15081,7 +15081,7 @@ var forecast = {
                 key: 'fc_cp1',
                 type: 'circle',
                 attrs: { x: c2.x, y: c2.y, r: CP_INACTIVE_RADIUS },
-                styles: { style: 'fill', color: CP_COLOR },
+                styles: { style: 'fill', color: CP_COLOR$1 },
                 pointIndex: 1,
                 cursor: 'pointer'
             });
@@ -15342,6 +15342,533 @@ var forecast = {
 };
 
 /**
+ * Regression Trend (Xu hướng hồi quy) — constants
+ *
+ * Defaults, figure keys, control-point sizing, dash map, and narrow
+ * chart-store accessor interface. Mirrors the `forecast` / `rect`
+ * patterns used elsewhere in this extension pack.
+ */
+// ═══════════════════════════════════════
+// Defaults (BRD §4.3 + TAD §3)
+// ═══════════════════════════════════════
+var REGRESSION_TREND_DEFAULTS = {
+    upperDeviation: 2,
+    lowerDeviation: -2,
+    useUpperDeviation: true,
+    useLowerDeviation: true,
+    source: 'close',
+    baseVisible: true,
+    baseColor: '#F44336',
+    baseStyle: 'dashed',
+    upperVisible: true,
+    upperColor: '#2962FF',
+    upperStyle: 'solid',
+    lowerVisible: true,
+    lowerColor: '#2962FF',
+    lowerStyle: 'solid',
+    extendLines: false,
+    pearsonR: true,
+    vis_ticks: { enabled: true, min: 1, max: 59 },
+    vis_hours: { enabled: true, min: 1, max: 24 },
+    vis_days: { enabled: true, min: 1, max: 366 },
+    vis_weeks: { enabled: true, min: 1, max: 52 },
+    vis_months: { enabled: true, min: 1, max: 12 }
+};
+// ═══════════════════════════════════════
+// Figure keys (stable identifiers for hit-testing + drag routing)
+// ═══════════════════════════════════════
+var RT_PREVIEW = 'rt_preview';
+var RT_UPPER_FILL = 'rt_upper_fill';
+var RT_LOWER_FILL = 'rt_lower_fill';
+var RT_CENTER_LINE = 'rt_center_line';
+var RT_UPPER_LINE = 'rt_upper_line';
+var RT_LOWER_LINE = 'rt_lower_line';
+var RT_PEARSON_R = 'rt_pearson_r';
+var RT_CP_0 = 'rt_cp_0';
+var RT_CP_1 = 'rt_cp_1';
+// ═══════════════════════════════════════
+// Dash map (pixel pattern per LineStyle)
+// ═══════════════════════════════════════
+var DASH = {
+    solid: [],
+    dashed: [6, 4],
+    dotted: [2, 2]
+};
+// ═══════════════════════════════════════
+// Control point sizing (match rect / forecast conventions)
+// ═══════════════════════════════════════
+var CP_COLOR = '#1592E6';
+var CP_RADIUS = 5;
+var CP_CIRCLE_BORDER = 1.5;
+// ═══════════════════════════════════════
+// Preview line (Mode A / Mode B) — thin solid
+// ═══════════════════════════════════════
+var PREVIEW_LINE_WIDTH = 1;
+var PREVIEW_FALLBACK_COLOR = '#888888';
+// ═══════════════════════════════════════
+// Pearson R label
+// ═══════════════════════════════════════
+var PEARSON_FONT_SIZE = 12;
+var PEARSON_LABEL_OFFSET_X = 10; // distance to the LEFT of regS.x
+// ═══════════════════════════════════════
+// Non-BRD constants (not exposed in dialog — BRD §4.3)
+// ═══════════════════════════════════════
+var BASE_LINE_WIDTH = 1;
+var UPPER_LINE_WIDTH = 1;
+var LOWER_LINE_WIDTH = 1;
+var FILL_OPACITY = 0.2;
+
+/**
+ * Regression Trend math utilities.
+ *
+ *  - linearRegression(prices)   — least-squares slope/intercept
+ *  - regressionStdDev(prices)   — RMS of residuals
+ *  - pearsonsR(prices)          — correlation coefficient
+ *  - getPriceFromSource(bar, s) — OHLC source picker
+ *  - alphaRgba(color, a)        — hex/rgba → rgba() with new alpha
+ *  - extendToRight(p1, p2, b)   — intersect line p1-p2 with right edge of `b`
+ *  - isLightColor(hex)          — luminance test for theme-aware CP fill
+ */
+// ═══════════════════════════════════════
+// Linear regression (least squares)
+// ═══════════════════════════════════════
+/**
+ * Fit y = slope * x + intercept over prices[] with x = 0..n-1.
+ * Returns {0, mean} when n < 2 or denominator is 0.
+ */
+function linearRegression(prices) {
+    var n = prices.length;
+    if (n === 0)
+        return { slope: 0, intercept: 0 };
+    var sumX = 0;
+    var sumY = 0;
+    var sumXY = 0;
+    var sumX2 = 0;
+    for (var i = 0; i < n; i++) {
+        var y = prices[i];
+        sumX += i;
+        sumY += y;
+        sumXY += i * y;
+        sumX2 += i * i;
+    }
+    var denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) {
+        return { slope: 0, intercept: sumY / n };
+    }
+    var slope = (n * sumXY - sumX * sumY) / denom;
+    var intercept = (sumY - slope * sumX) / n;
+    return { slope: slope, intercept: intercept };
+}
+/**
+ * Standard deviation of the residuals against the fitted line.
+ * Returns 0 for empty / flat inputs.
+ */
+function regressionStdDev(prices, slope, intercept) {
+    var n = prices.length;
+    if (n === 0)
+        return 0;
+    var sum2 = 0;
+    for (var i = 0; i < n; i++) {
+        var predicted = slope * i + intercept;
+        var residual = prices[i] - predicted;
+        sum2 += residual * residual;
+    }
+    return Math.sqrt(sum2 / n);
+}
+/**
+ * Pearson correlation coefficient of prices[] vs x = 0..n-1.
+ * Returns 0 when variance is 0 or n < 2.
+ */
+function pearsonsR(prices) {
+    var n = prices.length;
+    if (n < 2)
+        return 0;
+    var sumX = 0;
+    var sumY = 0;
+    var sumXY = 0;
+    var sumX2 = 0;
+    var sumY2 = 0;
+    for (var i = 0; i < n; i++) {
+        var y = prices[i];
+        sumX += i;
+        sumY += y;
+        sumXY += i * y;
+        sumX2 += i * i;
+        sumY2 += y * y;
+    }
+    var numerator = n * sumXY - sumX * sumY;
+    var denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    if (denominator === 0)
+        return 0;
+    return numerator / denominator;
+}
+/**
+ * Extract the configured price field from a bar. Defaults to close on unknown.
+ */
+function getPriceFromSource(item, source) {
+    var _a, _b, _c, _d;
+    if (item == null)
+        return 0;
+    var o = (_a = item.open) !== null && _a !== void 0 ? _a : 0;
+    var h = (_b = item.high) !== null && _b !== void 0 ? _b : 0;
+    var l = (_c = item.low) !== null && _c !== void 0 ? _c : 0;
+    var c = (_d = item.close) !== null && _d !== void 0 ? _d : 0;
+    switch (source) {
+        case 'open': return o;
+        case 'high': return h;
+        case 'low': return l;
+        case 'hl2': return (h + l) / 2;
+        case 'hlc3': return (h + l + c) / 3;
+        case 'ohlc4': return (o + h + l + c) / 4;
+        case 'close': return c;
+    }
+}
+// ═══════════════════════════════════════
+// Color helpers
+// ═══════════════════════════════════════
+/**
+ * Convert any supported color notation + alpha into an rgba() string.
+ *
+ *  - '#RRGGBB' + alpha → 'rgba(r,g,b,a)'
+ *  - '#RGB'    + alpha → 'rgba(r,g,b,a)'  (short hex)
+ *  - 'rgb(r,g,b)' / 'rgba(r,g,b,_)' + alpha → 'rgba(r,g,b,a)'  (alpha replaced)
+ *  - Unrecognised input → original string returned unchanged
+ */
+function alphaRgba(color, alpha) {
+    var a = Math.max(0, Math.min(1, alpha));
+    // #RRGGBB
+    var long = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+    if (long != null) {
+        var r = parseInt(long[1], 16);
+        var g = parseInt(long[2], 16);
+        var b = parseInt(long[3], 16);
+        return "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(a, ")");
+    }
+    // #RGB → expand
+    var short = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(color);
+    if (short != null) {
+        var r = parseInt(short[1] + short[1], 16);
+        var g = parseInt(short[2] + short[2], 16);
+        var b = parseInt(short[3] + short[3], 16);
+        return "rgba(".concat(r, ", ").concat(g, ", ").concat(b, ", ").concat(a, ")");
+    }
+    // rgb(r,g,b) or rgba(r,g,b,_)
+    var rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(color);
+    if (rgb != null) {
+        return "rgba(".concat(rgb[1], ", ").concat(rgb[2], ", ").concat(rgb[3], ", ").concat(a, ")");
+    }
+    return color;
+}
+/**
+ * Perceived-luminance test used to pick CP fill (dark vs light theme).
+ * Falls back to false for non-hex colors.
+ */
+function isLightColor(color) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(color);
+    if (m == null)
+        return false;
+    var r = parseInt(m[1], 16);
+    var g = parseInt(m[2], 16);
+    var b = parseInt(m[3], 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+// ═══════════════════════════════════════
+// Geometry
+// ═══════════════════════════════════════
+/**
+ * Extend the line p1→p2 to the RIGHT edge of `bounding`.
+ * Returns p2 unchanged when the segment cannot be extended (vertical or
+ * already past the edge).
+ */
+function extendToRight(p1, p2, bounding) {
+    var dx = p2.x - p1.x;
+    var dy = p2.y - p1.y;
+    if (dx === 0)
+        return p2; // vertical — nothing to extend rightward
+    if (p2.x >= bounding.width)
+        return p2;
+    var t = (bounding.width - p1.x) / dx;
+    return {
+        x: bounding.width,
+        y: p1.y + t * dy
+    };
+}
+
+/**
+ * Regression Trend (Xu hướng hồi quy) — TradingView-style Linear Regression Channel.
+ *
+ * Data points: 2 (start bar + end bar). CPs render at the fitted regression Y,
+ * NOT at the raw pointer Y.
+ *
+ * Three render modes in `createPointFigures`:
+ *   A — Drawing in progress (overlay.currentStep !== -1)
+ *       → single thin gray preview line between coordinates[0..1]
+ *   B — CP drag in progress (pressedOverlayInfo.figureType === 'point')
+ *       → same preview line
+ *   C — Idle / selected / body-drag
+ *       → up to 8 figures:
+ *         upper fill, lower fill, center line, upper line, lower line,
+ *         Pearson R label, CP0, CP1  (each gated by its visibility flag)
+ *
+ * On CP release, `performEventPressedMove` discards the raw pointer Y so
+ * the next frame re-projects the CP onto the regression line.
+ */
+// ═══════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════
+function mergeExt(ext) {
+    return __assign(__assign({}, REGRESSION_TREND_DEFAULTS), (ext !== null && ext !== void 0 ? ext : {}));
+}
+// ═══════════════════════════════════════
+// Overlay template
+// ═══════════════════════════════════════
+var regressionTrend = {
+    name: 'regressionTrend',
+    // 2 clicks → OVERLAY_DRAW_STEP_FINISHED (-1). TAD §2.1: CPs live at
+    // the regression Y, not at points[i].value, so default point figures
+    // are disabled.
+    totalStep: 3,
+    needDefaultPointFigure: false,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
+    createPointFigures: function (_a) {
+        var _b, _c, _d, _e, _f;
+        var chart = _a.chart, coordinates = _a.coordinates, bounding = _a.bounding, overlay = _a.overlay;
+        var figures = [];
+        if (coordinates.length < 1)
+            return figures;
+        // ─── Mode detection (drawing vs CP drag vs full channel) ───
+        var chartStore = chart.getChartStore();
+        var pressed = chartStore.getPressedOverlayInfo();
+        var currentStep = overlay.currentStep;
+        var isDrawing = currentStep != null && currentStep !== -1;
+        var isCpDrag = !isDrawing &&
+            ((_b = pressed.overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id &&
+            pressed.figureType === 'point';
+        // ─── Mode A / Mode B: preview line only ───
+        if (isDrawing || isCpDrag) {
+            if (coordinates.length < 2)
+                return figures;
+            var rawCrosshairColor = chart.getStyles().crosshair.horizontal.line.color;
+            var crosshairColor = rawCrosshairColor !== '' ? rawCrosshairColor : PREVIEW_FALLBACK_COLOR;
+            figures.push({
+                key: RT_PREVIEW,
+                type: 'line',
+                attrs: { coordinates: [coordinates[0], coordinates[1]] },
+                styles: {
+                    color: crosshairColor,
+                    size: PREVIEW_LINE_WIDTH,
+                    style: 'solid'
+                },
+                ignoreEvent: true
+            });
+            return figures;
+        }
+        // ─── Mode C: full channel ───
+        if (coordinates.length < 2)
+            return figures;
+        var ext = mergeExt(overlay.extendData);
+        var i1 = (_c = overlay.points[0]) === null || _c === void 0 ? void 0 : _c.dataIndex;
+        var i2 = (_d = overlay.points[1]) === null || _d === void 0 ? void 0 : _d.dataIndex;
+        // Degenerate case — less than 2 distinct bars. Render plain center line only.
+        if (!isNumber(i1) || !isNumber(i2) || Math.abs(i2 - i1) < 1) {
+            figures.push({
+                key: RT_CENTER_LINE,
+                type: 'line',
+                attrs: { coordinates: [coordinates[0], coordinates[1]] },
+                styles: {
+                    color: ext.baseColor,
+                    size: BASE_LINE_WIDTH,
+                    style: ext.baseStyle,
+                    dashedValue: DASH[ext.baseStyle]
+                }
+            });
+            return figures;
+        }
+        // ─── Clamp bar range + extract prices ───
+        var dataList = chart.getDataList();
+        if (dataList.length === 0)
+            return figures;
+        var startIdx = Math.min(i1, i2);
+        var endIdx = Math.max(i1, i2);
+        var start = Math.max(0, startIdx);
+        var end = Math.min(dataList.length - 1, endIdx);
+        if (end - start < 1)
+            return figures;
+        var prices = [];
+        for (var k = start; k <= end; k++) {
+            prices.push(getPriceFromSource(dataList[k], ext.source));
+        }
+        if (prices.length < 2)
+            return figures;
+        // ─── Regression + Pearson R ───
+        var _g = linearRegression(prices), slope = _g.slope, intercept = _g.intercept;
+        var stdDev = regressionStdDev(prices, slope, intercept);
+        var r = pearsonsR(prices);
+        var regStartVal = intercept;
+        var regEndVal = slope * (prices.length - 1) + intercept;
+        var upOffset = ext.upperDeviation * stdDev;
+        var loOffset = ext.lowerDeviation * stdDev;
+        // ─── Project 6 anchor prices to pixel ───
+        var pts = [
+            { dataIndex: start, value: regStartVal },
+            { dataIndex: end, value: regEndVal },
+            { dataIndex: start, value: regStartVal + upOffset },
+            { dataIndex: end, value: regEndVal + upOffset },
+            { dataIndex: start, value: regStartVal + loOffset },
+            { dataIndex: end, value: regEndVal + loOffset }
+        ];
+        var pixels = chart.convertToPixel(pts, { paneId: overlay.paneId });
+        var toCoord = function (c) { var _a, _b; return ({ x: (_a = c === null || c === void 0 ? void 0 : c.x) !== null && _a !== void 0 ? _a : 0, y: (_b = c === null || c === void 0 ? void 0 : c.y) !== null && _b !== void 0 ? _b : 0 }); };
+        var regS = toCoord(pixels[0]);
+        var regE = toCoord(pixels[1]);
+        var upS = toCoord(pixels[2]);
+        var upE = toCoord(pixels[3]);
+        var loS = toCoord(pixels[4]);
+        var loE = toCoord(pixels[5]);
+        // ─── Extend right (optional) ───
+        var regE2 = ext.extendLines ? extendToRight(regS, regE, bounding) : regE;
+        var upE2 = ext.extendLines ? extendToRight(upS, upE, bounding) : upE;
+        var loE2 = ext.extendLines ? extendToRight(loS, loE, bounding) : loE;
+        // ─── Fills (bottom) ───
+        if (ext.useUpperDeviation) {
+            figures.push({
+                key: RT_UPPER_FILL,
+                type: 'polygon',
+                attrs: { coordinates: [regS, regE2, upE2, upS] },
+                styles: {
+                    style: 'fill',
+                    color: alphaRgba(ext.upperColor, FILL_OPACITY)
+                }
+            });
+        }
+        if (ext.useLowerDeviation) {
+            figures.push({
+                key: RT_LOWER_FILL,
+                type: 'polygon',
+                attrs: { coordinates: [regS, regE2, loE2, loS] },
+                styles: {
+                    style: 'fill',
+                    color: alphaRgba(ext.lowerColor, FILL_OPACITY)
+                }
+            });
+        }
+        // ─── Lines ───
+        if (ext.baseVisible) {
+            figures.push({
+                key: RT_CENTER_LINE,
+                type: 'line',
+                attrs: { coordinates: [regS, regE2] },
+                styles: {
+                    color: ext.baseColor,
+                    size: BASE_LINE_WIDTH,
+                    style: ext.baseStyle,
+                    dashedValue: DASH[ext.baseStyle]
+                }
+            });
+        }
+        if (ext.upperVisible && ext.useUpperDeviation) {
+            figures.push({
+                key: RT_UPPER_LINE,
+                type: 'line',
+                attrs: { coordinates: [upS, upE2] },
+                styles: {
+                    color: ext.upperColor,
+                    size: UPPER_LINE_WIDTH,
+                    style: ext.upperStyle,
+                    dashedValue: DASH[ext.upperStyle]
+                }
+            });
+        }
+        if (ext.lowerVisible && ext.useLowerDeviation) {
+            figures.push({
+                key: RT_LOWER_LINE,
+                type: 'line',
+                attrs: { coordinates: [loS, loE2] },
+                styles: {
+                    color: ext.lowerColor,
+                    size: LOWER_LINE_WIDTH,
+                    style: ext.lowerStyle,
+                    dashedValue: DASH[ext.lowerStyle]
+                }
+            });
+        }
+        // ─── Pearson R label (left of regS, text color = upperColor per TAD §6) ───
+        if (ext.pearsonR) {
+            figures.push({
+                key: RT_PEARSON_R,
+                type: 'text',
+                attrs: {
+                    x: regS.x - PEARSON_LABEL_OFFSET_X,
+                    y: regS.y,
+                    text: r.toFixed(15),
+                    align: 'right',
+                    baseline: 'middle'
+                },
+                styles: {
+                    color: ext.upperColor,
+                    size: PEARSON_FONT_SIZE,
+                    weight: 'normal',
+                    family: 'Arial, sans-serif',
+                    backgroundColor: 'transparent'
+                },
+                ignoreEvent: true
+            });
+        }
+        // ─── Control points (selected or hovered) ───
+        var isSelected = ((_e = chartStore.getClickOverlayInfo().overlay) === null || _e === void 0 ? void 0 : _e.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_f = hoverInfo.overlay) === null || _f === void 0 ? void 0 : _f.id) === overlay.id && hoverInfo.figureType !== 'none';
+        if (isSelected || isHovered) {
+            var tickTextColor = String(chart.getStyles().yAxis.tickText.color);
+            var cpBg = isLightColor(tickTextColor) ? '#131722' : '#ffffff';
+            figures.push({
+                key: RT_CP_0,
+                type: 'circle',
+                attrs: { x: regS.x, y: regS.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_CIRCLE_BORDER
+                },
+                pointIndex: 0,
+                cursor: 'move'
+            });
+            figures.push({
+                key: RT_CP_1,
+                type: 'circle',
+                attrs: { x: regE.x, y: regE.y, r: CP_RADIUS + CP_CIRCLE_BORDER },
+                styles: {
+                    style: 'stroke_fill',
+                    color: cpBg,
+                    borderColor: CP_COLOR,
+                    borderSize: CP_CIRCLE_BORDER
+                },
+                pointIndex: 1,
+                cursor: 'move'
+            });
+        }
+        return figures;
+    },
+    // ─────────────────────────────────────
+    // CP drag: discard raw pointer Y so the CP snaps to regression Y on release.
+    // Body drag (figureType === 'other') is handled by the engine's default
+    // eventPressedOtherMove which translates all points by the same delta.
+    // ─────────────────────────────────────
+    performEventPressedMove: function (_a) {
+        var points = _a.points, performPointIndex = _a.performPointIndex, prevPoints = _a.prevPoints;
+        if (performPointIndex !== 0 && performPointIndex !== 1)
+            return;
+        if (prevPoints.length < 2)
+            return;
+        // dataIndex/timestamp already follow the cursor via the engine default.
+        // Wipe the pointer-derived Y — Mode C recomputes it from regression.
+        points[performPointIndex].value = undefined;
+    }
+};
+
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15360,7 +15887,7 @@ var extensions$1 = [
     parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
     straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
     simpleAnnotation, simpleTag, vpfr, rect$1, circle$1, longPosition, shortPosition,
-    forecast
+    forecast, regressionTrend
 ];
 extensions$1.forEach(function (template) {
     overlays[template.name] = OverlayImp.extend(template);

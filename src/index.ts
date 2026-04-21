@@ -68,6 +68,12 @@ import { registerIndicator, getSupportedIndicators } from './extension/indicator
 import { registerLocale, getSupportedLocales } from './extension/i18n/index'
 import { registerOverlay, getOverlayClass, getSupportedOverlays } from './extension/overlay/index'
 import type { SegmentExtendData } from './extension/overlay/segment'
+import type {
+  RegressionTrendExtendData,
+  RegressionSource,
+  LineStyle as RegressionTrendLineStyle,
+  VisibilityRange as RegressionVisibilityRange
+} from './extension/overlay/regressionTrend'
 import { registerStyles } from './extension/styles/index'
 import { registerXAxis } from './extension/x-axis'
 import { registerYAxis } from './extension/y-axis'
@@ -177,5 +183,12 @@ export {
   type LineType, type PolygonType, type TooltipShowRule, type TooltipShowType, type FeatureType, type TooltipFeaturePosition, type CandleTooltipRectPosition,
   type CandleType, type FormatDateType, type ZoomAnchor,
   type DomPosition, type ActionType, type IndicatorSeries, type OverlayMode,
-  type SegmentExtendData
+  type SegmentExtendData,
+  type RegressionTrendExtendData,
+  type RegressionSource,
+  // Public names for regressionTrend overlay types. `RegressionTrendLineStyle`
+  // is used instead of `LineStyle` to avoid collision with the internal
+  // `common/Styles.LineStyle` interface that leaks into the bundled d.ts.
+  type RegressionTrendLineStyle,
+  type RegressionVisibilityRange
 }
