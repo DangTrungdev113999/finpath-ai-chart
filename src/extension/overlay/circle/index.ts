@@ -19,6 +19,12 @@ import {
   DEFAULT_FILL_OPACITY,
   MIN_RADIUS_PX
 } from './constants'
+import {
+  buildXAxisPill,
+  buildYAxisPill,
+  formatDate,
+  alphaColor
+} from '../lineCommon'
 
 function isLightColor (hex: string): boolean {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex)
@@ -43,6 +49,9 @@ interface ChartInternal {
     getHoverOverlayInfo: () => EventOverlayInfo
   }
 }
+
+// Pills + strip always use TV blue, regardless of shape color
+const AXIS_PILL_COLOR = '#2962FF'
 
 // ═══════════════════════════════════════
 // TYPES
@@ -71,8 +80,8 @@ const circle: OverlayTemplate<CircleExtendData> = {
   name: 'circle',
   totalStep: 3,
   needDefaultPointFigure: false,
-  needDefaultXAxisFigure: true,
-  needDefaultYAxisFigure: true,
+  needDefaultXAxisFigure: false,
+  needDefaultYAxisFigure: false,
 
   createPointFigures: ({ chart, coordinates, overlay }) => {
     if (coordinates.length < 2) return []
@@ -211,6 +220,94 @@ const circle: OverlayTemplate<CircleExtendData> = {
       points[1].value = (prevPoints[1].value ?? 0) + dv
     }
     // circle_cp_edge: default behavior (center stays fixed, edge moves)
+  },
+
+  // ─── X-axis: translucent strip spanning the diameter + pills at both edges ───
+  createXAxisFigures: ({ chart, overlay, coordinates, bounding }) => {
+    if (coordinates.length < 2) return []
+
+    // Only render while selected or hovered (TradingView behavior)
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    if (!isSelected && !isHovered) return []
+
+    const [center, edge] = coordinates
+    const radius = Math.max(Math.hypot(edge.x - center.x, edge.y - center.y), MIN_RADIUS_PX)
+    const leftX = center.x - radius
+    const rightX = center.x + radius
+    const stripWidth = rightX - leftX
+
+    // Convert pixel edges back to timestamps for the pill text
+    const leftPoint = chart.convertFromPixel([{ x: leftX }]) as { timestamp?: number } | Array<{ timestamp?: number }>
+    const rightPoint = chart.convertFromPixel([{ x: rightX }]) as { timestamp?: number } | Array<{ timestamp?: number }>
+    const leftTs = Array.isArray(leftPoint) ? leftPoint[0]?.timestamp : leftPoint.timestamp
+    const rightTs = Array.isArray(rightPoint) ? rightPoint[0]?.timestamp : rightPoint.timestamp
+
+    const figs: OverlayFigure[] = []
+    if (stripWidth > 0) {
+      figs.push({
+        key: 'circle_xstrip',
+        type: 'rect',
+        attrs: { x: leftX, y: 0, width: stripWidth, height: bounding.height },
+        styles: { style: 'fill', color: alphaColor(AXIS_PILL_COLOR, 0.2) },
+        ignoreEvent: true
+      })
+    }
+
+    const dLeft = formatDate(leftTs)
+    const dRight = formatDate(rightTs)
+    if (dLeft !== '') figs.push(buildXAxisPill(leftX, dLeft, AXIS_PILL_COLOR, 'circle_x0'))
+    if (dRight !== '' && rightX !== leftX) {
+      figs.push(buildXAxisPill(rightX, dRight, AXIS_PILL_COLOR, 'circle_x1'))
+    }
+    return figs
+  },
+
+  // ─── Y-axis: translucent strip spanning the diameter + pills at both edges ───
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 2) return []
+
+    // Only render while selected or hovered (TradingView behavior)
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    if (!isSelected && !isHovered) return []
+
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+
+    const [center, edge] = coordinates
+    const radius = Math.max(Math.hypot(edge.x - center.x, edge.y - center.y), MIN_RADIUS_PX)
+    const topY = center.y - radius
+    const bottomY = center.y + radius
+    const stripHeight = bottomY - topY
+
+    // Convert pixel edges back to values for the pill text
+    const topPoint = chart.convertFromPixel([{ y: topY }]) as { value?: number } | Array<{ value?: number }>
+    const botPoint = chart.convertFromPixel([{ y: bottomY }]) as { value?: number } | Array<{ value?: number }>
+    const topVal = Array.isArray(topPoint) ? topPoint[0]?.value : topPoint.value
+    const bottomVal = Array.isArray(botPoint) ? botPoint[0]?.value : botPoint.value
+
+    const figs: OverlayFigure[] = []
+    if (stripHeight > 0) {
+      figs.push({
+        key: 'circle_ystrip',
+        type: 'rect',
+        attrs: { x: 0, y: topY, width: bounding.width, height: stripHeight },
+        styles: { style: 'fill', color: alphaColor(AXIS_PILL_COLOR, 0.2) },
+        ignoreEvent: true
+      })
+    }
+
+    const pillTop = buildYAxisPill(topY, topVal, AXIS_PILL_COLOR, precision, bounding, yAxis ?? undefined, 'circle_y0')
+    if (pillTop != null) figs.push(pillTop)
+    if (bottomY !== topY) {
+      const pillBot = buildYAxisPill(bottomY, bottomVal, AXIS_PILL_COLOR, precision, bounding, yAxis ?? undefined, 'circle_y1')
+      if (pillBot != null) figs.push(pillBot)
+    }
+    return figs
   }
 }
 

@@ -266,6 +266,14 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
     if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
+
+    // Only render while selected or hovered (TradingView behavior)
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    if (!isSelected && !isHovered) return []
+
     // Pills + strip always use TV blue, regardless of shape color
     const pillColor = '#2962FF'
 
@@ -309,6 +317,14 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
     if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
+
+    // Only render while selected or hovered (TradingView behavior)
+    const chartStore = (chart as unknown as ChartInternal).getChartStore()
+    const isSelected = chartStore.getClickOverlayInfo().overlay?.id === overlay.id
+    const hoverInfo = chartStore.getHoverOverlayInfo()
+    const isHovered = hoverInfo.overlay?.id === overlay.id && hoverInfo.figureType !== 'none'
+    if (!isSelected && !isHovered) return []
+
     // Pills + strip always use TV blue, regardless of shape color
     const pillColor = '#2962FF'
     const precision = chart.getSymbol()?.pricePrecision ?? 2

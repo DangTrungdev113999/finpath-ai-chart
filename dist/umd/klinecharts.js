@@ -12902,6 +12902,8 @@ function hexToRgba(hex, alpha) {
         return "rgba(255, 152, 0, ".concat(alpha, ")");
     return "rgba(".concat(parseInt(m[1], 16), ", ").concat(parseInt(m[2], 16), ", ").concat(parseInt(m[3], 16), ", ").concat(alpha, ")");
 }
+// Pills + strip always use TV blue, regardless of shape color
+var AXIS_PILL_COLOR = '#2962FF';
 // ═══════════════════════════════════════
 // OVERLAY
 // ═══════════════════════════════════════
@@ -12909,8 +12911,8 @@ var circle$1 = {
     name: 'circle',
     totalStep: 3,
     needDefaultPointFigure: false,
-    needDefaultXAxisFigure: true,
-    needDefaultYAxisFigure: true,
+    needDefaultXAxisFigure: false,
+    needDefaultYAxisFigure: false,
     createPointFigures: function (_a) {
         var _b, _c, _d, _e, _f, _g, _h, _j, _k;
         var chart = _a.chart, coordinates = _a.coordinates, overlay = _a.overlay;
@@ -13038,6 +13040,92 @@ var circle$1 = {
             points[1].value = ((_g = prevPoints[1].value) !== null && _g !== void 0 ? _g : 0) + dv;
         }
         // circle_cp_edge: default behavior (center stays fixed, edge moves)
+    },
+    // ─── X-axis: translucent strip spanning the diameter + pills at both edges ───
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
+        if (coordinates.length < 2)
+            return [];
+        // Only render while selected or hovered (TradingView behavior)
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        if (!isSelected && !isHovered)
+            return [];
+        var _f = __read(coordinates, 2), center = _f[0], edge = _f[1];
+        var radius = Math.max(Math.hypot(edge.x - center.x, edge.y - center.y), MIN_RADIUS_PX);
+        var leftX = center.x - radius;
+        var rightX = center.x + radius;
+        var stripWidth = rightX - leftX;
+        // Convert pixel edges back to timestamps for the pill text
+        var leftPoint = chart.convertFromPixel([{ x: leftX }]);
+        var rightPoint = chart.convertFromPixel([{ x: rightX }]);
+        var leftTs = Array.isArray(leftPoint) ? (_d = leftPoint[0]) === null || _d === void 0 ? void 0 : _d.timestamp : leftPoint.timestamp;
+        var rightTs = Array.isArray(rightPoint) ? (_e = rightPoint[0]) === null || _e === void 0 ? void 0 : _e.timestamp : rightPoint.timestamp;
+        var figs = [];
+        if (stripWidth > 0) {
+            figs.push({
+                key: 'circle_xstrip',
+                type: 'rect',
+                attrs: { x: leftX, y: 0, width: stripWidth, height: bounding.height },
+                styles: { style: 'fill', color: alphaColor(AXIS_PILL_COLOR, 0.2) },
+                ignoreEvent: true
+            });
+        }
+        var dLeft = formatDate(leftTs);
+        var dRight = formatDate(rightTs);
+        if (dLeft !== '')
+            figs.push(buildXAxisPill(leftX, dLeft, AXIS_PILL_COLOR, 'circle_x0'));
+        if (dRight !== '' && rightX !== leftX) {
+            figs.push(buildXAxisPill(rightX, dRight, AXIS_PILL_COLOR, 'circle_x1'));
+        }
+        return figs;
+    },
+    // ─── Y-axis: translucent strip spanning the diameter + pills at both edges ───
+    createYAxisFigures: function (_a) {
+        var _b, _c, _d, _e, _f, _g;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 2)
+            return [];
+        // Only render while selected or hovered (TradingView behavior)
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        if (!isSelected && !isHovered)
+            return [];
+        var precision = (_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : 2;
+        var _h = __read(coordinates, 2), center = _h[0], edge = _h[1];
+        var radius = Math.max(Math.hypot(edge.x - center.x, edge.y - center.y), MIN_RADIUS_PX);
+        var topY = center.y - radius;
+        var bottomY = center.y + radius;
+        var stripHeight = bottomY - topY;
+        // Convert pixel edges back to values for the pill text
+        var topPoint = chart.convertFromPixel([{ y: topY }]);
+        var botPoint = chart.convertFromPixel([{ y: bottomY }]);
+        var topVal = Array.isArray(topPoint) ? (_f = topPoint[0]) === null || _f === void 0 ? void 0 : _f.value : topPoint.value;
+        var bottomVal = Array.isArray(botPoint) ? (_g = botPoint[0]) === null || _g === void 0 ? void 0 : _g.value : botPoint.value;
+        var figs = [];
+        if (stripHeight > 0) {
+            figs.push({
+                key: 'circle_ystrip',
+                type: 'rect',
+                attrs: { x: 0, y: topY, width: bounding.width, height: stripHeight },
+                styles: { style: 'fill', color: alphaColor(AXIS_PILL_COLOR, 0.2) },
+                ignoreEvent: true
+            });
+        }
+        var pillTop = buildYAxisPill(topY, topVal, AXIS_PILL_COLOR, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'circle_y0');
+        if (pillTop != null)
+            figs.push(pillTop);
+        if (bottomY !== topY) {
+            var pillBot = buildYAxisPill(bottomY, bottomVal, AXIS_PILL_COLOR, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'circle_y1');
+            if (pillBot != null)
+                figs.push(pillBot);
+        }
+        return figs;
     }
 };
 
@@ -16409,23 +16497,30 @@ var ellipse = {
     },
     // ─── X-axis: translucent strip spanning the bbox + pills at both edges ───
     createXAxisFigures: function (_a) {
-        var _b, _c, _d, _e;
+        var _b, _c, _d, _e, _f, _g;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 2)
             return [];
         var ext = mergeExt(overlay.extendData);
         if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
             return [];
+        // Only render while selected or hovered (TradingView behavior)
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        if (!isSelected && !isHovered)
+            return [];
         // Pills + strip always use TV blue, regardless of shape color
         var pillColor = '#2962FF';
-        var _f = __read(coordinates, 2), c0 = _f[0], c1 = _f[1];
+        var _h = __read(coordinates, 2), c0 = _h[0], c1 = _h[1];
         var leftX = Math.min(c0.x, c1.x);
         var rightX = Math.max(c0.x, c1.x);
         var stripWidth = rightX - leftX;
         var p0 = overlay.points[0];
         var p1 = overlay.points[1];
-        var earlierTs = Math.min((_b = p0.timestamp) !== null && _b !== void 0 ? _b : 0, (_c = p1.timestamp) !== null && _c !== void 0 ? _c : 0);
-        var laterTs = Math.max((_d = p0.timestamp) !== null && _d !== void 0 ? _d : 0, (_e = p1.timestamp) !== null && _e !== void 0 ? _e : 0);
+        var earlierTs = Math.min((_d = p0.timestamp) !== null && _d !== void 0 ? _d : 0, (_e = p1.timestamp) !== null && _e !== void 0 ? _e : 0);
+        var laterTs = Math.max((_f = p0.timestamp) !== null && _f !== void 0 ? _f : 0, (_g = p1.timestamp) !== null && _g !== void 0 ? _g : 0);
         var figs = [];
         // Translucent strip between the two pills
         if (stripWidth > 0) {
@@ -16451,17 +16546,24 @@ var ellipse = {
     },
     // ─── Y-axis: translucent strip spanning the bbox + pills at both edges ───
     createYAxisFigures: function (_a) {
-        var _b, _c;
+        var _b, _c, _d, _e;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
         if (coordinates.length < 2)
             return [];
         var ext = mergeExt(overlay.extendData);
         if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
             return [];
+        // Only render while selected or hovered (TradingView behavior)
+        var chartStore = chart.getChartStore();
+        var isSelected = ((_b = chartStore.getClickOverlayInfo().overlay) === null || _b === void 0 ? void 0 : _b.id) === overlay.id;
+        var hoverInfo = chartStore.getHoverOverlayInfo();
+        var isHovered = ((_c = hoverInfo.overlay) === null || _c === void 0 ? void 0 : _c.id) === overlay.id && hoverInfo.figureType !== 'none';
+        if (!isSelected && !isHovered)
+            return [];
         // Pills + strip always use TV blue, regardless of shape color
         var pillColor = '#2962FF';
-        var precision = (_c = (_b = chart.getSymbol()) === null || _b === void 0 ? void 0 : _b.pricePrecision) !== null && _c !== void 0 ? _c : 2;
-        var _d = __read(coordinates, 2), c0 = _d[0], c1 = _d[1];
+        var precision = (_e = (_d = chart.getSymbol()) === null || _d === void 0 ? void 0 : _d.pricePrecision) !== null && _e !== void 0 ? _e : 2;
+        var _f = __read(coordinates, 2), c0 = _f[0], c1 = _f[1];
         var topY = Math.min(c0.y, c1.y);
         var bottomY = Math.max(c0.y, c1.y);
         var stripHeight = bottomY - topY;
