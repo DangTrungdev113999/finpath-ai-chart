@@ -1218,6 +1218,40 @@ export interface RegressionTrendExtendData {
 	vis_weeks?: VisibilityRange;
 	vis_months?: VisibilityRange;
 }
+/**
+ * Ellipse (Hình elip) — ExtendData types
+ *
+ * 2-point shape: `overlay.points[0]` and `overlay.points[1]` are the diagonal
+ * corners of the bounding box. The ellipse is inscribed in that bbox.
+ *
+ * Flat 18-field schema — matches BRD §4.
+ */
+export type EllipseLineStyle = "solid" | "dashed" | "dotted";
+export interface EllipseVisibilityRange {
+	enabled: boolean;
+	min: number;
+	max: number;
+}
+export interface EllipseExtendData {
+	borderColor?: string;
+	borderStyle?: EllipseLineStyle;
+	borderWidth?: number;
+	fillEnabled?: boolean;
+	fillColor?: string;
+	fillOpacity?: number;
+	textEnabled?: boolean;
+	text?: string;
+	textColor?: string;
+	textSize?: number;
+	isBold?: boolean;
+	isItalic?: boolean;
+	isEditing?: boolean;
+	vis_ticks?: EllipseVisibilityRange;
+	vis_hours?: EllipseVisibilityRange;
+	vis_days?: EllipseVisibilityRange;
+	vis_weeks?: EllipseVisibilityRange;
+	vis_months?: EllipseVisibilityRange;
+}
 export declare function registerStyles(name: string, ss: DeepPartial<Styles>): void;
 export declare function registerXAxis(axis: XAxisTemplate): void;
 export declare function registerYAxis(axis: YAxisTemplate): void;
