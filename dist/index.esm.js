@@ -16023,16 +16023,16 @@ var regressionTrend = {
 var FILL_OPACITY = 0.2;
 var ELLIPSE_DEFAULTS = {
     // Tab 1 — Định dạng (Style)
-    borderColor: '#F44336',
+    borderColor: '#2962FF',
     borderStyle: 'solid',
     borderWidth: 1,
     fillEnabled: true,
-    fillColor: '#F44336',
+    fillColor: '#2962FF',
     fillOpacity: FILL_OPACITY,
     // Tab 2 — Văn bản (Text)
     textEnabled: false,
     text: '',
-    textColor: '#F44336',
+    textColor: '#2962FF',
     textSize: 14,
     isBold: false,
     isItalic: false,
