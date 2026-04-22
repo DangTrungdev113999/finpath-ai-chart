@@ -43,6 +43,7 @@ import {
   linearRegression, regressionStdDev, pearsonsR,
   getPriceFromSource, alphaRgba, extendToRight, isLightColor
 } from './math'
+import { buildXAxisPill, buildYAxisPill, formatDate } from '../lineCommon'
 
 export type {
   RegressionTrendExtendData,
@@ -403,13 +404,69 @@ const regressionTrend: OverlayTemplate<RegressionTrendExtendData> = {
     }
 
     return figures
-  }
+  },
 
-  // CP drag: the engine writes pointer (dataIndex, value) into points[i] —
-  // we leave both intact so the CP marker tracks the cursor 1:1 during Mode B.
-  // On pointer release (Mode B exits, Mode C re-renders), the CP's RENDERED
-  // position snaps to the regression-line Y at its bar — `points[i].value`
-  // is not read by Mode C anywhere, so the stored value is harmless decor.
+  // ─── X-axis pills (date labels at each anchor bar) ───
+  createXAxisFigures: ({ overlay, coordinates }) => {
+    if (coordinates.length < 1) return []
+    const ext = mergeExt(overlay.extendData)
+    const lineColor = ext.upperColor
+    const figs: OverlayFigure[] = []
+    const d0 = formatDate(overlay.points[0]?.timestamp)
+    if (d0 !== '') figs.push(buildXAxisPill(coordinates[0].x, d0, lineColor, 'rt_x0'))
+    if (coordinates.length >= 2) {
+      const d1 = formatDate(overlay.points[1]?.timestamp)
+      if (d1 !== '') figs.push(buildXAxisPill(coordinates[1].x, d1, lineColor, 'rt_x1'))
+    }
+    return figs
+  },
+
+  // ─── Y-axis pills (price labels at the REGRESSION Y of each anchor) ───
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 2) return []
+    const ext = mergeExt(overlay.extendData)
+    const lineColor = ext.upperColor
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+    const dataList = chart.getDataList()
+    if (dataList.length === 0) return []
+
+    const p0 = overlay.points[0]
+    const p1 = overlay.points[1]
+    const i1 = resolveBarIndex(dataList, p0.timestamp, p0.dataIndex)
+    const i2 = resolveBarIndex(dataList, p1.timestamp, p1.dataIndex)
+    if (!isNumber(i1) || !isNumber(i2) || i1 < 0 || i2 < 0 || Math.abs(i2 - i1) < 1) {
+      return []
+    }
+
+    const startIdx = Math.min(i1, i2)
+    const endIdx = Math.max(i1, i2)
+    const start = Math.max(0, startIdx)
+    const end = Math.min(dataList.length - 1, endIdx)
+    const prices: number[] = []
+    for (let k = start; k <= end; k++) prices.push(getPriceFromSource(dataList[k], ext.source))
+    if (prices.length < 2) return []
+
+    const { slope, intercept } = linearRegression(prices)
+    const regStartVal = intercept
+    const regEndVal = slope * (prices.length - 1) + intercept
+
+    // Map each anchor's bar index back to its regression Y in pixel space.
+    const idxStart = i1 < i2 ? 0 : 1
+    const idxEnd = 1 - idxStart
+    const regS = chart.convertToPixel(
+      [{ dataIndex: start, value: regStartVal }, { dataIndex: end, value: regEndVal }],
+      { paneId: overlay.paneId }
+    ) as Array<Partial<Coordinate>>
+    const yStart = regS[0]?.y ?? coordinates[idxStart].y
+    const yEnd = regS[1]?.y ?? coordinates[idxEnd].y
+
+    const figs: OverlayFigure[] = []
+    const pill0 = buildYAxisPill(yStart, regStartVal, lineColor, precision, bounding, yAxis ?? undefined, 'rt_y0')
+    if (pill0 != null) figs.push(pill0)
+    const pill1 = buildYAxisPill(yEnd, regEndVal, lineColor, precision, bounding, yAxis ?? undefined, 'rt_y1')
+    if (pill1 != null) figs.push(pill1)
+    return figs
+  }
 }
 
 export default regressionTrend

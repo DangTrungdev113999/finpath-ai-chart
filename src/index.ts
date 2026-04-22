@@ -74,6 +74,11 @@ import type {
   LineStyle as RegressionTrendLineStyle,
   VisibilityRange as RegressionVisibilityRange
 } from './extension/overlay/regressionTrend'
+import type {
+  EllipseExtendData,
+  EllipseLineStyle,
+  EllipseVisibilityRange
+} from './extension/overlay/ellipse'
 import { registerStyles } from './extension/styles/index'
 import { registerXAxis } from './extension/x-axis'
 import { registerYAxis } from './extension/y-axis'
@@ -190,5 +195,11 @@ export {
   // is used instead of `LineStyle` to avoid collision with the internal
   // `common/Styles.LineStyle` interface that leaks into the bundled d.ts.
   type RegressionTrendLineStyle,
-  type RegressionVisibilityRange
+  type RegressionVisibilityRange,
+  // Public names for the ellipse overlay. Renamed to avoid collision with
+  // internal `common/Styles` types and other overlays that use generic
+  // `LineStyle` / `VisibilityRange` identifiers.
+  type EllipseExtendData,
+  type EllipseLineStyle,
+  type EllipseVisibilityRange
 }

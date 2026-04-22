@@ -39,6 +39,7 @@ import longPosition from './longPosition'
 import shortPosition from './shortPosition'
 import forecast from './forecast'
 import regressionTrend from './regressionTrend'
+import ellipse from './ellipse'
 
 const overlays: Record<string, OverlayInnerConstructor> = {}
 
@@ -47,7 +48,7 @@ const extensions = [
   parallelStraightLine, priceChannelLine, priceLine, rayLine, segment,
   straightLine, verticalRayLine, verticalSegment, verticalStraightLine,
   simpleAnnotation, simpleTag, vpfr, rectOverlay, circleOverlay, longPosition, shortPosition,
-  forecast, regressionTrend
+  forecast, regressionTrend, ellipse
 ]
 
 extensions.forEach((template: OverlayTemplate) => {
