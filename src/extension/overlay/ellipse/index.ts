@@ -266,7 +266,8 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
     if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
-    const pillColor = ext.borderColor
+    // Pills + strip always use TV blue, regardless of shape color
+    const pillColor = '#2962FF'
 
     const [c0, c1] = coordinates
     const leftX = Math.min(c0.x, c1.x)
@@ -308,7 +309,8 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
     if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
-    const pillColor = ext.borderColor
+    // Pills + strip always use TV blue, regardless of shape color
+    const pillColor = '#2962FF'
     const precision = chart.getSymbol()?.pricePrecision ?? 2
 
     const [c0, c1] = coordinates

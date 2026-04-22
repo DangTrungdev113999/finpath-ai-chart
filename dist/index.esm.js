@@ -16411,7 +16411,8 @@ var ellipse = {
         var ext = mergeExt(overlay.extendData);
         if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
             return [];
-        var pillColor = ext.borderColor;
+        // Pills + strip always use TV blue, regardless of shape color
+        var pillColor = '#2962FF';
         var _f = __read(coordinates, 2), c0 = _f[0], c1 = _f[1];
         var leftX = Math.min(c0.x, c1.x);
         var rightX = Math.max(c0.x, c1.x);
@@ -16452,7 +16453,8 @@ var ellipse = {
         var ext = mergeExt(overlay.extendData);
         if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
             return [];
-        var pillColor = ext.borderColor;
+        // Pills + strip always use TV blue, regardless of shape color
+        var pillColor = '#2962FF';
         var precision = (_c = (_b = chart.getSymbol()) === null || _b === void 0 ? void 0 : _b.pricePrecision) !== null && _c !== void 0 ? _c : 2;
         var _d = __read(coordinates, 2), c0 = _d[0], c1 = _d[1];
         var topY = Math.min(c0.y, c1.y);
