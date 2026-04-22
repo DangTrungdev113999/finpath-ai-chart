@@ -261,8 +261,8 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     }
   },
 
-  // ─── X-axis pills (date labels at the LEFT and RIGHT edges of the bbox) ───
-  createXAxisFigures: ({ chart, overlay, coordinates }) => {
+  // ─── X-axis: translucent strip spanning the bbox + pills at both edges ───
+  createXAxisFigures: ({ chart, overlay, coordinates, bounding }) => {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
     if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
@@ -271,6 +271,7 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     const [c0, c1] = coordinates
     const leftX = Math.min(c0.x, c1.x)
     const rightX = Math.max(c0.x, c1.x)
+    const stripWidth = rightX - leftX
 
     const p0 = overlay.points[0]
     const p1 = overlay.points[1]
@@ -278,6 +279,21 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     const laterTs = Math.max(p0.timestamp ?? 0, p1.timestamp ?? 0)
 
     const figs: OverlayFigure[] = []
+
+    // Translucent strip between the two pills
+    if (stripWidth > 0) {
+      figs.push({
+        key: 'e_xstrip',
+        type: 'rect',
+        attrs: { x: leftX, y: 0, width: stripWidth, height: bounding.height },
+        styles: {
+          style: 'fill',
+          color: alphaRgba(pillColor, 0.2)
+        },
+        ignoreEvent: true
+      })
+    }
+
     const dLeft = formatDate(earlierTs)
     const dRight = formatDate(laterTs)
     if (dLeft !== '') figs.push(buildXAxisPill(leftX, dLeft, pillColor, 'e_x0'))
@@ -287,7 +303,7 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     return figs
   },
 
-  // ─── Y-axis pills (price labels at the TOP and BOTTOM edges of the bbox) ───
+  // ─── Y-axis: translucent strip spanning the bbox + pills at both edges ───
   createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
     if (coordinates.length < 2) return []
     const ext = mergeExt(overlay.extendData)
@@ -298,6 +314,7 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     const [c0, c1] = coordinates
     const topY = Math.min(c0.y, c1.y)
     const bottomY = Math.max(c0.y, c1.y)
+    const stripHeight = bottomY - topY
 
     const p0 = overlay.points[0]
     const p1 = overlay.points[1]
@@ -308,6 +325,21 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
     const bottomVal = Math.min(v0, v1)
 
     const figs: OverlayFigure[] = []
+
+    // Translucent strip between the two pills
+    if (stripHeight > 0) {
+      figs.push({
+        key: 'e_ystrip',
+        type: 'rect',
+        attrs: { x: 0, y: topY, width: bounding.width, height: stripHeight },
+        styles: {
+          style: 'fill',
+          color: alphaRgba(pillColor, 0.2)
+        },
+        ignoreEvent: true
+      })
+    }
+
     const pillTop = buildYAxisPill(topY, topVal, pillColor, precision, bounding, yAxis ?? undefined, 'e_y0')
     if (pillTop != null) figs.push(pillTop)
     if (bottomY !== topY) {

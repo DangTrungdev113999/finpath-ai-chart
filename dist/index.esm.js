@@ -16402,10 +16402,10 @@ var ellipse = {
             }
         }
     },
-    // ─── X-axis pills (date labels at the LEFT and RIGHT edges of the bbox) ───
+    // ─── X-axis: translucent strip spanning the bbox + pills at both edges ───
     createXAxisFigures: function (_a) {
         var _b, _c, _d, _e;
-        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding;
         if (coordinates.length < 2)
             return [];
         var ext = mergeExt(overlay.extendData);
@@ -16415,11 +16415,25 @@ var ellipse = {
         var _f = __read(coordinates, 2), c0 = _f[0], c1 = _f[1];
         var leftX = Math.min(c0.x, c1.x);
         var rightX = Math.max(c0.x, c1.x);
+        var stripWidth = rightX - leftX;
         var p0 = overlay.points[0];
         var p1 = overlay.points[1];
         var earlierTs = Math.min((_b = p0.timestamp) !== null && _b !== void 0 ? _b : 0, (_c = p1.timestamp) !== null && _c !== void 0 ? _c : 0);
         var laterTs = Math.max((_d = p0.timestamp) !== null && _d !== void 0 ? _d : 0, (_e = p1.timestamp) !== null && _e !== void 0 ? _e : 0);
         var figs = [];
+        // Translucent strip between the two pills
+        if (stripWidth > 0) {
+            figs.push({
+                key: 'e_xstrip',
+                type: 'rect',
+                attrs: { x: leftX, y: 0, width: stripWidth, height: bounding.height },
+                styles: {
+                    style: 'fill',
+                    color: alphaRgba(pillColor, 0.2)
+                },
+                ignoreEvent: true
+            });
+        }
         var dLeft = formatDate(earlierTs);
         var dRight = formatDate(laterTs);
         if (dLeft !== '')
@@ -16429,7 +16443,7 @@ var ellipse = {
         }
         return figs;
     },
-    // ─── Y-axis pills (price labels at the TOP and BOTTOM edges of the bbox) ───
+    // ─── Y-axis: translucent strip spanning the bbox + pills at both edges ───
     createYAxisFigures: function (_a) {
         var _b, _c;
         var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
@@ -16443,6 +16457,7 @@ var ellipse = {
         var _d = __read(coordinates, 2), c0 = _d[0], c1 = _d[1];
         var topY = Math.min(c0.y, c1.y);
         var bottomY = Math.max(c0.y, c1.y);
+        var stripHeight = bottomY - topY;
         var p0 = overlay.points[0];
         var p1 = overlay.points[1];
         var v0 = p0.value;
@@ -16452,6 +16467,19 @@ var ellipse = {
         var topVal = Math.max(v0, v1);
         var bottomVal = Math.min(v0, v1);
         var figs = [];
+        // Translucent strip between the two pills
+        if (stripHeight > 0) {
+            figs.push({
+                key: 'e_ystrip',
+                type: 'rect',
+                attrs: { x: 0, y: topY, width: bounding.width, height: stripHeight },
+                styles: {
+                    style: 'fill',
+                    color: alphaRgba(pillColor, 0.2)
+                },
+                ignoreEvent: true
+            });
+        }
         var pillTop = buildYAxisPill(topY, topVal, pillColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'e_y0');
         if (pillTop != null)
             figs.push(pillTop);
