@@ -12960,6 +12960,8 @@ var circle$1 = {
             var textSize = (_h = ext.textSize) !== null && _h !== void 0 ? _h : 14;
             var isBold = ext.isBold === true;
             var isItalic = ext.isItalic === true;
+            // Inscribed square for text wrap: side = r * √2 (largest rectangle inside circle)
+            var wrapSide = radius * Math.SQRT2;
             figures.push({
                 key: 'circle_text',
                 type: 'text',
@@ -12968,7 +12970,9 @@ var circle$1 = {
                     y: center.y,
                     text: text,
                     align: 'center',
-                    baseline: 'middle'
+                    baseline: 'middle',
+                    width: wrapSide,
+                    height: wrapSide
                 },
                 styles: {
                     color: textColor,

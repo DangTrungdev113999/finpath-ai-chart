@@ -129,6 +129,8 @@ const circle: OverlayTemplate<CircleExtendData> = {
       const isBold = ext.isBold === true
       const isItalic = ext.isItalic === true
 
+      // Inscribed square for text wrap: side = r * √2 (largest rectangle inside circle)
+      const wrapSide = radius * Math.SQRT2
       figures.push({
         key: 'circle_text',
         type: 'text',
@@ -137,7 +139,9 @@ const circle: OverlayTemplate<CircleExtendData> = {
           y: center.y,
           text,
           align: 'center' as CanvasTextAlign,
-          baseline: 'middle' as CanvasTextBaseline
+          baseline: 'middle' as CanvasTextBaseline,
+          width: wrapSide,
+          height: wrapSide
         },
         styles: {
           color: textColor,
