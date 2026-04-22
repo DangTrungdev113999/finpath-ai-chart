@@ -37,6 +37,7 @@ import {
   alphaRgba,
   isLightColor
 } from './math'
+import { buildXAxisPill, buildYAxisPill, formatDate } from '../lineCommon'
 
 export type {
   EllipseExtendData,
@@ -258,6 +259,62 @@ const ellipse: OverlayTemplate<EllipseExtendData> = {
       default:
         break
     }
+  },
+
+  // ─── X-axis pills (date labels at the LEFT and RIGHT edges of the bbox) ───
+  createXAxisFigures: ({ chart, overlay, coordinates }) => {
+    if (coordinates.length < 2) return []
+    const ext = mergeExt(overlay.extendData)
+    if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
+    const pillColor = ext.borderColor
+
+    const [c0, c1] = coordinates
+    const leftX = Math.min(c0.x, c1.x)
+    const rightX = Math.max(c0.x, c1.x)
+
+    const p0 = overlay.points[0]
+    const p1 = overlay.points[1]
+    const earlierTs = Math.min(p0.timestamp ?? 0, p1.timestamp ?? 0)
+    const laterTs = Math.max(p0.timestamp ?? 0, p1.timestamp ?? 0)
+
+    const figs: OverlayFigure[] = []
+    const dLeft = formatDate(earlierTs)
+    const dRight = formatDate(laterTs)
+    if (dLeft !== '') figs.push(buildXAxisPill(leftX, dLeft, pillColor, 'e_x0'))
+    if (dRight !== '' && rightX !== leftX) {
+      figs.push(buildXAxisPill(rightX, dRight, pillColor, 'e_x1'))
+    }
+    return figs
+  },
+
+  // ─── Y-axis pills (price labels at the TOP and BOTTOM edges of the bbox) ───
+  createYAxisFigures: ({ chart, overlay, coordinates, bounding, yAxis }) => {
+    if (coordinates.length < 2) return []
+    const ext = mergeExt(overlay.extendData)
+    if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod())) return []
+    const pillColor = ext.borderColor
+    const precision = chart.getSymbol()?.pricePrecision ?? 2
+
+    const [c0, c1] = coordinates
+    const topY = Math.min(c0.y, c1.y)
+    const bottomY = Math.max(c0.y, c1.y)
+
+    const p0 = overlay.points[0]
+    const p1 = overlay.points[1]
+    const v0 = p0.value
+    const v1 = p1.value
+    if (v0 == null || v1 == null) return []
+    const topVal = Math.max(v0, v1)
+    const bottomVal = Math.min(v0, v1)
+
+    const figs: OverlayFigure[] = []
+    const pillTop = buildYAxisPill(topY, topVal, pillColor, precision, bounding, yAxis ?? undefined, 'e_y0')
+    if (pillTop != null) figs.push(pillTop)
+    if (bottomY !== topY) {
+      const pillBot = buildYAxisPill(bottomY, bottomVal, pillColor, precision, bounding, yAxis ?? undefined, 'e_y1')
+      if (pillBot != null) figs.push(pillBot)
+    }
+    return figs
   }
 }
 

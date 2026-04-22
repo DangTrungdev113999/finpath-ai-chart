@@ -16401,6 +16401,66 @@ var ellipse = {
                 break;
             }
         }
+    },
+    // ─── X-axis pills (date labels at the LEFT and RIGHT edges of the bbox) ───
+    createXAxisFigures: function (_a) {
+        var _b, _c, _d, _e;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates;
+        if (coordinates.length < 2)
+            return [];
+        var ext = mergeExt(overlay.extendData);
+        if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
+            return [];
+        var pillColor = ext.borderColor;
+        var _f = __read(coordinates, 2), c0 = _f[0], c1 = _f[1];
+        var leftX = Math.min(c0.x, c1.x);
+        var rightX = Math.max(c0.x, c1.x);
+        var p0 = overlay.points[0];
+        var p1 = overlay.points[1];
+        var earlierTs = Math.min((_b = p0.timestamp) !== null && _b !== void 0 ? _b : 0, (_c = p1.timestamp) !== null && _c !== void 0 ? _c : 0);
+        var laterTs = Math.max((_d = p0.timestamp) !== null && _d !== void 0 ? _d : 0, (_e = p1.timestamp) !== null && _e !== void 0 ? _e : 0);
+        var figs = [];
+        var dLeft = formatDate(earlierTs);
+        var dRight = formatDate(laterTs);
+        if (dLeft !== '')
+            figs.push(buildXAxisPill(leftX, dLeft, pillColor, 'e_x0'));
+        if (dRight !== '' && rightX !== leftX) {
+            figs.push(buildXAxisPill(rightX, dRight, pillColor, 'e_x1'));
+        }
+        return figs;
+    },
+    // ─── Y-axis pills (price labels at the TOP and BOTTOM edges of the bbox) ───
+    createYAxisFigures: function (_a) {
+        var _b, _c;
+        var chart = _a.chart, overlay = _a.overlay, coordinates = _a.coordinates, bounding = _a.bounding, yAxis = _a.yAxis;
+        if (coordinates.length < 2)
+            return [];
+        var ext = mergeExt(overlay.extendData);
+        if (!isEllipseVisibleAtPeriod(ext, chart.getPeriod()))
+            return [];
+        var pillColor = ext.borderColor;
+        var precision = (_c = (_b = chart.getSymbol()) === null || _b === void 0 ? void 0 : _b.pricePrecision) !== null && _c !== void 0 ? _c : 2;
+        var _d = __read(coordinates, 2), c0 = _d[0], c1 = _d[1];
+        var topY = Math.min(c0.y, c1.y);
+        var bottomY = Math.max(c0.y, c1.y);
+        var p0 = overlay.points[0];
+        var p1 = overlay.points[1];
+        var v0 = p0.value;
+        var v1 = p1.value;
+        if (v0 == null || v1 == null)
+            return [];
+        var topVal = Math.max(v0, v1);
+        var bottomVal = Math.min(v0, v1);
+        var figs = [];
+        var pillTop = buildYAxisPill(topY, topVal, pillColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'e_y0');
+        if (pillTop != null)
+            figs.push(pillTop);
+        if (bottomY !== topY) {
+            var pillBot = buildYAxisPill(bottomY, bottomVal, pillColor, precision, bounding, yAxis !== null && yAxis !== void 0 ? yAxis : undefined, 'e_y1');
+            if (pillBot != null)
+                figs.push(pillBot);
+        }
+        return figs;
     }
 };
 
