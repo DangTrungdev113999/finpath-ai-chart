@@ -11,8 +11,6 @@ import type Coordinate from '../../../common/Coordinate'
 import type Point from '../../../common/Point'
 import type { KLineData } from '../../../common/Data'
 
-import { BEZIER_ARC_CAP, BEZIER_ARC_FACTOR } from './constants'
-
 // ==========================================================================
 // Status evaluation
 // ==========================================================================
@@ -64,35 +62,16 @@ export function resolveBarIndex (dataList: KLineData[], timestamp: number | unde
 // ==========================================================================
 
 /**
- * Compute a single quadratic Bezier control point perpendicular to the P1-P2 chord.
+ * Quadratic Bezier control point at the corner (c2.x, c1.y).
  *
- * Always bows AWAY from the candles (toward smaller canvas-Y = visually up)
- * regardless of direction — matches TradingView LineToolPrediction.
+ * Produces TradingView's LineToolPrediction signature:
+ *  - tangent at P1 is horizontal (curve extends along P1's level first)
+ *  - tangent at P2 is vertical (curve lands on P2 perpendicular to its level)
+ * Gives a quarter-ellipse that hugs the corner opposite the candles in both
+ * bullish and bearish layouts.
  */
 export function computeBezierControlPoint (c1: Coordinate, c2: Coordinate): Coordinate {
-  const mx = (c1.x + c2.x) / 2
-  const my = (c1.y + c2.y) / 2
-  const dx = c2.x - c1.x
-  const dy = c2.y - c1.y
-  const len = Math.hypot(dx, dy)
-  if (len === 0) return { x: mx, y: my }
-
-  // Perpendicular unit vector (90° CCW rotation of chord direction)
-  let px = -dy / len
-  let py = dx / len
-  // Force the perpendicular to point upward (negative canvas-Y) so the curve
-  // always bows away from the candles.
-  if (py > 0) {
-    px = -px
-    py = -py
-  }
-
-  const arc = Math.min(len * BEZIER_ARC_FACTOR, BEZIER_ARC_CAP)
-
-  return {
-    x: mx + px * arc,
-    y: my + py * arc
-  }
+  return { x: c2.x, y: c1.y }
 }
 
 /**

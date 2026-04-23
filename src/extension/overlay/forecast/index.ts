@@ -348,21 +348,20 @@ const forecast: OverlayTemplate<ForecastExtendData> = {
     }
 
     // ─── 5b. P2 arrow tip (small filled triangle pointing along curve tangent) ───
-    // Hidden when selected/hovered — hollow control-point circle covers this area.
-    if (!isActive) {
-      const tanAtP2 = quadBezierTangent(c1, cp, c2, 1)
-      const arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH)
-      figures.push({
-        key: 'fc_arrow',
-        type: 'polygon',
-        attrs: { coordinates: arrowPoly },
-        styles: {
-          style: 'fill',
-          color: lineColorAlpha
-        },
-        ignoreEvent: true
-      })
-    }
+    // Always drawn — matches TradingView where the arrow is visible in both
+    // selected and unselected states (the hollow CP ring sits on top of it).
+    const tanAtP2 = quadBezierTangent(c1, cp, c2, 1)
+    const arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH)
+    figures.push({
+      key: 'fc_arrow',
+      type: 'polygon',
+      attrs: { coordinates: arrowPoly },
+      styles: {
+        style: 'fill',
+        color: lineColorAlpha
+      },
+      ignoreEvent: true
+    })
 
     // ─── 6. Control points ───
     if (isActive) {

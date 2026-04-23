@@ -145,10 +145,6 @@ export const AXIS_STRIP_OPACITY = 0.15
 export const CURVE_HITBOX_HALF_WIDTH = 6
 export const CURVE_SAMPLES = 30
 
-// Bézier curvature
-export const BEZIER_ARC_FACTOR = 0.45
-export const BEZIER_ARC_CAP = 140
-
 // P2 arrow tip (small filled triangle at curve endpoint, matches TV)
 export const ARROW_LENGTH = 8
 export const ARROW_HALF_WIDTH = 5
