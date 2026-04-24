@@ -14596,9 +14596,6 @@ var AXIS_STRIP_OPACITY = 0.15;
 // Curve hitbox
 var CURVE_HITBOX_HALF_WIDTH = 6;
 var CURVE_SAMPLES = 30;
-// Bézier curvature
-var BEZIER_ARC_FACTOR = 0.45;
-var BEZIER_ARC_CAP = 140;
 // P2 arrow tip (small filled triangle at curve endpoint, matches TV)
 var ARROW_LENGTH = 8;
 var ARROW_HALF_WIDTH = 5;
@@ -14659,33 +14656,16 @@ function resolveBarIndex$1(dataList, timestamp) {
 // Bezier math (pixel space)
 // ==========================================================================
 /**
- * Compute a single quadratic Bezier control point perpendicular to the P1-P2 chord.
+ * Quadratic Bezier control point at the corner (c2.x, c1.y).
  *
- * Always bows AWAY from the candles (toward smaller canvas-Y = visually up)
- * regardless of direction — matches TradingView LineToolPrediction.
+ * Produces TradingView's LineToolPrediction signature:
+ *  - tangent at P1 is horizontal (curve extends along P1's level first)
+ *  - tangent at P2 is vertical (curve lands on P2 perpendicular to its level)
+ * Gives a quarter-ellipse that hugs the corner opposite the candles in both
+ * bullish and bearish layouts.
  */
 function computeBezierControlPoint(c1, c2) {
-    var mx = (c1.x + c2.x) / 2;
-    var my = (c1.y + c2.y) / 2;
-    var dx = c2.x - c1.x;
-    var dy = c2.y - c1.y;
-    var len = Math.hypot(dx, dy);
-    if (len === 0)
-        return { x: mx, y: my };
-    // Perpendicular unit vector (90° CCW rotation of chord direction)
-    var px = -dy / len;
-    var py = dx / len;
-    // Force the perpendicular to point upward (negative canvas-Y) so the curve
-    // always bows away from the candles.
-    if (py > 0) {
-        px = -px;
-        py = -py;
-    }
-    var arc = Math.min(len * BEZIER_ARC_FACTOR, BEZIER_ARC_CAP);
-    return {
-        x: mx + px * arc,
-        y: my + py * arc
-    };
+    return { x: c2.x, y: c1.y };
 }
 /**
  * Point on a quadratic Bezier at parameter t in [0, 1].
@@ -15114,21 +15094,20 @@ var forecast = {
             });
         }
         // ─── 5b. P2 arrow tip (small filled triangle pointing along curve tangent) ───
-        // Hidden when selected/hovered — hollow control-point circle covers this area.
-        if (!isActive) {
-            var tanAtP2 = quadBezierTangent(c1, cp, c2, 1);
-            var arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH);
-            figures.push({
-                key: 'fc_arrow',
-                type: 'polygon',
-                attrs: { coordinates: arrowPoly },
-                styles: {
-                    style: 'fill',
-                    color: lineColorAlpha
-                },
-                ignoreEvent: true
-            });
-        }
+        // Always drawn — matches TradingView where the arrow is visible in both
+        // selected and unselected states (the hollow CP ring sits on top of it).
+        var tanAtP2 = quadBezierTangent(c1, cp, c2, 1);
+        var arrowPoly = buildArrowPolygon(c2, tanAtP2, ARROW_LENGTH, ARROW_HALF_WIDTH);
+        figures.push({
+            key: 'fc_arrow',
+            type: 'polygon',
+            attrs: { coordinates: arrowPoly },
+            styles: {
+                style: 'fill',
+                color: lineColorAlpha
+            },
+            ignoreEvent: true
+        });
         // ─── 6. Control points ───
         if (isActive) {
             var tickTextColor = chart.getStyles().yAxis.tickText.color;

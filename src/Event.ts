@@ -274,6 +274,9 @@ export default class Event implements EventHandler {
       this._chart.getChartStore().zoom(scale, { x: event.x, y: event.y }, 'main')
       return true
     }
+    if (name === WidgetNameConstants.Y_AXIS) {
+      return this._processYAxisWheelScaleEvent(widget as Widget<DrawPane<YAxis>>, scale)
+    }
     return false
   }
 
@@ -752,6 +755,42 @@ export default class Event implements EventHandler {
       this._chart.updatePane(UpdateLevel.Overlay)
     }
     return consumed
+  }
+
+  private _processYAxisWheelScaleEvent (widget: Widget<DrawPane<YAxis>>, scale: number): boolean {
+    const yAxis = widget.getPane().getAxisComponent()
+    if (!yAxis.scrollZoomEnabled) {
+      return false
+    }
+    const range = yAxis.getRange()
+    // scale > 0 (wheel up) → multiplier < 1 → zoom IN (narrower price range)
+    // scale < 0 (wheel down) → multiplier > 1 → zoom OUT (broader price range)
+    const multiplier = 1 - scale * 0.08
+    const newRange = range.range * multiplier
+    const difRange = (newRange - range.range) / 2
+    const newFrom = range.from - difRange
+    const newTo = range.to + difRange
+    const newRealFrom = yAxis.valueToRealValue(newFrom, { range })
+    const newRealTo = yAxis.valueToRealValue(newTo, { range })
+    const newDisplayFrom = yAxis.realValueToDisplayValue(newRealFrom, { range })
+    const newDisplayTo = yAxis.realValueToDisplayValue(newRealTo, { range })
+    yAxis.setRange({
+      from: newFrom,
+      to: newTo,
+      range: newRange,
+      realFrom: newRealFrom,
+      realTo: newRealTo,
+      realRange: newRealTo - newRealFrom,
+      displayFrom: newDisplayFrom,
+      displayTo: newDisplayTo,
+      displayRange: newDisplayTo - newDisplayFrom
+    })
+    this._chart.layout({
+      measureWidth: true,
+      update: true,
+      buildYAxisTick: true
+    })
+    return true
   }
 
   private _processYAxisScaleStartEvent (widget: Widget<DrawPane<YAxis>>, event: MouseTouchEvent): boolean {
